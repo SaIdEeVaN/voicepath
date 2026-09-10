@@ -1,29 +1,26 @@
-# VoicePath backend -- Hugging Face Docker Space, free CPU tier.
+# VoicePath backend -- container image for any host that wants one.
 #
-# Two things here are load-bearing and easy to get wrong:
+# Render does not need this: pick "Python 3" as the Language there and it uses
+# the build and start commands instead. This exists for hosts that only take an
+# image, and it deliberately matches the same slim dependency set.
 #
-# 1. Torch is installed from the CPU index FIRST. Left to itself, pip resolves
-#    sentence-transformers' torch dependency to the CUDA build -- several GB of
-#    NVIDIA runtime on a tier that has no GPU, which overruns the image budget
-#    for no benefit.
-#
-# 2. Models are baked in at build time rather than fetched on first request.
-#    Free Spaces sleep when idle, and a cold start that also has to download
-#    1.1GB of embedding weights is a request that times out rather than a
-#    request that is merely slow.
+# Nothing here installs torch. Embeddings run through the Hugging Face
+# Inference API (EMBEDDING_PROVIDER=hf_api) against the same
+# multilingual-e5-base the database was embedded with -- measured cosine 1.0000
+# against the local model, so stored vectors stay valid. That drops the image
+# from ~1.16GB to ~300MB, which is the difference between fitting a free tier
+# and not.
 
 FROM python:3.11-slim
 
-# Spaces run the container as uid 1000. Writing the model cache anywhere else
-# fails at runtime with a permission error that reads like a network problem.
 RUN useradd -m -u 1000 user
+
 ENV HOME=/home/user \
     PATH=/home/user/.local/bin:$PATH \
-    HF_HOME=/home/user/.cache/huggingface \
     PYTHONUNBUFFERED=1
 
-# libgomp is OpenMP, which torch and onnxruntime both link against; the slim
-# image does not carry it and the failure surfaces as an import error.
+# libgomp is OpenMP, which onnxruntime links against; the slim image does not
+# carry it and the failure surfaces as an import error at runtime.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends libgomp1 \
     && rm -rf /var/lib/apt/lists/*
@@ -35,22 +32,14 @@ WORKDIR /app
 
 USER user
 
-COPY --chown=user requirements.txt requirements-ml.txt ./
-
-# CPU wheel explicitly. See note 1 above.
-RUN pip install --no-cache-dir --user torch==2.14.0 \
-        --index-url https://download.pytorch.org/whl/cpu \
-    && pip install --no-cache-dir --user -r requirements-ml.txt
+COPY --chown=user requirements.txt requirements-deploy.txt ./
+RUN pip install --no-cache-dir --user -r requirements-deploy.txt
 
 COPY --chown=user . .
 
-# Bake the embedding model and the Piper voices into the image. See note 2.
-RUN python -c "\
-from sentence_transformers import SentenceTransformer; \
-SentenceTransformer('intfloat/multilingual-e5-base')" \
-    && python -m app.scripts.fetch_voices
+# Piper voices, ~182MB. Baked in so a cold start does not also download them.
+RUN python -m app.scripts.fetch_voices
 
-# Must match `app_port` in the Space README front matter.
-EXPOSE 7860
-
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "7860"]
+# Hosts that inject $PORT override this; 8000 is the local default.
+ENV PORT=8000
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT}"]
