@@ -54,8 +54,10 @@ const EMPTY: StoredState = {
 
 interface SessionContextValue extends StoredState {
   health: HealthResponse | null;
-  /** True once the health call has failed: the API is not reachable at all. */
+  /** True once every health attempt has failed: a real outage. */
   healthUnreachable: boolean;
+  /** True while retrying: the backend is probably still waking up. */
+  healthWaking: boolean;
   setLanguage(language: Language): void;
   setSession(sessionId: string, transcript: string, language: Language): void;
   setUnderstanding(
@@ -90,6 +92,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   const [health, setHealth] = useState<HealthResponse | null>(null);
   const [healthUnreachable, setHealthUnreachable] = useState(false);
+  const [healthWaking, setHealthWaking] = useState(false);
 
   useEffect(() => {
     setState(read());
@@ -105,27 +108,41 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     }
   }, [state, hydrated]);
 
-  // One health call per visit tells the UI whether to announce degraded mode
-  // and whether to record server-side or on-device.
+  // Health, with retries. A free-tier host suspends the backend when idle and
+  // takes 30-60s to wake, so a single failed call says "unreachable" about a
+  // server that is merely asleep. Retrying with backoff covers the wake-up, and
+  // `healthWaking` lets screens say "starting up" rather than "broken" while it
+  // happens -- a distinction the person waiting can act on.
   useEffect(() => {
     let cancelled = false;
-    api
-      .health()
-      .then((result) => {
-        if (!cancelled) {
-          setHealth(result);
-          setHealthUnreachable(false);
-        }
-      })
-      .catch(() => {
-        // A null `health` alone is indistinguishable from "still loading", and
-        // screens disable the microphone while it is null. Record the failure
-        // so they can say why instead of looking merely slow.
-        if (!cancelled) {
+
+    const attempt = async (remaining: number, delayMs: number): Promise<void> => {
+      try {
+        const result = await api.health();
+        if (cancelled) return;
+        setHealth(result);
+        setHealthUnreachable(false);
+        setHealthWaking(false);
+      } catch {
+        if (cancelled) return;
+        if (remaining <= 0) {
+          // Out of attempts: this is a real outage, not a slow start.
           setHealth(null);
+          setHealthWaking(false);
           setHealthUnreachable(true);
+          return;
         }
-      });
+        setHealthWaking(true);
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        if (cancelled) return;
+        // Backoff, capped so a long outage does not stretch to minutes between
+        // tries while someone is watching the screen.
+        return attempt(remaining - 1, Math.min(delayMs * 1.6, 12000));
+      }
+    };
+
+    void attempt(6, 2000);
+
     return () => {
       cancelled = true;
     };
@@ -181,6 +198,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       ...state,
       health,
       healthUnreachable,
+      healthWaking,
       setLanguage,
       setSession,
       setUnderstanding,
@@ -193,6 +211,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       state,
       health,
       healthUnreachable,
+      healthWaking,
       setLanguage,
       setSession,
       setUnderstanding,

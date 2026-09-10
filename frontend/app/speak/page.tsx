@@ -33,7 +33,8 @@ type Phase = "idle" | "listening" | "working" | "error";
 
 export default function SpeakPage() {
   const router = useRouter();
-  const { language, setSession, health, healthUnreachable } = useSession();
+  const { language, setSession, health, healthUnreachable, healthWaking } =
+    useSession();
   const copy = copyFor(language);
 
   const [phase, setPhase] = useState<Phase>("idle");
@@ -246,6 +247,16 @@ export default function SpeakPage() {
           </span>
         )}
       </div>
+
+      {healthWaking && !error && (
+        <div
+          className="w-full max-w-[560px] text-center text-[13.5px]"
+          style={{ color: "var(--ink-55)" }}
+          lang={language}
+        >
+          {copy.serverWaking}
+        </div>
+      )}
 
       {(error || healthUnreachable) && (
         <div className="w-full max-w-[560px]">

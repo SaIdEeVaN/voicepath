@@ -25,6 +25,7 @@ export interface Copy {
   micDenied: string;
   micUnsupported: string;
   serverUnreachable: string;
+  serverWaking: string;
   /* Understanding */
   weHeard: string;
   weHeardSub: string;
@@ -92,6 +93,7 @@ const en: Copy = {
   micUnsupported: "This browser cannot record. Try Chrome, or type what you do instead.",
   serverUnreachable:
     "VoicePath cannot reach its server, so the microphone is off. Start the backend and reload.",
+  serverWaking: "Starting up. This takes about a minute the first time.",
   weHeard: "This is what I understood.",
   weHeardSub:
     "Change anything that is wrong. Every line shows the words you actually said.",
@@ -158,6 +160,7 @@ const ta: Copy = {
     "இந்த உலாவியில் பதிவு செய்ய முடியாது. Chrome பயன்படுத்துங்கள், அல்லது தட்டச்சு செய்யுங்கள்.",
   serverUnreachable:
     "VoicePath சேவையகத்தை அடைய முடியவில்லை, அதனால் மைக்ரோஃபோன் இயங்கவில்லை. சேவையகத்தைத் தொடங்கி மீண்டும் ஏற்றுங்கள்.",
+  serverWaking: "தொடங்குகிறது. முதல் முறை ஒரு நிமிடம் ஆகும்.",
   weHeard: "நான் புரிந்துகொண்டது இதுதான்.",
   weHeardSub:
     "தவறு இருந்தால் மாற்றுங்கள். ஒவ்வொரு வரியிலும் நீங்கள் சொன்ன வார்த்தைகள் இருக்கும்.",
@@ -222,6 +225,7 @@ const hi: Copy = {
   micUnsupported: "यह ब्राउज़र रिकॉर्ड नहीं कर सकता। Chrome आज़माइए, या टाइप कीजिए।",
   serverUnreachable:
     "VoicePath अपने सर्वर तक नहीं पहुँच पा रहा, इसलिए माइक बंद है। बैकएंड चालू कीजिए और पेज दोबारा खोलिए।",
+  serverWaking: "शुरू हो रहा है। पहली बार में करीब एक मिनट लगता है।",
   weHeard: "मैंने यही समझा।",
   weHeardSub: "जो गलत है उसे बदल दीजिए। हर पंक्ति में आपके ही कहे शब्द दिख रहे हैं।",
   confirm: "यह सही है",
