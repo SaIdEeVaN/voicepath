@@ -12,16 +12,16 @@
  * than a wall telling them to go back and record something.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 
 import { DegradedNote, ErrorNote } from "@/components/Notices";
 import { MatchRing } from "@/components/MatchRing";
 import { ApiError, api } from "@/lib/api";
-import { copyFor } from "@/lib/i18n";
+import { copyFor, typeLabel } from "@/lib/i18n";
 import { useSession } from "@/lib/session";
-import type { MatchResult, OpportunitySummary } from "@/lib/types";
+import type { Language, MatchResult, OpportunitySummary } from "@/lib/types";
 
 export default function OpportunitiesPage() {
   const router = useRouter();
@@ -35,6 +35,11 @@ export default function OpportunitiesPage() {
   const reduceMotion = useReducedMotion();
 
   useEffect(() => setHydrated(true), []);
+
+  // Which language the matches on screen were explained in. Explanations are
+  // generated per request, so switching language has to re-ask the server --
+  // a re-render cannot translate a sentence that was written days ago.
+  const explainedIn = useRef<string | null>(null);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -59,12 +64,16 @@ export default function OpportunitiesPage() {
       };
     }
 
-    if (matches.length > 0) return;
+    if (matches.length > 0 && explainedIn.current === language) return;
 
     setLoading(true);
     api
-      .match(sessionId)
-      .then((result) => !cancelled && setMatches(result.matches))
+      .match(sessionId, language)
+      .then((result) => {
+        if (cancelled) return;
+        explainedIn.current = language;
+        setMatches(result.matches);
+      })
       .catch((cause: unknown) => {
         if (!cancelled) {
           setError(
@@ -77,7 +86,7 @@ export default function OpportunitiesPage() {
     return () => {
       cancelled = true;
     };
-  }, [hydrated, sessionId, skills.length, matches.length, setMatches]);
+  }, [hydrated, sessionId, skills.length, matches.length, language, setMatches]);
 
   const open = useCallback(
     (id: number) => router.push(`/opportunities/${id}`),
@@ -139,6 +148,7 @@ export default function OpportunitiesPage() {
             ))
           : (browse ?? []).map((opportunity) => (
               <BrowseRow
+                language={language}
                 key={opportunity.id}
                 opportunity={opportunity}
                 onOpen={() => open(opportunity.id)}
@@ -241,9 +251,11 @@ function MatchRow({
 
 function BrowseRow({
   opportunity,
+  language,
   onOpen,
 }: {
   opportunity: OpportunitySummary;
+  language: Language;
   onOpen(): void;
 }) {
   return (
@@ -261,7 +273,11 @@ function BrowseRow({
           {opportunity.title}
         </h2>
         <p className="mt-1.5 text-[13.5px]" style={{ color: "var(--ink-55)" }}>
-          {[opportunity.organization, opportunity.location, opportunity.type].join(
+          {[
+            opportunity.organization,
+            opportunity.location,
+            typeLabel(opportunity.type, language),
+          ].join(
             " · ",
           )}
         </p>

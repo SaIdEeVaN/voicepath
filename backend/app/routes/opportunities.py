@@ -64,7 +64,9 @@ async def match(payload: schemas.MatchRequest) -> schemas.MatchResponse:
 
     explanations: dict[int, explanation.Explanation] = {}
     if payload.explain:
-        explanations = await explanation.explain_many(ranked, language=language)
+        explanations = await explanation.explain_many(
+            ranked, language=(payload.language or language)
+        )
 
     if payload.session_id is not None:
         await repository.replace_matches(payload.session_id, ranked, explanations)

@@ -133,10 +133,16 @@ export const api = {
       sessionId,
     ),
 
-  match: (sessionId: string) =>
+  // `language` is the one being read, which is not always the one that was
+  // spoken: explanations are generated per request, so a language switch has
+  // to re-ask rather than re-render.
+  match: (sessionId: string, language: Language) =>
     request<MatchResponse>(
       "/api/opportunities/match",
-      { method: "POST", body: JSON.stringify({ session_id: sessionId }) },
+      {
+        method: "POST",
+        body: JSON.stringify({ session_id: sessionId, language }),
+      },
       sessionId,
     ),
 

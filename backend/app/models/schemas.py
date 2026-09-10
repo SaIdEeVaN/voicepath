@@ -195,6 +195,10 @@ class MatchRequest(Base):
     skills: list[ExtractedSkill] | None = None
     limit: int | None = None
     explain: bool = True
+    # The language to explain in. Absent, the session's detected language is
+    # used -- but that is the language of the recording, not necessarily the
+    # one the person is reading the page in.
+    language: str | None = None
 
 
 class MatchResponse(Base):

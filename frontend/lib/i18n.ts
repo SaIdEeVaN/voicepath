@@ -59,6 +59,7 @@ export interface Copy {
   noMatches: string;
   back: string;
   apply: string;
+  opportunityTypes: Record<string, string>;
   applyHow: string;
   applyRefLabel: string;
   applyNote: string;
@@ -125,6 +126,13 @@ const en: Copy = {
   noMatches: "Nothing here fits your work yet. Tell me more about what you do.",
   back: "Back",
   apply: "I want this",
+  opportunityTypes: {
+    "Full-time": "Full-time",
+    "Part-time": "Part-time",
+    Training: "Training",
+    Apprenticeship: "Apprenticeship",
+    "Self-employment support": "Self-employment support",
+  },
   applyHow: "How to ask for this work",
   applyRefLabel: "Say this number at the office",
   applyNote:
@@ -192,6 +200,13 @@ const ta: Copy = {
   noMatches: "உங்கள் வேலைக்கு இங்கு இன்னும் எதுவும் பொருந்தவில்லை. இன்னும் சொல்லுங்கள்.",
   back: "பின்னால்",
   apply: "இது வேண்டும்",
+  opportunityTypes: {
+    "Full-time": "முழு நேரம்",
+    "Part-time": "பகுதி நேரம்",
+    Training: "பயிற்சி",
+    Apprenticeship: "பயிற்சிப் பணி",
+    "Self-employment support": "சொந்தத் தொழில் உதவி",
+  },
   applyHow: "இந்த வேலையை எப்படிக் கேட்பது",
   applyRefLabel: "அலுவலகத்தில் இந்த எண்ணைச் சொல்லுங்கள்",
   applyNote:
@@ -256,6 +271,13 @@ const hi: Copy = {
   noMatches: "अभी यहाँ आपके काम से कुछ नहीं मिलता। अपने काम के बारे में और बताइए।",
   back: "वापस",
   apply: "मुझे यह चाहिए",
+  opportunityTypes: {
+    "Full-time": "पूरा समय",
+    "Part-time": "आंशिक समय",
+    Training: "प्रशिक्षण",
+    Apprenticeship: "शिक्षुता",
+    "Self-employment support": "स्वरोज़गार सहायता",
+  },
   applyHow: "यह काम कैसे माँगें",
   applyRefLabel: "दफ़्तर में यह नंबर बताइए",
   applyNote:
@@ -319,4 +341,9 @@ export function skillLabel(
 /** BCP-47 tag for `lang` attributes and the Web Speech API. */
 export function localeFor(language: Language): string {
   return { ta: "ta-IN", hi: "hi-IN", en: "en-IN" }[language];
+}
+
+/** Localised label for an opportunity type. Unknown values pass through. */
+export function typeLabel(type: string, language: Language): string {
+  return copyFor(language).opportunityTypes[type] ?? type;
 }

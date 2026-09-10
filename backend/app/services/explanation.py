@@ -13,6 +13,7 @@ place where losing the LLM costs fluency rather than trustworthiness.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import dataclass
 
@@ -129,14 +130,28 @@ async def explain(match: ScoredMatch, *, language: str = "en") -> Explanation:
     return explain_offline(match, language=language)
 
 
+# Bounded so a full result page does not open one request per match at once
+# and trip a provider rate limit. Four keeps a page of eight to two rounds.
+_EXPLAIN_CONCURRENCY = 4
+
+
 async def explain_many(
     matches: list[ScoredMatch], *, language: str = "en"
 ) -> dict[int, Explanation]:
-    """Explain a ranked list. Order in, order out -- unchanged."""
-    out: dict[int, Explanation] = {}
-    for match in matches:
-        out[match.opportunity.id] = await explain(match, language=language)
-    return out
+    """Explain a ranked list.
+
+    Concurrent, because these were sequential and a page of eight meant eight
+    round trips end to end. The ranking is already fixed before this is called,
+    and the result is keyed by opportunity id, so the order calls complete in
+    cannot influence anything.
+    """
+    limit = asyncio.Semaphore(_EXPLAIN_CONCURRENCY)
+
+    async def one(match: ScoredMatch) -> tuple[int, Explanation]:
+        async with limit:
+            return match.opportunity.id, await explain(match, language=language)
+
+    return dict(await asyncio.gather(*(one(m) for m in matches)))
 
 
 async def _explain_with_llm(match: ScoredMatch, *, language: str) -> Explanation:
