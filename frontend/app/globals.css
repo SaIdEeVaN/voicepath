@@ -1,0 +1,256 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   VoicePath theme layer (PRD section 2).
+
+   Every colour, type step and radius in the product is named here. Pages and
+   components reference the token, never the value -- that is the shared
+   styling contract, and it is what lets the visual direction be revised
+   without touching extraction, normalization or matching.
+
+   Values are lifted from the design canvas so the build matches the mockup.
+--------------------------------------------------------------------------- */
+
+@theme {
+  /* -- Surface ----------------------------------------------------------- */
+  --color-paper: #f6f3ec;
+  --color-surface: #fffdf8;
+  --color-ink: #16130f;
+
+  /* -- Accent ------------------------------------------------------------
+     A muted, earthy green. Deliberately not a saturated "AI product" hue:
+     this sits next to a person's account of their own working life. */
+  --color-accent: oklch(0.55 0.09 140);
+  --color-accent-deep: oklch(0.48 0.09 140);
+  --color-accent-alt: oklch(0.55 0.09 195);
+
+  /* -- Signal -------------------------------------------------------------
+     Uncertainty is amber, never red. Being unsure about a skill is a normal
+     part of listening to someone, not an error they committed. */
+  --color-caution: oklch(0.68 0.12 80);
+  --color-caution-mark: oklch(0.62 0.13 75);
+  --color-caution-ink: oklch(0.42 0.09 70);
+  --color-danger: oklch(0.5 0.13 25);
+
+  /* -- Type --------------------------------------------------------------
+     Display carries the personality; body stays quiet. Anek covers Tamil and
+     Devanagari so a Tamil headline has the same presence as an English one
+     rather than falling back to a system face. */
+  --font-display: "Bricolage Grotesque", "Anek Tamil", "Anek Devanagari",
+    system-ui, sans-serif;
+  --font-sans: "Instrument Sans", "Anek Tamil", "Anek Devanagari", system-ui,
+    sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* -- Radius ------------------------------------------------------------ */
+  --radius-card: 14px;
+  --radius-panel: 16px;
+  --radius-passport: 20px;
+}
+
+/* Ink at partial strength. Written as rgb() with a shared channel triple so
+   opacity steps stay exactly on-hue -- which colour-mix does not guarantee. */
+:root {
+  --ink-rgb: 22 19 15;
+  --paper-rgb: 246 243 236;
+
+  --ink-90: rgb(var(--ink-rgb) / 0.9);
+  --ink-80: rgb(var(--ink-rgb) / 0.8);
+  --ink-70: rgb(var(--ink-rgb) / 0.7);
+  --ink-62: rgb(var(--ink-rgb) / 0.62);
+  --ink-55: rgb(var(--ink-rgb) / 0.55);
+  --ink-45: rgb(var(--ink-rgb) / 0.45);
+  --ink-38: rgb(var(--ink-rgb) / 0.38);
+  --ink-22: rgb(var(--ink-rgb) / 0.22);
+  --ink-12: rgb(var(--ink-rgb) / 0.12);
+  --ink-09: rgb(var(--ink-rgb) / 0.09);
+  --ink-06: rgb(var(--ink-rgb) / 0.06);
+  --ink-04: rgb(var(--ink-rgb) / 0.04);
+  --ink-03: rgb(var(--ink-rgb) / 0.032);
+
+  --paper-20: rgb(var(--paper-rgb) / 0.2);
+  --paper-12: rgb(var(--paper-rgb) / 0.12);
+  --paper-08: rgb(var(--paper-rgb) / 0.08);
+  --paper-05: rgb(var(--paper-rgb) / 0.05);
+  --paper-40: rgb(var(--paper-rgb) / 0.4);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  button {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+  }
+
+  input,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--color-accent) 18%, transparent);
+  }
+
+  /* Keyboard focus must stay visible everywhere. The interface is voice-first,
+     which is a reason to be careful about the keyboard path, not to neglect it. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  /* Tamil and Devanagari sit differently on the line than Latin; without this
+     a mixed paragraph looks like two paragraphs. */
+  :lang(ta),
+  :lang(hi) {
+    line-height: 1.55;
+  }
+}
+
+@layer components {
+  .vp-display {
+    font-family: var(--font-display);
+    font-weight: 500;
+    letter-spacing: -0.03em;
+    line-height: 1.08;
+    text-wrap: pretty;
+  }
+
+  /* The one place the type is allowed to be loud: the opening statement. */
+  .vp-statement {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: clamp(2.5rem, 5.4vw, 4.875rem);
+    line-height: 1.14;
+    letter-spacing: -0.035em;
+    text-wrap: pretty;
+  }
+
+  .vp-label {
+    font-family: var(--font-mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.08em;
+    color: var(--ink-45);
+  }
+
+  .vp-card {
+    background: var(--color-surface);
+    border: 1px solid var(--ink-09);
+    border-radius: var(--radius-card);
+  }
+
+  .vp-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-radius: 999px;
+    padding: 0.9rem 1.6rem;
+    font-size: 0.94rem;
+    font-weight: 500;
+    transition: transform 0.16s ease, background 0.16s ease;
+  }
+
+  .vp-pill-primary {
+    background: var(--color-accent);
+    color: var(--color-paper);
+  }
+
+  .vp-pill-primary:hover {
+    transform: translateY(-1px);
+    background: var(--color-accent-deep);
+  }
+
+  .vp-pill-quiet {
+    background: var(--ink-06);
+    color: var(--color-ink);
+  }
+
+  .vp-pill-quiet:hover {
+    background: var(--ink-12);
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Motion
+
+   Two named animations, both earning their place: the mic breathes so an
+   idle screen reads as ready to listen, and an answer rises as it arrives so
+   the person can see which message is new. Everything else is a response to
+   something they did.
+--------------------------------------------------------------------------- */
+
+@keyframes vp-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.18);
+    opacity: 0;
+  }
+}
+
+@keyframes vp-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes vp-caret {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  55%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.vp-breathe {
+  animation: vp-breathe 3.4s ease-out infinite;
+}
+
+.vp-rise {
+  animation: vp-rise 0.4s ease both;
+}
+
+.vp-caret {
+  animation: vp-caret 1s step-end infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -1,0 +1,20 @@
+# Secrets never enter the image. On a public Space the built layers are
+# inspectable, so a copied .env is a published .env. Configuration comes from
+# the Space's Settings -> Secrets panel at runtime instead.
+.env
+.env.*
+!.env.example
+
+# Fetched during the build by app.scripts.fetch_voices. Copying the local copy
+# would add ~182MB to the build context for files the image rebuilds anyway.
+models/
+
+# Local caches and test artefacts.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+tests/
+*.log

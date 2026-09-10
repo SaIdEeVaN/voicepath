@@ -1,0 +1,21 @@
+# This directory is pushed to a Hugging Face Space as its own git repo, so the
+# project root's .gitignore does not apply here. Without this file, `git add .`
+# stages .env -- and a public Space publishes whatever it is given.
+.env
+.env.*
+!.env.example
+
+# Model weights and voices. Fetched during the Docker build; ~1.3GB if committed.
+models/
+.cache/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+
+*.log

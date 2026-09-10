@@ -1,0 +1,274 @@
+"use client";
+
+/**
+ * Ranked opportunity feed (PRD section 5).
+ *
+ * Not a job-board card grid (section 2 rules that out). Each row is a full-
+ * width statement: how well it fits, what it is, and why -- with the "why"
+ * given equal weight to the title, because the reason is the product.
+ *
+ * Opened without a session this still works, showing the catalogue unranked.
+ * Someone who arrives from a link should see what exists near them rather
+ * than a wall telling them to go back and record something.
+ */
+
+import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { motion, useReducedMotion } from "framer-motion";
+
+import { DegradedNote, ErrorNote } from "@/components/Notices";
+import { MatchRing } from "@/components/MatchRing";
+import { ApiError, api } from "@/lib/api";
+import { copyFor } from "@/lib/i18n";
+import { useSession } from "@/lib/session";
+import type { MatchResult, OpportunitySummary } from "@/lib/types";
+
+export default function OpportunitiesPage() {
+  const router = useRouter();
+  const { language, sessionId, skills, matches, setMatches } = useSession();
+  const copy = copyFor(language);
+
+  const [browse, setBrowse] = useState<OpportunitySummary[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+  const reduceMotion = useReducedMotion();
+
+  useEffect(() => setHydrated(true), []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    let cancelled = false;
+
+    // No session: show the catalogue rather than an empty screen.
+    if (!sessionId || skills.length === 0) {
+      setLoading(true);
+      api
+        .opportunities()
+        .then((result) => !cancelled && setBrowse(result))
+        .catch((cause: unknown) => {
+          if (!cancelled) {
+            setError(
+              cause instanceof ApiError ? cause.message : "Something went wrong.",
+            );
+          }
+        })
+        .finally(() => !cancelled && setLoading(false));
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    if (matches.length > 0) return;
+
+    setLoading(true);
+    api
+      .match(sessionId)
+      .then((result) => !cancelled && setMatches(result.matches))
+      .catch((cause: unknown) => {
+        if (!cancelled) {
+          setError(
+            cause instanceof ApiError ? cause.message : "Something went wrong.",
+          );
+        }
+      })
+      .finally(() => !cancelled && setLoading(false));
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrated, sessionId, skills.length, matches.length, setMatches]);
+
+  const open = useCallback(
+    (id: number) => router.push(`/opportunities/${id}`),
+    [router],
+  );
+
+  if (!hydrated) return null;
+
+  const ranked = matches.length > 0;
+
+  return (
+    <section className="mx-auto w-full max-w-[1080px] flex-1 px-[7vw] py-[clamp(2rem,5vw,3.5rem)] pb-20">
+      <DegradedNote />
+
+      <h1
+        className="vp-display max-w-[20em] text-[clamp(1.875rem,3.4vw,2.875rem)]"
+        lang={language}
+      >
+        {loading ? copy.loading : copy.matchesTitle}
+      </h1>
+      <p
+        className="mt-3 max-w-[36em] text-[14.5px] leading-relaxed"
+        style={{ color: "var(--ink-55)" }}
+        lang={language}
+      >
+        {ranked ? copy.matchesSub : copy.fromRecord}
+      </p>
+
+      {error && (
+        <div className="mt-8 max-w-[46em]">
+          <ErrorNote message={error} />
+        </div>
+      )}
+
+      <div className="mt-10 flex flex-col gap-3">
+        {/* The one orchestrated moment in the product: results arriving in
+            rank order, best first. It shows that the list is ordered, which a
+            simultaneous appearance does not. Suppressed when the person has
+            asked for reduced motion. */}
+        {ranked
+          ? matches.map((match, index) => (
+              <motion.div
+                key={match.opportunity.id}
+                initial={reduceMotion ? false : { opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{
+                  duration: 0.32,
+                  delay: reduceMotion ? 0 : Math.min(index * 0.07, 0.5),
+                  ease: [0.22, 1, 0.36, 1],
+                }}
+                className="flex"
+              >
+                <MatchRow
+                  match={match}
+                  language={language}
+                  onOpen={() => open(match.opportunity.id)}
+                />
+              </motion.div>
+            ))
+          : (browse ?? []).map((opportunity) => (
+              <BrowseRow
+                key={opportunity.id}
+                opportunity={opportunity}
+                onOpen={() => open(opportunity.id)}
+              />
+            ))}
+
+        {!loading && !ranked && (browse?.length ?? 0) === 0 && (
+          <p className="text-[15px]" style={{ color: "var(--ink-62)" }} lang={language}>
+            {copy.noMatches}
+          </p>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function payLabel(o: OpportunitySummary): string {
+  if (o.salary_min && o.salary_max) {
+    return o.salary_min === o.salary_max
+      ? `₹${o.salary_min.toLocaleString("en-IN")}`
+      : `₹${o.salary_min.toLocaleString("en-IN")}–${o.salary_max.toLocaleString("en-IN")}`;
+  }
+  if (o.salary_max) return `up to ₹${o.salary_max.toLocaleString("en-IN")}`;
+  if (o.salary_min) return `from ₹${o.salary_min.toLocaleString("en-IN")}`;
+  return "—";
+}
+
+function MatchRow({
+  match,
+  language,
+  onOpen,
+}: {
+  match: MatchResult;
+  language: string;
+  onOpen(): void;
+}) {
+  const o = match.opportunity;
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="flex w-full items-start gap-7 rounded-[16px] p-7 text-left transition-all hover:-translate-y-0.5"
+      style={{
+        background: "var(--color-surface)",
+        border: "1px solid var(--ink-09)",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = "var(--ink-22)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = "var(--ink-09)";
+      }}
+    >
+      <MatchRing score={match.overall_score} />
+
+      <div className="flex min-w-0 flex-1 flex-col gap-3">
+        <div>
+          <h2 className="font-display text-2xl leading-tight tracking-[-0.025em]">
+            {o.title}
+          </h2>
+          <p className="mt-1.5 text-[13.5px]" style={{ color: "var(--ink-55)" }}>
+            {[o.organization, o.location, o.type].join(" · ")}
+          </p>
+        </div>
+
+        {/* The reasons, not a description. Each is grounded in something the
+            person said or something the listing states. */}
+        <ul className="flex flex-col gap-1.5">
+          {match.explanation_bullets.slice(0, 3).map((bullet, index) => (
+            <li
+              key={index}
+              className="flex items-start gap-2.5 text-[14.5px] leading-snug"
+              style={{ color: "var(--ink-80)" }}
+              lang={language}
+            >
+              <span
+                className="mt-2 h-[5px] w-[5px] flex-none rounded-full"
+                style={{ background: "var(--color-accent)" }}
+              />
+              {bullet}
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <div className="flex flex-none flex-col items-end gap-2 text-right">
+        <span className="font-display whitespace-nowrap text-[19px] tracking-[-0.02em]">
+          {payLabel(o)}
+        </span>
+        <span
+          className="font-mono whitespace-nowrap rounded px-2 py-1 text-[11px] tracking-[0.06em]"
+          style={{ background: "var(--ink-04)", color: "var(--ink-45)" }}
+        >
+          {o.type}
+        </span>
+      </div>
+    </button>
+  );
+}
+
+function BrowseRow({
+  opportunity,
+  onOpen,
+}: {
+  opportunity: OpportunitySummary;
+  onOpen(): void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="flex items-center gap-7 rounded-[16px] p-6 text-left transition-all hover:-translate-y-0.5"
+      style={{
+        background: "var(--color-surface)",
+        border: "1px solid var(--ink-09)",
+      }}
+    >
+      <div className="min-w-0 flex-1">
+        <h2 className="font-display text-xl leading-tight tracking-[-0.025em]">
+          {opportunity.title}
+        </h2>
+        <p className="mt-1.5 text-[13.5px]" style={{ color: "var(--ink-55)" }}>
+          {[opportunity.organization, opportunity.location, opportunity.type].join(
+            " · ",
+          )}
+        </p>
+      </div>
+      <span className="font-display whitespace-nowrap text-[17px] tracking-[-0.02em]">
+        {payLabel(opportunity)}
+      </span>
+    </button>
+  );
+}

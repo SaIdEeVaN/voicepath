@@ -1,0 +1,23 @@
+# Local, open-source models. Everything here runs on the CPU and needs no key.
+#
+# Large: torch alone is ~2GB, and the model weights add ~3GB on first use.
+# Without these the API still runs -- speech falls back to the browser's own
+# recognition and synthesis, and embeddings fall back to deterministic hashing.
+# /health always says which path is live.
+#
+# Model downloads on first use, cached under ~/.cache:
+#   faster-whisper medium (int8)   ~800MB   speech to text
+#   multilingual-e5-base            ~1.1GB  taxonomy embeddings
+#   ai4bharat/IndicNER              ~1GB    entity tagging (optional)
+# Piper voices are fetched by scripts/fetch_voices.py into models/piper (~190MB).
+
+-r requirements.txt
+
+# Speech to text -- faster-whisper, MIT (CTranslate2 build of Whisper).
+faster-whisper==1.2.1
+
+# Text to speech -- Piper, MIT. Bundles espeak-ng data, so no system package.
+piper-tts==1.8.0
+
+# Embeddings (multilingual-e5) and entity tagging (IndicNER) both ride on this.
+sentence-transformers==3.3.1

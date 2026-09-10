@@ -1,0 +1,157 @@
+/**
+ * Wire types. These mirror `backend/app/models/schemas.py` exactly -- if you
+ * change one, change the other.
+ */
+
+export type Language = "ta" | "hi" | "en";
+export type LanguageOrAuto = Language | "auto";
+
+export interface SkillCandidate {
+  id: number;
+  code: string;
+  name: string;
+  category: string;
+  hint: string | null;
+  similarity: number;
+  /** {"en": ..., "ta": ..., "hi": ...}. Use `skillLabel` to read it. */
+  display_names: Record<string, string>;
+}
+
+export interface ExtractedSkill {
+  id: string | null;
+  raw_name: string;
+  evidence_phrase: string;
+  normalized_skill_id: number | null;
+  normalized_code: string | null;
+  normalized_name: string | null;
+  display_names: Record<string, string>;
+  category: string | null;
+  match_confidence: number | null;
+  needs_disambiguation: boolean;
+  candidates: SkillCandidate[];
+  user_confirmed: boolean;
+}
+
+export interface ExtractedProfile {
+  id: string | null;
+  session_id: string | null;
+  experience_years: number | null;
+  experience_context: string | null;
+  education: string[];
+  certifications: string[];
+  location: string | null;
+  work_preferences: string[];
+  uncertainty_flags: string[];
+}
+
+export interface TranscribeResponse {
+  session_id: string;
+  transcript: string;
+  language_detected: string;
+  provider: string;
+  audio_retained: boolean;
+}
+
+export interface SynthesizeResponse {
+  provider: string;
+  audio_base64: string | null;
+  speech_locale: string;
+  use_browser_tts: boolean;
+}
+
+export interface ExtractResponse {
+  session_id: string | null;
+  profile: ExtractedProfile;
+  skills: ExtractedSkill[];
+  provider: string;
+  degraded: boolean;
+}
+
+export interface SkillEdit {
+  id?: string | null;
+  raw_name: string;
+  evidence_phrase: string;
+  removed?: boolean;
+  chosen_skill_id?: number | null;
+}
+
+export interface NormalizeResponse {
+  session_id: string | null;
+  skills: ExtractedSkill[];
+  provider: string;
+  degraded: boolean;
+}
+
+export interface OpportunitySummary {
+  id: number;
+  title: string;
+  organization: string;
+  location: string;
+  district: string | null;
+  type: string;
+  minimum_experience: number;
+  certifications_required: string[];
+  salary_min: number | null;
+  salary_max: number | null;
+  nsqf_level: string | null;
+  source_reference: string | null;
+}
+
+export interface OpportunityDetail extends OpportunitySummary {
+  description: string | null;
+  required_skills: SkillCandidate[];
+}
+
+export interface ScoreBreakdown {
+  skill_similarity_score: number;
+  experience_score: number;
+  eligibility_score: number;
+  location_score: number;
+}
+
+export interface MatchResult {
+  opportunity: OpportunitySummary;
+  rank: number;
+  overall_score: number;
+  breakdown: ScoreBreakdown;
+  explanation_text: string | null;
+  explanation_bullets: string[];
+  matched_skill_codes: string[];
+}
+
+export interface MatchResponse {
+  session_id: string | null;
+  matches: MatchResult[];
+  explanation_provider: string;
+  degraded: boolean;
+}
+
+export interface AssistantQueryResponse {
+  question_text: string;
+  answer_text: string;
+  source_note: string;
+  provider: string;
+  answered_from_data: boolean;
+}
+
+export interface SessionSummary {
+  id: string;
+  created_at: string;
+  language_detected: string | null;
+  transcript: string | null;
+  audio_retained: boolean;
+  audio_url: string | null;
+}
+
+export interface PassportResponse {
+  session: SessionSummary;
+  profile: ExtractedProfile | null;
+  skills: ExtractedSkill[];
+}
+
+export interface HealthResponse {
+  status: "ok" | "degraded";
+  providers: Record<string, string>;
+  degraded: string[];
+  database: Record<string, unknown>;
+}

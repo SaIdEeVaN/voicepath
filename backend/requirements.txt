@@ -1,0 +1,10 @@
+# VoicePath backend -- core runtime.
+# The API runs fully on these. Embeddings fall back to the offline provider
+# unless you also install requirements-ml.txt.
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+pydantic-settings==2.7.0
+python-multipart==0.0.20
+httpx==0.28.1
+asyncpg==0.30.0

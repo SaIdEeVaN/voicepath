@@ -1,0 +1,26 @@
+# Deployment dependencies -- what fits a 512MB free container tier.
+#
+# The difference from requirements-ml.txt is torch, and it is the whole point:
+#
+#   torch + transformers      642MB    dropped
+#   ctranslate2 + whisper      64MB    dropped (STT_PROVIDER=groq)
+#   piper + onnxruntime + voices  273MB  kept
+#
+# ~1.16GB down to ~300MB. What that costs, and how it is paid:
+#
+#   Embeddings  EMBEDDING_PROVIDER=hf_api runs the SAME multilingual-e5-base
+#               through the Hugging Face Inference API, so the 44 taxonomy
+#               vectors already in Postgres stay valid. Needs HF_TOKEN.
+#   Speech      STT_PROVIDER=groq. Already the default; the local Whisper path
+#               was 32.5s on a 5.8s clip on a CPU and unusable anyway.
+#   NER         Unavailable without transformers. It feeds nothing yet, and
+#               services/ner.py degrades to [] rather than failing a request.
+#
+# Text-to-speech stays local: Piper is ONNX, not torch, and voices load lazily
+# per language. If the container still runs out of memory, TTS_PROVIDER=offline
+# hands synthesis to the browser and frees the last ~270MB.
+
+-r requirements.txt
+
+# Text to speech -- Piper, MIT. Bundles espeak-ng data, so no system package.
+piper-tts==1.8.0
