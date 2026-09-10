@@ -1,12 +1,14 @@
-# This directory is pushed to a Hugging Face Space as its own git repo, so the
-# project root's .gitignore does not apply here. Without this file, `git add .`
-# stages .env -- and a public Space publishes whatever it is given.
+# Kept alongside the root .gitignore so this directory stays safe if it is
+# ever pushed on its own. Secrets must never be committed: the deployment
+# reads them from the host's environment instead.
 .env
 .env.*
 !.env.example
 
-# Model weights and voices. Fetched during the Docker build; ~1.3GB if committed.
-models/
+# Piper voice files, fetched at build time by app.scripts.fetch_voices.
+# Leading slash matters: a bare `models/` also matches app/models/, which
+# holds schemas.py -- excluding it makes the app unimportable at runtime.
+/models/
 .cache/
 
 # Python

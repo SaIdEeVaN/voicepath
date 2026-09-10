@@ -27,6 +27,7 @@ next-env.d.ts
 .DS_Store
 Thumbs.db
 
-# Local model cache
+# Local model cache. Anchored: a bare `models/` would also match
+# backend/app/models/, which is source code.
 .cache/
-models/
+backend/models/
