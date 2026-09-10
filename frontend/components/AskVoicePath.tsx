@@ -21,7 +21,7 @@ import {
   playBase64Audio,
   speakOnDevice,
   startRecognition,
-  stopSpeaking,
+  stopAllSpeech,
   type RecognitionHandle,
 } from "@/lib/browser-speech";
 import { copyFor } from "@/lib/i18n";
@@ -46,12 +46,17 @@ export function AskVoicePath({ opportunityId }: { opportunityId: number }) {
   const [error, setError] = useState<string | null>(null);
 
   const recognitionRef = useRef<RecognitionHandle | null>(null);
+  // Synthesis is awaited outside the render lifecycle, so it can resolve
+  // after the screen is gone. Without this the clip starts playing to a
+  // page the person already left -- the cleanup ran before the audio existed.
+  const mounted = useRef(true);
   const canListen = canRecogniseOnDevice();
 
   useEffect(
     () => () => {
+      mounted.current = false;
       recognitionRef.current?.abort();
-      stopSpeaking();
+      stopAllSpeech();
     },
     [],
   );
@@ -82,22 +87,34 @@ export function AskVoicePath({ opportunityId }: { opportunityId: number }) {
           },
         ]);
 
-        // Speak it. Server TTS when configured, on-device otherwise -- both
-        // are real speech, so the answer is heard either way.
-        try {
-          const speech = await api.synthesize(result.answer_text, language as Language);
-          if (speech.audio_base64) await playBase64Audio(speech.audio_base64);
-          else if (speech.use_browser_tts) {
+        // The answer is on screen now, so stop saying "thinking". Speech is
+        // deliberately not awaited here: synthesis can take seconds, and
+        // holding the spinner until the audio finishes made a delivered answer
+        // look like a stalled one.
+        setThinking(false);
+
+        // Server TTS when configured, on-device otherwise -- both are real
+        // speech, so the answer is heard either way.
+        void (async () => {
+          try {
+            const speech = await api.synthesize(
+              result.answer_text,
+              language as Language,
+            );
+            if (!mounted.current) return;
+            if (speech.audio_base64) await playBase64Audio(speech.audio_base64);
+            else if (speech.use_browser_tts) {
+              await speakOnDevice(result.answer_text, language as Language);
+            }
+          } catch {
+            if (!mounted.current) return;
             await speakOnDevice(result.answer_text, language as Language);
           }
-        } catch {
-          await speakOnDevice(result.answer_text, language as Language);
-        }
+        })();
       } catch (cause) {
         setError(
           cause instanceof ApiError ? cause.message : "Something went wrong.",
         );
-      } finally {
         setThinking(false);
       }
     },
@@ -113,7 +130,7 @@ export function AskVoicePath({ opportunityId }: { opportunityId: number }) {
     }
     if (!canListen) return;
 
-    stopSpeaking();
+    stopAllSpeech();
     setError(null);
     setDraft("");
 

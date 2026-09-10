@@ -201,12 +201,40 @@ export function stopSpeaking(): void {
   if (canSynthesiseOnDevice()) window.speechSynthesis.cancel();
 }
 
-/** Play base64 WAV from the TTS endpoint. */
+// The element currently playing, so it can be stopped. Without this handle a
+// clip started here outlives the screen that started it: navigating away
+// unmounts the component but leaves the audio playing to an empty room.
+let current: HTMLAudioElement | null = null;
+
+/** Play base64 WAV from the TTS endpoint. Replaces anything already playing. */
 export function playBase64Audio(base64: string): Promise<void> {
+  stopAudio();
   return new Promise((resolve) => {
     const audio = new Audio(`data:audio/wav;base64,${base64}`);
-    audio.onended = () => resolve();
-    audio.onerror = () => resolve();
-    void audio.play().catch(() => resolve());
+    current = audio;
+    const finish = () => {
+      if (current === audio) current = null;
+      resolve();
+    };
+    audio.onended = finish;
+    audio.onerror = finish;
+    void audio.play().catch(finish);
   });
+}
+
+/** Stop clip playback. Safe to call when nothing is playing. */
+export function stopAudio(): void {
+  if (!current) return;
+  const audio = current;
+  current = null;
+  audio.pause();
+  // Dropping the source frees the decoded buffer; a data: URI of a minute of
+  // speech is a few megabytes to leave attached to a discarded element.
+  audio.src = "";
+}
+
+/** Stop every speech path this module can start: clip playback and synthesis. */
+export function stopAllSpeech(): void {
+  stopAudio();
+  stopSpeaking();
 }
