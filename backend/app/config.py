@@ -108,6 +108,13 @@ class Settings(BaseSettings):
         "skillindiadigital.gov.in,eshram.gov.in,pmvishwakarma.gov.in"
     )
 
+    # Trusted, but not worth searching: these serve a JavaScript shell to any
+    # crawler, ours and the search provider's alike, so every result slot spent
+    # on them comes back as "Something went wrong" and is discarded. They stay
+    # in trusted_domains -- a page from one is still Tier 1 if it ever arrives
+    # by another route -- but asking for them wastes the query.
+    unreadable_domains: str = "myscheme.gov.in"
+
     # -- Embeddings ---------------------------------------------------------
     # "hf_api" runs the same model as "local" through the Hugging Face
     # Inference API, so vectors already in Postgres stay valid. It exists so a
@@ -216,6 +223,12 @@ class Settings(BaseSettings):
     @property
     def trusted_domain_list(self) -> list[str]:
         return [d.strip().lower() for d in self.trusted_domains.split(",") if d.strip()]
+
+    @property
+    def searchable_domain_list(self) -> list[str]:
+        """Trusted domains a crawler can actually read."""
+        skip = {d.strip().lower() for d in self.unreadable_domains.split(",") if d.strip()}
+        return [d for d in self.trusted_domain_list if d not in skip]
 
     @property
     def persistence_enabled(self) -> bool:

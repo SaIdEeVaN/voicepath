@@ -419,6 +419,16 @@ discards every response and the failure is indistinguishable from a dead server.
   - A test caught `ftp://gov.in/x` being trusted — tiering read the host and
     ignored the scheme. Lookalikes like `gov.in.example.com` were already
     handled by anchoring the match on a dot.
+  - **A page that did not render must not be stored as policy.** myscheme.gov.in
+    is a single-page app: it returns "Something went wrong. Please try again
+    later." to our crawler *and* to Tavily's, at 616 characters — long enough to
+    pass a length check and be ingested as a document. Pages are now judged on
+    vocabulary rather than length; the shell has 53 distinct words, a real page
+    has 371. It is excluded from search entirely, since every slot spent on it
+    comes back empty, while staying trusted if a page ever arrives another way.
+  - Verified end to end: "What is the PM Vishwakarma scheme?" was unanswerable
+    from the PDFs, and is now answered from `pmvishwakarma.gov.in` with the URL
+    cited.
 
 - **A scheme name typed on its own now finds the scheme.** "pm ajay",
   "adarsh gram", "pm ajay skill development" were classified as neither work nor

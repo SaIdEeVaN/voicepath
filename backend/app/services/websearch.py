@@ -54,6 +54,10 @@ class SearchResult:
     # not enough to answer from.
     snippet: str
     trust_tier: int
+    # The provider's own extraction of the page, when it returned one. Their
+    # crawler renders JavaScript; a plain GET does not, and the main Indian
+    # scheme portal is a single-page app that serves an empty shell to one.
+    raw_content: str = ""
 
     @property
     def is_official(self) -> bool:
@@ -161,9 +165,14 @@ async def search(query: str, *, official_only: bool = True) -> list[SearchResult
         "query": clean,
         "max_results": settings.search_result_limit,
         "search_depth": "basic",
+        # Ask for the page text alongside the result. Without it every
+        # myscheme.gov.in page came back as "Something went wrong" -- the shell
+        # a browser would have filled in -- and was correctly discarded, which
+        # made the whole feature find nothing.
+        "include_raw_content": True,
         # Ask the API to stay on government domains rather than filtering
         # afterwards, so the result budget is not spent on pages we discard.
-        "include_domains": settings.trusted_domain_list if official_only else [],
+        "include_domains": settings.searchable_domain_list if official_only else [],
     }
 
     try:
@@ -190,6 +199,7 @@ async def search(query: str, *, official_only: bool = True) -> list[SearchResult
                 domain=_domain_of(url),
                 snippet=(entry.get("content") or "").strip()[:600],
                 trust_tier=tier_for(url),
+                raw_content=(entry.get("raw_content") or "").strip(),
             )
         )
 
@@ -219,6 +229,42 @@ async def fetch_page(url: str) -> str:
     return _readable(response.text)
 
 
+# Phrases that mean the page never rendered. A site that builds its content in
+# the browser returns a shell, and the shell is long enough to look like a
+# document: myscheme.gov.in comes back as "Something went wrong. Please try
+# again later." at 616 characters, which would otherwise be stored as policy.
+_NOT_A_PAGE = (
+    "something went wrong",
+    "please enable javascript",
+    "you need to enable javascript",
+    "loading...",
+    "page not found",
+    "access denied",
+    "are you sure you want to sign out",
+)
+
+
+def looks_rendered(text: str) -> bool:
+    """Is this the page, or the shell a browser would have filled in?
+
+    Length alone cannot tell: an error shell clears 400 characters easily.
+    What separates them is variety -- a real document uses hundreds of distinct
+    words, a shell repeats a handful of interface strings.
+    """
+    stripped = text.strip()
+    if len(stripped) < 400:
+        return False
+
+    lowered = stripped.lower()
+    if any(phrase in lowered for phrase in _NOT_A_PAGE):
+        return False
+
+    # Roughly a paragraph's worth of distinct vocabulary. Measured: the
+    # myscheme shell has under 60 unique words, the PM Vishwakarma page has
+    # several hundred.
+    return len({word for word in lowered.split() if len(word) > 3}) >= 80
+
+
 def _readable(html: str) -> str:
     """Strip markup to text, keeping paragraph boundaries.
 
@@ -234,9 +280,12 @@ def _readable(html: str) -> str:
     html = re.sub(r"(?i)</(p|div|li|tr|h[1-6])>", "\n\n", html)
     text = re.sub(r"(?s)<[^>]+>", " ", html)
 
-    for entity, char in (("&nbsp;", " "), ("&amp;", "&"), ("&lt;", "<"),
-                         ("&gt;", ">"), ("&quot;", '"'), ("&#39;", "'")):
-        text = text.replace(entity, char)
+    # html.unescape handles the numeric forms too. Hand-listing named entities
+    # left &#x201C; and &#x27; sitting in the text of a real government page,
+    # which then got embedded and quoted back to people as written.
+    import html as _html
+
+    text = _html.unescape(text)
 
     text = re.sub(r"[ \t]+", " ", text)
     text = re.sub(r"\n{3,}", "\n\n", text)
@@ -265,16 +314,24 @@ async def search_and_ingest(query: str, *, limit: int = 3) -> list[dict]:
             "domain": result.domain,
             "trust_tier": result.trust_tier,
         }
-        try:
-            text = await fetch_page(result.url)
-        except SearchUnavailable as exc:
-            outcomes.append({**record, "status": "unreachable", "detail": str(exc)[:160]})
-            continue
+        # Prefer what the provider extracted: their crawler renders the page,
+        # ours does not. Fetching ourselves is the fallback for a result that
+        # arrived without it.
+        text = result.raw_content
+        if not looks_rendered(text):
+            try:
+                text = await fetch_page(result.url)
+            except SearchUnavailable as exc:
+                outcomes.append(
+                    {**record, "status": "unreachable", "detail": str(exc)[:160]}
+                )
+                continue
 
-        # Below this a page is navigation and headings. Government portals are
-        # full of them, and they embed to something rather than nothing.
-        if len(text.strip()) < 400:
-            outcomes.append({**record, "status": "too_thin", "chunks": 0})
+        # A page that did not render is worse than a page that failed to load:
+        # it looks like a document and says nothing. Storing one would put an
+        # error message into the corpus that answers people.
+        if not looks_rendered(text):
+            outcomes.append({**record, "status": "not_rendered", "chunks": 0})
             continue
 
         # Tier 1 is answerable immediately; the domain is the trust signal.

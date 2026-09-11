@@ -89,11 +89,36 @@ def _refusal(language: str) -> str:
 
 
 async def ask(question: str, *, language: str = "en") -> SchemeAnswer:
-    """Answer from the corpus, or refuse."""
+    """Answer from the corpus; widen it once if the corpus falls short.
+
+    The trigger is the model reporting it could not answer, not an empty
+    retrieval. Retrieval is never empty: e5 scores every passage in a narrow
+    high band, so a question about a scheme we hold nothing on still comes back
+    with five confident-looking neighbours about a different one. The only
+    reliable signal that the corpus does not cover a question is the step that
+    read the passages saying so.
+
+    Widening happens once. A second miss is an answer we do not have.
+    """
     clean = (question or "").strip()
     if not clean:
         raise ValueError("Nothing was asked")
 
+    answer = await _answer_from_corpus(clean, language=language)
+    if answer.grounded:
+        return answer
+
+    from app.services import websearch
+
+    if not websearch.is_available():
+        return answer
+    if not await _widen_corpus(clean):
+        return answer
+
+    return await _answer_from_corpus(clean, language=language)
+
+
+async def _answer_from_corpus(clean: str, *, language: str) -> SchemeAnswer:
     passages = await retrieval.search(clean, limit=TOP_K)
     usable = [p for p in passages if p.similarity >= MIN_USABLE_SIMILARITY]
 
@@ -102,15 +127,6 @@ async def ask(question: str, *, language: str = "en") -> SchemeAnswer:
     # even though the vector path did not surface it.
     if not usable:
         usable = [p for p in passages if p.similarity == 0.0][:2]
-
-    if not usable:
-        # Nothing ingested covers this. The page may still exist on a
-        # government portal, so look for it, fetch it, and ask again. Only
-        # here, and only once: searching before checking what we already hold
-        # would bill an API for questions the corpus answers perfectly well.
-        if await _widen_corpus(clean):
-            passages = await retrieval.search(clean, limit=TOP_K)
-            usable = [p for p in passages if p.similarity >= MIN_USABLE_SIMILARITY]
 
     if not usable:
         logger.info("No usable passage for: %s", clean[:80])
