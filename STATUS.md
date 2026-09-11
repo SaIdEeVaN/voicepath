@@ -398,6 +398,28 @@ discards every response and the failure is indistinguishable from a dead server.
 
 ## Fixed on 2026-09-11
 
+- **Web search over trusted sources** (spec sections 7, 8, 18, 19, 20). When
+  nothing ingested can answer a question, official pages are searched, fetched
+  and put through the same pipeline as a PDF — chunk, embed, retrieve, cite.
+  How an answer is produced did not change; only how a document arrives.
+  Needs `TAVILY_API_KEY`; without one the corpus answers what it holds and the
+  widening simply does not run.
+  - **Trust is the domain's, not the content's.** Only `.gov.in`-family pages
+    are answerable straight away. Anything else is stored as
+    `pending_verification` and retrieval will not read it until an admin
+    decides, so searching the web cannot quietly widen what the system asserts.
+    `/api/admin/sources` lists them; verify and reject are one call each, and a
+    re-fetch does not re-open a rejected source.
+  - **URLs are never constructed.** No model is consulted in
+    `services/websearch.py` at all, which is the strongest form of section 8's
+    rule: there is nothing there to generate one with. A result whose URL is not
+    already absolute http(s) is dropped rather than repaired.
+  - Searching happens only after the local corpus has failed, results are cached
+    for 24h, and an unreachable API falls back to what is stored.
+  - A test caught `ftp://gov.in/x` being trusted — tiering read the host and
+    ignored the scheme. Lookalikes like `gov.in.example.com` were already
+    handled by anchoring the match on a dot.
+
 - **A scheme name typed on its own now finds the scheme.** "pm ajay",
   "adarsh gram", "pm ajay skill development" were classified as neither work nor
   a question and fell through to "I did not catch any work you have done". People

@@ -195,7 +195,15 @@ def _split_long(block: str) -> list[str]:
 
 
 async def ingest(
-    *, title: str, source: str, text: str, language: str = "en"
+    *,
+    title: str,
+    source: str,
+    text: str,
+    language: str = "en",
+    source_url: str | None = None,
+    source_domain: str | None = None,
+    trust_tier: int = 2,
+    status: str = "active",
 ) -> tuple[int, int]:
     """Chunk, embed and store one document. Returns (document_id, chunk_count).
 
@@ -225,13 +233,27 @@ async def ingest(
     async with db.transaction() as conn:
         document_id = await conn.fetchval(
             """
-            insert into scheme_documents (title, source, language)
-            values ($1, $2, $3)
+            insert into scheme_documents
+              (title, source, language, source_url, source_domain,
+               trust_tier, status, retrieved_at)
+            values ($1, $2, $3, $4, $5, $6, $7, now())
             on conflict (source) do update
-              set title = excluded.title, language = excluded.language
+              set title = excluded.title,
+                  language = excluded.language,
+                  source_url = excluded.source_url,
+                  source_domain = excluded.source_domain,
+                  trust_tier = excluded.trust_tier,
+                  -- A re-fetch does not re-open a rejected source. An admin
+                  -- decided that, and fetching the page again is not new
+                  -- information about whether it should be trusted.
+                  status = case
+                    when scheme_documents.status = 'rejected' then 'rejected'
+                    else excluded.status
+                  end,
+                  retrieved_at = now()
             returning id
             """,
-            title, source, language,
+            title, source, language, source_url, source_domain, trust_tier, status,
         )
         await conn.execute(
             "delete from document_chunks where document_id = $1", document_id

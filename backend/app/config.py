@@ -21,6 +21,7 @@ LLMProvider = Literal["groq", "gemini", "offline"]
 SpeechProvider = Literal["local", "groq", "offline"]
 EmbeddingProvider = Literal["local", "hf_api", "offline"]
 NERProvider = Literal["local", "offline"]
+SearchProvider = Literal["tavily", "offline"]
 
 
 class Settings(BaseSettings):
@@ -87,6 +88,25 @@ class Settings(BaseSettings):
     # -- Entity tagging (PER/ORG/LOC; never skills -- see services/ner.py) ---
     ner_provider: NERProvider = "local"
     ner_model: str = "ai4bharat/IndicNER"
+
+    # -- Web search (PRD section 7) ------------------------------------------
+    # Finds scheme pages the local corpus does not have. Offline without a key,
+    # which means the ingested documents answer and nothing else does.
+    search_provider: SearchProvider = "tavily"
+    tavily_api_key: str | None = None
+    search_timeout_seconds: float = 30.0
+    search_result_limit: int = 5
+    # A repeated question should not re-bill the API, and a cached answer is
+    # what keeps the feature working when the API is down (section 20).
+    search_cache_hours: int = 24
+
+    # Tier 1: the domain is the trust signal, so pages from these are usable
+    # without review. Everything else is fetched as pending_verification and
+    # cannot be answered from until an admin looks at it (section 18).
+    trusted_domains: str = (
+        "gov.in,nic.in,india.gov.in,myscheme.gov.in,ncs.gov.in,"
+        "skillindiadigital.gov.in,eshram.gov.in,pmvishwakarma.gov.in"
+    )
 
     # -- Embeddings ---------------------------------------------------------
     # "hf_api" runs the same model as "local" through the Hugging Face
@@ -163,6 +183,10 @@ class Settings(BaseSettings):
             if importlib.util.find_spec("sentence_transformers") is None:
                 object.__setattr__(self, "embedding_provider", "offline")
 
+        # A search provider without a key is not a provider.
+        if self.search_provider == "tavily" and not self.tavily_api_key:
+            object.__setattr__(self, "search_provider", "offline")
+
         if self.ner_provider == "local":
             if importlib.util.find_spec("transformers") is None:
                 object.__setattr__(self, "ner_provider", "offline")
@@ -190,6 +214,10 @@ class Settings(BaseSettings):
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
 
     @property
+    def trusted_domain_list(self) -> list[str]:
+        return [d.strip().lower() for d in self.trusted_domains.split(",") if d.strip()]
+
+    @property
     def persistence_enabled(self) -> bool:
         return bool(self.database_url)
 
@@ -207,6 +235,8 @@ class Settings(BaseSettings):
             out.append("embeddings")
         if self.ner_provider == "offline":
             out.append("ner")
+        if self.search_provider == "offline":
+            out.append("search")
         if not self.persistence_enabled:
             out.append("database")
         return out

@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse
 from app.config import get_settings
 from app.models import schemas
 from app.routes import admin, assistant, profile, query, schemes, sessions, speech
-from app.services import db, embeddings, llm, ner, stt, tts
+from app.services import db, embeddings, llm, ner, stt, tts, websearch
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +106,7 @@ async def health() -> schemas.HealthResponse:
             "llm": llm.provider_name(),
             "embeddings": embeddings.provider_name(),
             "ner": ner.provider_name(),
+            "search": websearch.provider_name(),
         },
         degraded=degraded,
         database=database,

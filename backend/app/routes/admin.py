@@ -256,6 +256,72 @@ async def deactivate_scheme(
 
 
 # ---------------------------------------------------------------------------
+# Sources (PRD section 18)
+#
+# The review workflow. A page fetched from a domain we do not already trust is
+# stored but not answerable, and stays that way until someone here says
+# otherwise. The point is that searching the web cannot silently widen what the
+# system will assert to a beneficiary.
+# ---------------------------------------------------------------------------
+
+
+@router.get("/sources")
+async def list_sources(
+    _: Annotated[AdminIdentity, Depends(require_admin)],
+    status_filter: str | None = Query(default=None, alias="status"),
+) -> list[dict]:
+    _require_database()
+    rows = await db.fetch(
+        """
+        select d.id, d.title, d.source, d.source_url, d.source_domain,
+               d.trust_tier, d.status, d.retrieved_at, d.last_verified,
+               count(c.id) as chunks
+        from scheme_documents d
+        left join document_chunks c on c.document_id = d.id
+        where ($1::text is null or d.status = $1)
+        group by d.id
+        order by d.retrieved_at desc nulls last, d.id desc
+        """,
+        status_filter,
+    )
+    return [dict(row) for row in rows]
+
+
+@router.post("/sources/{document_id}/verify")
+async def verify_source(
+    document_id: int,
+    _: Annotated[AdminIdentity, Depends(require_role("editor"))],
+) -> dict:
+    """Make a source answerable, and record who decided that and when."""
+    _require_database()
+    row = await db.fetchrow(
+        "update scheme_documents set status = 'active', last_verified = now() "
+        "where id = $1 returning id, source, status",
+        document_id,
+    )
+    if row is None:
+        raise HTTPException(status_code=404, detail="Not found.")
+    return dict(row)
+
+
+@router.post("/sources/{document_id}/reject")
+async def reject_source(
+    document_id: int,
+    _: Annotated[AdminIdentity, Depends(require_role("editor"))],
+) -> dict:
+    """Refuse a source. Re-fetching the page will not undo this."""
+    _require_database()
+    row = await db.fetchrow(
+        "update scheme_documents set status = 'rejected', last_verified = now() "
+        "where id = $1 returning id, source, status",
+        document_id,
+    )
+    if row is None:
+        raise HTTPException(status_code=404, detail="Not found.")
+    return dict(row)
+
+
+# ---------------------------------------------------------------------------
 # Taxonomy
 # ---------------------------------------------------------------------------
 

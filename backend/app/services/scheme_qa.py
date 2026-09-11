@@ -104,6 +104,15 @@ async def ask(question: str, *, language: str = "en") -> SchemeAnswer:
         usable = [p for p in passages if p.similarity == 0.0][:2]
 
     if not usable:
+        # Nothing ingested covers this. The page may still exist on a
+        # government portal, so look for it, fetch it, and ask again. Only
+        # here, and only once: searching before checking what we already hold
+        # would bill an API for questions the corpus answers perfectly well.
+        if await _widen_corpus(clean):
+            passages = await retrieval.search(clean, limit=TOP_K)
+            usable = [p for p in passages if p.similarity >= MIN_USABLE_SIMILARITY]
+
+    if not usable:
         logger.info("No usable passage for: %s", clean[:80])
         return SchemeAnswer(answer=_refusal(language), citations=[], grounded=False)
 
@@ -173,10 +182,45 @@ async def ask(question: str, *, language: str = "en") -> SchemeAnswer:
     )
 
 
+async def _widen_corpus(question: str) -> bool:
+    """Fetch official pages for a question the corpus cannot answer.
+
+    True when something new became answerable. False for every other outcome --
+    no provider, nothing found, pages that would not load -- and the caller
+    then refuses, which is the honest end of this path.
+
+    Only Tier 1 pages become answerable. Anything else is stored waiting for
+    review, so a search cannot quietly widen what the system will assert.
+    """
+    from app.services import websearch
+
+    if not websearch.is_available():
+        return False
+    try:
+        outcomes = await websearch.search_and_ingest(question, limit=3)
+    except websearch.SearchUnavailable as exc:
+        # Section 20: an unreachable search falls back to what is already
+        # stored, which is exactly what the caller does next.
+        logger.info("Search unavailable (%s); answering from the corpus alone", exc)
+        return False
+
+    added = [o for o in outcomes if o.get("status") == "active" and o.get("chunks")]
+    if added:
+        logger.info(
+            "Widened the corpus for %r: %s",
+            question[:60], ", ".join(o["domain"] for o in added),
+        )
+    return bool(added)
+
+
 def _cite(passage: retrieval.Retrieved) -> dict:
     """A citation a person could actually follow back to the document."""
+    # A source that is a URL is shown as one. It came from the search API and
+    # is passed through unchanged -- never assembled, never repaired.
+    source = passage.source
     return {
-        "source": passage.source,
+        "source": source,
+        "source_url": source if source.startswith(("http://", "https://")) else None,
         "document_title": passage.document_title,
         "heading": passage.heading,
         # Enough to recognise the passage, not so much that the answer is buried.
