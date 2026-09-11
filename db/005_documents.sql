@@ -1,12 +1,12 @@
 -- VoicePath -- scheme document store for retrieval (local only).
 --
 -- This is the corpus the assistant may consult when a question is about the
--- scheme itself rather than about one opportunity: eligibility rules,
+-- scheme itself rather than about one scheme: eligibility rules,
 -- application procedure, what a component covers. Those answers live in policy
 -- documents that are far too large to put in a prompt, which is the one place
 -- retrieval earns its keep here.
 --
--- Deliberately separate from `opportunities`. Nothing in this table may
+-- Deliberately separate from `schemes`. Nothing in this table may
 -- influence a match score: retrieval answers questions, it does not rank.
 --
 -- Apply after 004. Nothing deployed reads these tables yet.

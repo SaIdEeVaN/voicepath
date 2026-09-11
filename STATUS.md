@@ -1,7 +1,7 @@
 # VoicePath — Build Status
 
 > **This file is the live todo list.** It is updated every time a task is completed.
-> Last updated: 2026-09-11 (deployed; RAG on the `rag` branch)
+> Last updated: 2026-09-11 (schemes rename; RAG merged)
 
 **Project root:** `C:\Users\Sai Dixit\voicepath`
 **Sources:** `PRD_File_For_Project.md` (spec) · `VoicePath Mockups.html` (design canvas, unpacked)
@@ -69,9 +69,9 @@ STATUS.md                  This file
 
 db/                        Apply in numeric order
   001_schema.sql             9 tables, pgvector, constraints, FK indexes
-  002_functions.sql          match_skill_taxonomy, opportunity_skill_vectors,
+  002_functions.sql          match_skill_taxonomy, scheme_skill_vectors,
                              purge_expired_audio
-  003_seed.sql               44 skills, 16 Salem/Erode opportunities. Idempotent
+  003_seed.sql               44 skills, 16 Salem/Erode schemes. Idempotent
   004_policies.sql           RLS: catalogues public-read, personal data closed
   005_documents.sql          (rag) scheme_documents, document_chunks, retrieval fn
 
@@ -88,7 +88,7 @@ backend/
     data/catalogue.py        In-memory catalogue when there is no database
     models/schemas.py        Request and response shapes
     prompts/text.py          All four prompts, reviewable on their own
-    routes/                  Thin -- speech, profile, opportunities, sessions,
+    routes/                  Thin -- speech, profile, schemes, sessions,
                              assistant, admin
     services/
       stt.py                 Whisper: groq | local | offline
@@ -100,12 +100,12 @@ backend/
       normalization.py       Exact alias -> embedding -> LLM assist -> ask the user
       matching.py            Deterministic 50/25/15/10. Imports no LLM
       explanation.py         Grounded bullets. No field carries a score back
-      assistant.py           Q&A over one opportunity's stored fields only
+      assistant.py           Q&A over one scheme's stored fields only
       taxonomy.py            Vector search, alias index, localized labels
       ner.py                 IndicNER entity spans. Built, nothing calls it
       retrieval.py           (rag) Chunking and hybrid dense + keyword search
       scheme_qa.py           (rag) Answers that cite a passage, or refuse
-      db.py, repository.py, opportunities.py, pipeline.py, ratelimit.py
+      db.py, repository.py, schemes.py, pipeline.py, ratelimit.py
     scripts/
       embed_taxonomy.py      Taxonomy vectors. --all to recompute
       fetch_voices.py        Piper voices for ta/hi/en (~190MB)
@@ -123,10 +123,10 @@ frontend/
     understanding/           Editable skill cards, each showing its evidence
                              and now its confidence against the threshold
     understanding/disambiguate/   Low-confidence screen
-    opportunities/           Ranked feed
-    opportunities/[id]/      RSC detail + score bars with their weights
+    schemes/           Ranked feed
+    schemes/[id]/      RSC detail + score bars with their weights
     passport/                Skill Passport, audio-retention toggle
-    admin/                   Opportunities, taxonomy, sessions (no transcripts)
+    admin/                   Schemes, taxonomy, sessions (no transcripts)
   components/                SkillCard, Waveform, MatchRing, AskVoicePath, ...
   lib/
     api.ts                   Typed client. Errors carry the backend's own words
@@ -149,8 +149,8 @@ frontend/
 
 ### Phase 1 — Database ✅
 - [x] `db/001_schema.sql` — 9 tables, pgvector, constraints, FK indexes
-- [x] `db/002_functions.sql` — `match_skill_taxonomy`, `opportunity_skill_vectors`, `purge_expired_audio`
-- [x] `db/003_seed.sql` — 44 skills + 16 Salem/Erode opportunities + localized labels
+- [x] `db/002_functions.sql` — `match_skill_taxonomy`, `scheme_skill_vectors`, `purge_expired_audio`
+- [x] `db/003_seed.sql` — 44 skills + 16 Salem/Erode schemes + localized labels
 - [x] `db/004_policies.sql` — RLS: catalogues public-read, personal data unreachable by anon keys
 - [x] `db/README.md`
 
@@ -162,7 +162,7 @@ frontend/
 - [x] `services/stt.py` (faster-whisper), `services/tts.py` (Piper), browser handoff
 - [x] `services/ner.py` — IndicNER entity spans; built, not yet consumed
 - [x] `services/taxonomy.py` — vector search, exact alias index, localized labels
-- [x] `services/opportunities.py`, `services/repository.py`, `models/schemas.py`
+- [x] `services/schemes.py`, `services/repository.py`, `models/schemas.py`
 
 ### Phase 3 — Backend pipeline ✅
 - [x] `extraction.py` — **evidence verified against the transcript; ungrounded skills dropped**
@@ -200,11 +200,11 @@ frontend/
 - [x] `/understanding` — editable cards, each showing the words that produced it
 - [x] `/understanding/disambiguate` — low-confidence screen, "leave it out" is a real answer
 - [x] `/passport` — Skill Passport + audio-retention toggle
-- [x] `/opportunities` — ranked feed, reasons weighted equal to titles
-- [x] `/opportunities/[id]` — RSC detail + score bars + Ask VoicePath
+- [x] `/schemes` — ranked feed, reasons weighted equal to titles
+- [x] `/schemes/[id]` — RSC detail + score bars + Ask VoicePath
 
 ### Phase 8 — Admin ✅
-- [x] `/admin/opportunities`, `/admin/taxonomy`, `/admin/sessions` (read-only, no transcripts)
+- [x] `/admin/schemes`, `/admin/taxonomy`, `/admin/sessions` (read-only, no transcripts)
 
 ### Phase 9 — Verification ✅
 - [x] `pytest` — 178 passed
@@ -221,7 +221,7 @@ Input: *"எனக்கு ஆறு வருஷமா பைக் ரிப�
 
 - Extracted 6 years, location Salem, 4 skills with **verbatim Tamil evidence**
 - Flagged welding as uncertain because they said "கொஞ்சம்" (a little)
-- Ranked 16 opportunities; top match 100%, location scored 1.00
+- Ranked 16 schemes; top match 100%, location scored 1.00
 - Explained in Tamil: *"நீங்கள் வெல்டிங் செய்கிறீர்கள் — இந்த வேலை அதுவே."*
 - Answered *"எனக்கு சான்றிதழ் இல்லை. பிரச்சனையா?"* from the listing, in Tamil
 
@@ -320,7 +320,7 @@ discards every response and the failure is indistinguishable from a dead server.
 - **NER is built but unused.** `services/ner.py` tags PER/ORG/LOC and degrades to
   `[]` safely; nothing calls it, and `transformers` is not in the deploy set, so
   `/health` reports it offline.
-- **Only 16 opportunities, seeded.** data.gov.in publishes district catalogues
+- **Only 16 schemes, seeded.** data.gov.in publishes district catalogues
   under GODL-India; the schema and admin importer already fit.
 - **Audio retention is three-quarters wired.** Opt-in, check constraint and purge
   function exist; nothing uploads a clip, so the passport's "Play" has nothing to
@@ -335,6 +335,24 @@ discards every response and the failure is indistinguishable from a dead server.
 ---
 
 ## Fixed on 2026-09-11
+
+- **Renamed the core entity from `opportunities` to `schemes`.** 540 references
+  across 38 files, plus the tables, routes and frontend directories. `db/006`
+  moves the tables in place rather than rebuilding them, so no row is lost and
+  no id changes.
+- **Added `official_url`**, the government's own page for a scheme, validated as
+  an absolute http(s) URL at the edge and by a check constraint. Distinct from
+  `source_reference`, which is a code to quote at an office. The assistant
+  quotes it verbatim and says so plainly when the record has none —
+  `tests/test_official_url.py` asserts it never constructs one.
+- **The admin dashboard writes.** `/admin` was a 404; it is now an index, and
+  schemes can be created, edited and deactivated. The endpoints already existed;
+  the frontend was a read-only table.
+- **The delete endpoint deactivates rather than deletes**, so the audit trail
+  survives. The button says so, and offers Reactivate. That needed `is_active`
+  carried through the service and schema, which nothing exposed before.
+- **RAG merged to `main`** (PR #1). Retrieval over scheme documents, unused by
+  any route; `TODO: RAG integration` marks the two call sites.
 
 - **Deployed the whole stack on free tiers.** Python pinned to 3.11 (Render
   defaults to 3.14, for which `pydantic-core` publishes no wheel and the Rust

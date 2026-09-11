@@ -126,7 +126,7 @@ claim; "the AI understood you" is not.
 **Claim:** the ranking is reproducible, auditable, and contains no model
 judgement.
 
-**Show:** `/opportunities` and the score breakdown bars.
+**Show:** `/schemes` and the score breakdown bars.
 
 **Evidence:**
 
@@ -139,7 +139,7 @@ ranking, every time — in every language. Ties break on id.
 `tests/test_matching.py` asserts it.
 
 **This is the strongest moment in the demo.** For a scheme allocating
-opportunities to Scheduled Caste beneficiaries, "why was I ranked fourth?" needs
+schemes to Scheduled Caste beneficiaries, "why was I ranked fourth?" needs
 an answer that survives an audit. Most teams will have a model deciding. Point
 at the file and say it cannot.
 
@@ -213,9 +213,9 @@ all of it. Ranked by payoff per minute.
       Full transcript with each evidence phrase highlighted in place. The offset
       logic already exists in `services/ner.py`. *Supports Part 3.*
 
-- [ ] **Seed a few more opportunities** (~20 min)
+- [ ] **Seed a few more schemes** (~20 min)
       16 is visibly a demo. Even 30 changes the impression. Use
-      `/admin/opportunities`.
+      `/admin/schemes`.
 
 ### Tier 3 — do not attempt tonight
 
@@ -237,7 +237,7 @@ feature.
 | 1 | Speak on `/speak`; transcript appears verbatim | **Hindi** | 1:00 | 1 |
 | 2 | `/understanding` — evidence on every card; edit one | Hindi | 1:30 | 3 |
 | 3 | Show a confidence score against its threshold | Hindi | 1:00 | 4 |
-| 4 | `/opportunities` — breakdown bars, state the formula | Hindi | 1:30 | 5 |
+| 4 | `/schemes` — breakdown bars, state the formula | Hindi | 1:30 | 5 |
 | 5 | Open a match; read a reason; note the honest warning | Hindi | 1:00 | 6 |
 | 6 | **Toggle to Tamil, then English** — reasons re-explain, ranking identical | all three | 0:30 | 2 + 6 |
 | 7 | `/health` and `/admin/sessions` | — | 1:00 | 7 |
@@ -289,7 +289,7 @@ evidence-verification cannot catch.
 and the fix is a Tamil-specific model — AI4Bharat's IndicWav2Vec. **Hindi and
 English do not have this problem**, which is why the main demo runs in Hindi.
 
-**Only 16 opportunities, and they are seeded.**
+**Only 16 schemes, and they are seeded.**
 *Answer:* seed data for Salem and Erode. `data.gov.in` publishes district-level
 skilling catalogues under GODL-India, and the admin importer already accepts
 them.

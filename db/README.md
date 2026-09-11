@@ -25,8 +25,8 @@ python -m app.scripts.embed_taxonomy
 | File | Contents |
 |---|---|
 | `001_schema.sql` | All tables from PRD §3, plus constraints, indexes and the `updated_at` trigger |
-| `002_functions.sql` | `match_skill_taxonomy` (vector search), `opportunity_skill_vectors` (N+1 avoidance), `purge_expired_audio` (privacy safety net) |
-| `003_seed.sql` | 43 taxonomy skills + 16 Salem/Erode opportunities. Idempotent. |
+| `002_functions.sql` | `match_skill_taxonomy` (vector search), `scheme_skill_vectors` (N+1 avoidance), `purge_expired_audio` (privacy safety net) |
+| `003_seed.sql` | 43 taxonomy skills + 16 Salem/Erode schemes. Idempotent. |
 | `004_policies.sql` | RLS. Catalogues are public-read; every personal-data table is unreachable by anon keys. |
 
 ## Notes

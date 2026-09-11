@@ -5,7 +5,7 @@ says so — a jury forgives a known gap and punishes a bluff.
 
 **Numbers worth memorising:** weights `0.50 / 0.25 / 0.15 / 0.10` · thresholds
 `0.82` accept, `0.60` candidate · `178` tests · `44` taxonomy skills ·
-`16` opportunities · extraction `~1.9s` · embedding dimension `768`.
+`16` schemes · extraction `~1.9s` · embedding dimension `768`.
 
 ---
 
@@ -37,7 +37,7 @@ languages.
 
 ### Q3. Why not let the LLM rank the jobs?
 
-Because this decides who gets told about which livelihood opportunity under a
+Because this decides who gets told about which livelihood scheme under a
 government scheme. If someone asks "why was I ranked fourth?", the answer has to
 be reproducible and auditable a year later.
 
@@ -53,9 +53,9 @@ alleges bias.
 ```
 
 - **Skill (0.50)** — cosine similarity between the person's normalised skills
-  and the opportunity's required skills. Half the weight, because skill match is
+  and the scheme's required skills. Half the weight, because skill match is
   the thing the platform exists to determine.
-- **Experience (0.25)** — stated years against the opportunity's minimum.
+- **Experience (0.25)** — stated years against the scheme's minimum.
 - **Eligibility (0.15)** — certifications required versus held.
 - **Location (0.10)** — resolved to district, with a town→district map so
   someone in Attur is near Salem, not equidistant from Kolkata.
@@ -110,7 +110,7 @@ switched to `multilingual-e5-base`, the taxonomy held hash-based fallback
 vectors and every skill scored **0.12–0.48** against a 0.60 candidate threshold.
 Nothing normalised. With the real model, the same inputs score **0.78–0.90**.
 
-### Q8. Tamil → taxonomy → embedding → opportunity: what happens mathematically?
+### Q8. Tamil → taxonomy → embedding → scheme: what happens mathematically?
 
 The Tamil phrase and the English taxonomy entry are each mapped by
 `multilingual-e5-base` into the same **768-dimensional** space. The model was
@@ -122,7 +122,7 @@ Both vectors are L2-normalised, so cosine similarity reduces to a dot product.
 pgvector's `<=>` operator computes cosine distance inside Postgres; we take
 `1 - distance` as similarity and compare it against the thresholds.
 
-The opportunity's required skills carry taxonomy ids, so once the person's words
+The scheme's required skills carry taxonomy ids, so once the person's words
 have an id, matching is set arithmetic on ids — no language involved at all.
 
 ### Q9. Why exact alias matching before embeddings?
@@ -382,7 +382,7 @@ different provider yesterday and migrated in a single config change.
 **GODL-India**, which permits reuse with attribution. NCS and the state skill
 missions publish vacancy data.
 
-Mechanically, little changes: our `opportunities` table already has the shape —
+Mechanically, little changes: our `schemes` table already has the shape —
 title, organisation, district, type, minimum experience, certifications, NSQF
 level, `source_reference`. An ingest job maps their schema to ours, embeds the
 required skills, and upserts on `source_reference`.
@@ -390,13 +390,13 @@ required skills, and upserts on `source_reference`.
 Being straight with you: our 16 rows are seed data for Salem and Erode. Wiring a
 real feed is a day of work, not a research problem — but it is not done.
 
-### Q25. How do you prevent stale opportunities?
+### Q25. How do you prevent stale schemes?
 
 Today, badly — `is_active` is a boolean an admin sets. For a real deployment:
 
 - **Ingest on a schedule**, and treat absence from a feed as a closure signal
   rather than waiting for someone to notice.
-- **`valid_until`** on the row, so an opportunity expires by default instead of
+- **`valid_until`** on the row, so an scheme expires by default instead of
   living forever.
 - **Never promise on our side.** The card shows a scheme reference to quote at
   the office; we do not claim the position is open. That framing already limits
@@ -453,11 +453,11 @@ the point of the Skill Passport.
 
 We tested this exact question in Tamil: *"எனக்கு சான்றிதழ் இல்லை. பிரச்சனையா?"*
 
-The assistant answers from the stored fields for that one opportunity and
+The assistant answers from the stored fields for that one scheme and
 nothing else. If the row requires a certificate the person does not have, it
 says so plainly. It does not soften it, and it does not invent a workaround.
 
-This is structural. The assistant is handed the opportunity in front of the
+This is structural. The assistant is handed the scheme in front of the
 user, their profile, and the match connecting them — not the catalogue, not the
 taxonomy. It cannot promise eligibility because it does not have the information
 to invent one. And `tests/test_explanation.py` asserts that explanations make no
@@ -466,12 +466,12 @@ eligibility promises the data does not support.
 One of our real generated bullets warns that a tailoring role expects sewing
 experience the person does not have. It talks the user *out* of a match.
 
-### Q29. How would you verify an opportunity is legitimate?
+### Q29. How would you verify an scheme is legitimate?
 
 Today we do not — the catalogue is seeded and trusted, which is fine for seed
 data and not fine for production.
 
-For a real deployment: opportunities come from **authenticated scheme sources**
+For a real deployment: schemes come from **authenticated scheme sources**
 (data.gov.in, NCS, state skill missions), each row keeps its `source_reference`
 so it is traceable to a government record, and anything submitted directly by an
 employer stays unpublished until an administrator approves it. `is_active`
@@ -486,7 +486,7 @@ office rather than taken on our word.
 benefits.**
 
 Specifically: a state skill mission or the PM-AJAY implementing agency runs it,
-because they already hold the opportunity data and the mandate to place people.
+because they already hold the scheme data and the mandate to place people.
 Training providers and employers get better-matched candidates without paying,
 because charging them would corrupt the ranking — the moment an employer pays
 for placement, the deterministic score stops being neutral.
@@ -582,8 +582,8 @@ asserting the guarantees.
 
 **Data, not technology.**
 
-We have 16 seeded opportunities. The system is only as useful as the catalogue
-behind it, and getting live, accurate, current opportunity data out of state
+We have 16 seeded schemes. The system is only as useful as the catalogue
+behind it, and getting live, accurate, current scheme data out of state
 skill missions and into one schema is an institutional problem — data-sharing
 agreements, inconsistent formats, update cadences nobody controls. No amount of
 engineering solves it.
@@ -693,7 +693,7 @@ system will not lie on their behalf.
 Nothing stops them, and nothing in a self-reported system could.
 
 But notice the effect. Experience is 0.25 of the score, and the match points to
-a real opportunity with a real employer who will assess them. Lying gets you an
+a real scheme with a real employer who will assess them. Lying gets you an
 interview you fail, not a placement.
 
 The design question is whether the *system* amplifies the lie, and it does not:
@@ -714,7 +714,7 @@ Where I think you have a point: percent framing invites "100% means certain".
 "Strong match on all four factors" would be more honest than "100%", and that is
 a change I would make.
 
-### Q44. "What if the nearest opportunity isn't the best one?"
+### Q44. "What if the nearest scheme isn't the best one?"
 
 Location is deliberately the **smallest weight — 0.10**. Skill match is five
 times more important. So a distant job that fits the person's skills outranks a
@@ -744,11 +744,11 @@ rural bias, the score decomposes into four numbers and you can check it. With an
 LLM ranking there would be nothing to inspect.
 
 The residual risk is not in the algorithm but in the **catalogue**: if fewer
-opportunities are listed in rural districts, rural users get worse results no
+schemes are listed in rural districts, rural users get worse results no
 matter how fair the maths is. That is a data-coverage problem, and it is the one
 I would actually watch.
 
-### Q46. "What if there are no suitable opportunities?"
+### Q46. "What if there are no suitable schemes?"
 
 It does not just say "no jobs found."
 
@@ -775,7 +775,7 @@ them.
 decoding and a phonetic fallback in normalisation. Our worst failure is in our
 primary deployment language.
 
-**2. Real opportunity data at district scale.** Automated ingest from
+**2. Real scheme data at district scale.** Automated ingest from
 data.gov.in and state skill missions with expiry handling. The system is only as
 good as its catalogue, and 16 rows is not a catalogue.
 
@@ -847,7 +847,7 @@ see why it said that?
 > exact words she said. She can correct us. She can delete it. Nothing goes
 > forward that she has not seen.
 >
-> Then we rank the opportunities with arithmetic. Not a model's opinion —
+> Then we rank the schemes with arithmetic. Not a model's opinion —
 > arithmetic, the same every time, that you can check. Because when a government
 > decides who hears about which livelihood, "the AI said so" is not an answer
 > anyone should accept.

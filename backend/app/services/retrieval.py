@@ -2,11 +2,11 @@
 
 Why this exists, and where it is deliberately not used.
 
-The opportunity catalogue is small enough to reason over directly -- the whole
+The scheme catalogue is small enough to reason over directly -- the whole
 of it is roughly 700 tokens, and the model's context window holds 131,000. There
 is nothing to retrieve *from*. Policy documents are the opposite: scheme
 guidelines run to hundreds of pages, and a person's question ("am I eligible if
-my income is above the limit?") cannot be answered from an opportunity row at
+my income is above the limit?") cannot be answered from a scheme row at
 any length.
 
 So retrieval answers questions about the scheme. It never touches matching.

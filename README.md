@@ -1,6 +1,6 @@
 # VoicePath
 
-Voice-first skill discovery and opportunity matching for Scheduled Caste beneficiaries
+Voice-first skill discovery and scheme matching for Scheduled Caste beneficiaries
 under the PM-AJAY skilling ecosystem.
 
 Someone describes the work they have done, out loud, in Tamil, Hindi, English or a mix
@@ -189,8 +189,8 @@ testing the wrong thing.
 
 Read PRD §6 first. In short:
 
-- **Data first.** `skill_taxonomy` and `opportunities` are the source of truth. Never
-  hardcode a skill list or an opportunity in a component.
+- **Data first.** `skill_taxonomy` and `schemes` are the source of truth. Never
+  hardcode a skill list or an scheme in a component.
 - **Style through tokens.** Everything is named in `frontend/app/globals.css`. No
   hardcoded colours in pages — the visual direction is meant to be revisable without
   touching extraction, normalization or matching.
