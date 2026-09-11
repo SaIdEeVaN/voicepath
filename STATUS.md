@@ -1,7 +1,7 @@
 # VoicePath — Build Status
 
 > **This file is the live todo list.** It is updated every time a task is completed.
-> Last updated: 2026-09-10 (open-source stack migration)
+> Last updated: 2026-09-11 (deployed; RAG on the `rag` branch)
 
 **Project root:** `C:\Users\Sai Dixit\voicepath`
 **Sources:** `PRD_File_For_Project.md` (spec) · `VoicePath Mockups.html` (design canvas, unpacked)
@@ -23,7 +23,8 @@
 | 8. Admin (Phase 2) | ✅ Done |
 | 9. Verification | ✅ Done — tests, typecheck, build, live end-to-end |
 
-**The project is complete and running.** Everything below is detail.
+**Deployed and running.** Frontend on Vercel, backend on Render, database on
+Supabase. Everything below is detail.
 
 ---
 
@@ -32,15 +33,24 @@
 ```bash
 # Backend  (http://localhost:8000)
 cd backend
-pip install -r requirements-ml.txt   # Whisper, Piper, embeddings (~3GB)
-python -m app.scripts.fetch_voices   # Piper voices for ta/hi/en (~190MB)
+pip install -r requirements-deploy.txt   # ~300MB: Piper, FastAPI, asyncpg
+python -m app.scripts.fetch_voices       # Piper voices for ta/hi/en (~190MB)
 uvicorn app.main:app --reload --port 8000
 
 # Frontend (http://localhost:3000)
 cd frontend && npm install && npm run dev
 ```
 
-One key only: `LLM_API_KEY` (Groq, free). Everything else runs locally.
+Two keys, both free: `LLM_API_KEY` (Groq — speech and LLM) and `HF_TOKEN`
+(Hugging Face — embeddings). Text-to-speech runs in-process and needs neither.
+
+`requirements-ml.txt` instead (~3GB, adds torch) runs speech recognition and
+embeddings locally too — `STT_PROVIDER=local`, `EMBEDDING_PROVIDER=local`. Then
+nothing but the LLM leaves the machine, at the cost of 32.5s per clip on a CPU
+against 1.4s hosted.
+
+`--reload` watches Python files, not `.env`. Changing a provider means a full
+restart.
 
 `README.md` has the full setup, including Supabase and the offline mode.
 
@@ -136,9 +146,12 @@ Input: *"எனக்கு ஆறு வருஷமா பைக் ரிப�
 
 ## Decisions & assumptions
 
-1. **Runs with zero API keys.** Every provider has an offline implementation and the app
-   downgrades automatically. Offline mode is never disguised — `/health`, response bodies
-   and a UI banner all say so.
+1. **Runs with zero API keys, but does less.** Every provider has an offline
+   implementation and the app downgrades automatically, never silently: `/health`,
+   response bodies and a UI banner all say so. The deployed configuration does use
+   keys — one for Groq (speech and LLM) and one for Hugging Face (embeddings) —
+   because the offline extraction path only finds skills a person *names*, not
+   ones they *describe*, which is most of the value.
 2. **Offline speech uses the browser, not fakes.** Web Speech API — real on-device
    recognition and synthesis. No canned transcript is ever passed off as real.
 3. **Evidence is verified, not trusted.** `extraction._validate` checks every quote
@@ -153,7 +166,13 @@ Input: *"எனக்கு ஆறு வருஷமா பைக் ரிப�
 7. **No end-user auth** (PRD defers it). RLS contains leaked anon keys; the API is the real
    access control. The browser never touches Postgres.
 8. **Embedding dimension 768.** Changing the model means changing `vector(768)` and
-   re-running `embed_taxonomy`.
+   re-running `embed_taxonomy --all`. Without `--all` the script only fills in
+   missing rows and leaves stale vectors in place, which fails silently: both
+   models emit 768 valid-looking floats and only the match quality tells you.
+9. **Vectors must come from one model.** `hf_api` and `local` run the same
+   `multilingual-e5-base` and are interchangeable — measured cosine 1.0000. The
+   `offline` hashing provider is not comparable with either, so switching to it
+   after embedding corrupts every comparison rather than degrading it.
 
 ---
 
@@ -185,32 +204,83 @@ Each was caught by a test or by a live run, not by inspection.
 
 ---
 
+## Deployed
+
+| Layer | Where | Notes |
+|---|---|---|
+| Frontend | Vercel | `NEXT_PUBLIC_API_BASE_URL` points at Render |
+| Backend | Render free tier | Sleeps after ~15 min idle; ~30s to wake |
+| Database | Supabase | Reached through the **pooler**, not the direct host |
+| Speech, LLM | Groq | Whisper large-v3 and `qwen/qwen3.8-27b` |
+| Embeddings | HF Inference API | Same `multilingual-e5-base` as the stored vectors |
+| TTS | In the container | Piper, ~270MB of the ~300MB image |
+
+Running cost: nothing. Every tier in use is free.
+
+`CORS_ORIGINS` must name the Vercel origin exactly. When it does not, the browser
+discards every response and the failure is indistinguishable from a dead server.
+
+---
+
 ## Known gaps / next steps
 
 - **Tamil speech recognition is the weak point.** Whisper mishears English
   loanwords inside Tamil: "வெல்டிங்" (welding) came back as "வெள்ளி" (silver), and
   extraction then reported *silver work* — correctly grounded in a transcript that
   was itself wrong, which is the one failure evidence verification cannot catch.
-  Same at `medium` and `large-v3`, local and Groq-hosted, so it is the model
-  family. IndicWav2Vec (Apache 2.0, not gated) is the Tamil-specific alternative.
-  Not yet confirmed against real human speech rather than synthesised audio.
+  Same at `medium` and `large-v3`, local and hosted, so it is the model family.
+  Hindi and English are unaffected. IndicWav2Vec (Apache 2.0, not gated) is the
+  Tamil-specific alternative.
+- **RAG is built but unmerged.** `rag` branch: 148 chunks from three real scheme
+  PDFs, hybrid dense + keyword retrieval, answers that cite a passage or refuse.
+  Service layer only — no route, no UI. Deliberately never touches matching.
 - **NER is built but unused.** `services/ner.py` tags PER/ORG/LOC and degrades to
-  `[]` safely, but nothing calls it. It is meant to feed the location field and
-  evidence spans. `ai4bharat/IndicNER` is also a gated repo and needs `HF_TOKEN`.
-- **Local Whisper is slow on a laptop CPU** — ~53s per clip against ~1s on
-  Groq-hosted Whisper, which is available under the same key already in use.
-- **Audio retention is three-quarters wired.** The opt-in, the check constraint
-  and the purge function are in place; nothing uploads a clip, so `audio_url` is
-  only ever read and the passport's "Play" control has nothing to play.
-- **Place names render in English inside non-English sentences** ("இது Salemலேயே
-  இருக்கிறது"). Matching resolves them correctly; only the display label is
-  untranslated. Fix with a place-name map alongside `DISPLAY_NAMES`.
-- **`npm run lint` does not exist.** `next lint` was removed in Next 16 and eslint
-  is not a dependency, so lint has never run on this project.
-- **Rate limiting is per-process.** Behind multiple workers the effective limit
-  multiplies; move the counter to Redis for a multi-instance deployment.
-- **Application tracking is deferred** (PRD section 9). "I want this" reveals the
-  scheme reference to quote in person rather than pretending to submit anything.
+  `[]` safely; nothing calls it, and `transformers` is not in the deploy set, so
+  `/health` reports it offline.
+- **Only 16 opportunities, seeded.** data.gov.in publishes district catalogues
+  under GODL-India; the schema and admin importer already fit.
+- **Audio retention is three-quarters wired.** Opt-in, check constraint and purge
+  function exist; nothing uploads a clip, so the passport's "Play" has nothing to
+  play.
+- **Place names render in English inside non-English sentences.** Matching
+  resolves them correctly; only the display label is untranslated.
+- **`npm run lint` does not exist.** `next lint` was removed in Next 16 and
+  eslint is not a dependency.
+- **Rate limiting is per-process.** Multiplies behind multiple instances; move
+  the counter to Redis before scaling.
+
+---
+
+## Fixed on 2026-09-11
+
+- **Deployed the whole stack on free tiers.** Python pinned to 3.11 (Render
+  defaults to 3.14, for which `pydantic-core` publishes no wheel and the Rust
+  build fails on a read-only Cargo registry).
+- **`.gitignore` was silently excluding source.** The Piper voice pattern was a
+  bare `models/`, which git matches at any depth — so `backend/app/models/` never
+  got committed and the deploy crashed on `ModuleNotFoundError: app.models`.
+  Both patterns anchored; swept the tree for others.
+- **Transcription moved to Groq.** Local CPU Whisper measured 32.5s on a 5.8s
+  clip — 5.6x slower than realtime. Hosted: 1.4s. Same open weights;
+  `STT_PROVIDER=local` still works for an air-gapped deployment.
+- **Embeddings moved to the HF Inference API**, dropping torch and taking the
+  image from ~1.16GB to ~300MB, which is what fits a 512MB tier. Verified
+  interchangeable with the local model at cosine **1.0000**, so the stored
+  taxonomy vectors stayed valid and nothing needed re-embedding.
+- **The health check now retries.** A free tier sleeps when idle, so a single
+  failed call reported "unreachable" about a server that was merely waking.
+  Six attempts with backoff, and screens say "starting up" until they are spent.
+- **Spoken answers kept playing after leaving the screen.** `playBase64Audio`
+  built a detached `Audio` element nothing held, and the cleanup only cancelled
+  `speechSynthesis`. Also unblocked the spinner, which waited for audio to finish
+  before admitting the answer had arrived.
+- **Language switching did not re-explain.** Explanations were generated in
+  `session.language_detected` and stored, so a Hindi reader saw Tamil reasons.
+  Matching now takes a language and the page re-requests on toggle — affordable
+  only because `explain_many` went from sequential to four at a time.
+- **Confidence and weights are now visible.** Skill cards show
+  `0.836 - accepted - needs 0.82`; score bars carry `x50%`, `x25%` and the full
+  formula. Both already computed, neither previously shown.
 
 ---
 
