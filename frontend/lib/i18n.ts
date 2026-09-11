@@ -47,6 +47,15 @@ export interface Copy {
   addSkillSubmit: string;
   /** Typed text that was neither work nor a question. */
   notWork: string;
+  /**
+   * The experience read from what the person said, on the understanding
+   * screen. `{years}` is replaced with the number.
+   *
+   * It is a quarter of a match score and was shown nowhere the person
+   * could check it -- only on the passport, after the matching is done.
+   */
+  experienceHeard: string;
+  experienceNotHeard: string;
   youSaid: string;
   notSure: string;
   edit: string;
@@ -144,6 +153,8 @@ const en: Copy = {
   addSkillSubmit: "Add",
   notWork:
     "That is not work I can use. Tell me the kind of work you do — like carpentry, welding or driving — or ask about a scheme.",
+  experienceHeard: "{years} years of work",
+  experienceNotHeard: "You did not say how long you have done this work.",
   youSaid: "YOU SAID",
   notSure: "I am not fully sure about this one",
   edit: "Edit",
@@ -249,6 +260,8 @@ const ta: Copy = {
   addSkillSubmit: "சேர்",
   notWork:
     "அது வேலை போல் தெரியவில்லை. நீங்கள் செய்யும் வேலையைச் சொல்லுங்கள் — தச்சு, வெல்டிங், ஓட்டுநர் — அல்லது ஒரு திட்டத்தைப் பற்றிக் கேளுங்கள்.",
+  experienceHeard: "{years} வருட வேலை",
+  experienceNotHeard: "இந்த வேலையை எவ்வளவு காலம் செய்கிறீர்கள் என்று சொல்லவில்லை.",
   youSaid: "நீங்கள் சொன்னது",
   notSure: "இதில் எனக்கு முழு உறுதி இல்லை",
   edit: "மாற்று",
@@ -351,6 +364,8 @@ const hi: Copy = {
   addSkillSubmit: "जोड़ें",
   notWork:
     "यह काम जैसा नहीं लगा। जो काम आप करते हैं वह बताइए — बढ़ईगीरी, वेल्डिंग, ड्राइविंग — या किसी योजना के बारे में पूछिए।",
+  experienceHeard: "{years} साल का काम",
+  experienceNotHeard: "आपने यह नहीं बताया कि यह काम कितने समय से कर रहे हैं।",
   youSaid: "आपने कहा",
   notSure: "इस बारे में मुझे पूरा भरोसा नहीं है",
   edit: "बदलें",

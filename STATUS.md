@@ -3,7 +3,7 @@
 > **This file is the live todo list.** It is updated every time a task is completed.
 > Start at **To-do** — that is the working checklist. **Next up** carries the
 > detail behind the top items; everything below it is the record of the build.
-> Last updated: 2026-09-12 (typed input is classified before it is believed)
+> Last updated: 2026-09-12 (experience is shown where it can be checked)
 
 **Project root:** `C:\Users\Sai Dixit\voicepath`
 **Sources:** `PRD_File_For_Project.md` (spec) · `VoicePath Mockups.html` (design canvas, unpacked)
@@ -44,6 +44,16 @@ twice is harmless. There is no cost to doing this in the safe order.
       depends on — would have turned a silent outage into a red banner.
 
 ### Now — correctness, and the largest spec gaps
+
+- [ ] **Experience cannot be corrected, only seen.** `/understanding` shows it
+      now, but changing it means re-recording: there is no endpoint that edits
+      a stored profile, only one that replaces it. It is a quarter of a match
+      score, so a misread number is worth more than a misread skill.
+- [ ] **Groq's daily allowance ran out on 2026-09-12** (200,000 tokens), and
+      everything silently fell back to the offline lexical pass — which finds
+      only named skills, not described ones. `/health` reports the *configured*
+      provider, so it looked healthy throughout. A daily ceiling is not the
+      per-minute limit already noted and needs its own answer.
 
 - [x] **Two live schemes had no required skills** — fixed 2026-09-12.
       `Pharma Business` now requires Retail Sales, `Plumbing Works` requires
@@ -184,7 +194,7 @@ Four approaches, in order of effort:
 | 2. Backend core (config, db, providers) | ✅ Done |
 | 3. Backend pipeline (extract → normalize → match → explain) | ✅ Done |
 | 4. Backend routes + rate limiting | ✅ Done |
-| 5. Backend tests | ✅ Done — **290 passing**, 7 skipped |
+| 5. Backend tests | ✅ Done — **306 passing**, 7 skipped |
 | 6. Frontend scaffold + design tokens | ✅ Done |
 | 7. Frontend screens | ✅ Done — all 8 |
 | 8. Admin (Phase 2) | ✅ Done |
@@ -285,8 +295,8 @@ backend/
       fetch_voices.py        Piper voices for ta/hi/en (~190MB)
       ingest_documents.py    PDF/text -> chunks -> embeddings
       migrate.py
-  tests/                     297, fully offline -- no keys, network or database.
-                             290 pass; 7 skip without one (intent topic check)
+  tests/                     313, fully offline -- no keys, network or database.
+                             306 pass; 7 skip without one (intent topic check)
   data/scheme_docs/          Source PDFs, committed (~28MB): 20 central and
                              state scheme documents -- PM-AJAY, PMAGY, PM SETU,
                              PMGSY, NHDP (handicrafts and handloom), NLM, NULM,
@@ -357,7 +367,7 @@ frontend/
 - [x] `/api/admin/*` — server-side role check, sha256 tokens, bootstrap that self-disables
 - [x] Rate limiting on public routes · `GET /health` reporting every provider honestly
 
-### Phase 5 — Backend tests ✅ (290 passing, 7 skipped)
+### Phase 5 — Backend tests ✅ (306 passing, 7 skipped)
 - [x] `test_matching.py` — weights, determinism, each component, grounding
 - [x] `test_extraction.py` — evidence grounding in ta/hi/en, invention rejected
 - [x] `test_normalization.py` — alias matching across scripts, no silent upgrades
@@ -378,6 +388,7 @@ frontend/
 - [x] `test_scheme_qa_refusal.py` — a failed model refuses instead of asserting a passage
 - [x] `test_typed_skill.py` — normalize tolerates an entry it has never stored
 - [x] `test_typed_input_validation.py` — off-topic text never becomes a skill; a question is still answered
+- [x] `test_years_parsing.py` — "two-wheelers for six years" is six, and "two bikes" is nothing
 
 ### Phase 6 — Frontend scaffold ✅
 - [x] Next 16.3.4, React 19, TS strict, Tailwind v4
@@ -399,7 +410,7 @@ frontend/
 - [x] `/admin/schemes`, `/admin/taxonomy`, `/admin/sessions` (read-only, no transcripts)
 
 ### Phase 9 — Verification ✅
-- [x] `pytest` — 290 passed, 7 skipped (the 7 need a database)
+- [x] `pytest` — 306 passed, 7 skipped (the 7 need a database)
 - [x] `npx tsc --noEmit` — clean
 - [x] `next build` — 12 routes
 - [x] Both servers running; RSC detail page pulling live backend data
@@ -525,6 +536,66 @@ discards every response and the failure is indistinguishable from a dead server.
   eslint is not a dependency.
 - **Rate limiting is per-process.** Multiplies behind multiple instances; move
   the counter to Redis before scaling.
+
+---
+
+## Fixed on 2026-09-12 — six years read as two, and experience shown too late
+
+Reported as *"years of experience not displaying on the skill passport card"*,
+with three suggested causes: extraction not parsing it, a field-name mismatch,
+or the card not rendering it. **None of the three was the problem.** Traced
+end to end for the reported transcript:
+
+```
+extract  -> profile.experience_years = 5.0
+passport -> profile.experience_years = 5.0
+```
+
+and that session is in the database with `years=5.0`. The passport renders it
+at 38px. Nothing in that chain was broken.
+
+Two real defects turned up underneath it.
+
+### "two-wheelers for six years" was read as two years
+
+The offline parser matched spelled-out numbers by **substring**, then accepted
+any year word within 22 characters. So in *"repairing two-wheelers for six
+years"* the "two" inside "two-wheelers" paired with the "years" belonging to
+"six", and six years of experience became two.
+
+A word boundary alone does not fix it — a hyphen is not a word character, so
+"two" is already a whole word there. **Adjacency is the fix:** the number must
+be its own word, and a year word must follow within one word. "five long years"
+still reads; "two bikes" still reads as nothing, which is what the original
+guard was written for.
+
+This path is not a fallback curiosity. It runs whenever the model is
+unavailable, and it was running in production while this was diagnosed, because
+Groq's **daily** token allowance had run out.
+
+### Experience was shown nowhere the person could check it
+
+`experience_years` appeared in exactly one place in the entire frontend: the
+passport stat tile, which a person reaches *after* matching. It was not on
+`/understanding` — the screen that says *"Change anything that is wrong. Every
+line shows the words you actually said."*
+
+So experience is a quarter of a match score, the parser can misread it, and the
+screen built for catching mistakes never showed it. It does now, with the
+phrase it was read from, and says plainly when no duration was heard.
+
+**It is still not editable.** Correcting it means re-recording, because no
+endpoint edits a stored profile. Seeing that it is wrong is the half that was
+missing; that is on the to-do list.
+
+### Why it is not on the skill card
+
+The report asked for it there. Experience is stored once per profile, not per
+skill — there is no per-skill duration anywhere in the model. Putting the
+profile figure on each card would claim five years of welding for someone who
+said five years of plumbing and a little welding, which is exactly the kind of
+unearned attribution this codebase refuses everywhere else. Per-skill durations
+would be a real feature: prompt, schema, migration and UI.
 
 ---
 
