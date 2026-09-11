@@ -56,6 +56,89 @@ restart.
 
 ---
 
+## Layout
+
+As on `main`. Files marked **(rag)** exist only on the `rag` branch.
+
+```
+HACKATHON_PLAN.md          Seven-part jury narrative, running order, pre-flight
+samplequestions.md         50 jury questions with grounded answers
+README.md                  Setup, the stack and what it costs, known limits
+STATUS.md                  This file
+.python-version            3.11.9 -- Render defaults to 3.14, which has no wheel
+
+db/                        Apply in numeric order
+  001_schema.sql             9 tables, pgvector, constraints, FK indexes
+  002_functions.sql          match_skill_taxonomy, opportunity_skill_vectors,
+                             purge_expired_audio
+  003_seed.sql               44 skills, 16 Salem/Erode opportunities. Idempotent
+  004_policies.sql           RLS: catalogues public-read, personal data closed
+  005_documents.sql          (rag) scheme_documents, document_chunks, retrieval fn
+
+backend/
+  Dockerfile                 For hosts that only take an image. Render uses the
+                             build/start commands instead
+  requirements.txt           API only (~10MB)
+  requirements-deploy.txt    + Piper (~300MB). What the deployment installs
+  requirements-ml.txt        + torch, Whisper (~1.16GB). Fully local operation
+  app/
+    config.py                Every provider setting, and the validator that
+                             downgrades to offline rather than failing at request time
+    main.py                  App wiring, CORS, /health
+    data/catalogue.py        In-memory catalogue when there is no database
+    models/schemas.py        Request and response shapes
+    prompts/text.py          All four prompts, reviewable on their own
+    routes/                  Thin -- speech, profile, opportunities, sessions,
+                             assistant, admin
+    services/
+      stt.py                 Whisper: groq | local | offline
+      tts.py                 Piper, in-process. Falls back to the browser
+      llm.py                 groq | gemini | offline behind one interface
+      embeddings.py          e5: hf_api | local | offline hashing
+      extraction.py          Skills from speech. _validate drops what it cannot
+                             quote from the transcript
+      normalization.py       Exact alias -> embedding -> LLM assist -> ask the user
+      matching.py            Deterministic 50/25/15/10. Imports no LLM
+      explanation.py         Grounded bullets. No field carries a score back
+      assistant.py           Q&A over one opportunity's stored fields only
+      taxonomy.py            Vector search, alias index, localized labels
+      ner.py                 IndicNER entity spans. Built, nothing calls it
+      retrieval.py           (rag) Chunking and hybrid dense + keyword search
+      scheme_qa.py           (rag) Answers that cite a passage, or refuse
+      db.py, repository.py, opportunities.py, pipeline.py, ratelimit.py
+    scripts/
+      embed_taxonomy.py      Taxonomy vectors. --all to recompute
+      fetch_voices.py        Piper voices for ta/hi/en (~190MB)
+      ingest_documents.py    (rag) PDF/text -> chunks -> embeddings
+      migrate.py
+  tests/                     178, fully offline -- no keys, network or database
+  data/scheme_docs/          (rag) Source PDFs, committed (~2.1MB): PM-AJAY
+                             and PMAGY guidelines, TN Sigaram Thodu EOI.
+                             Public documents, kept so retrieval is reproducible
+
+frontend/
+  app/
+    page.tsx                 Landing
+    speak/                   Mic, live waveform off real amplitude
+    understanding/           Editable skill cards, each showing its evidence
+                             and now its confidence against the threshold
+    understanding/disambiguate/   Low-confidence screen
+    opportunities/           Ranked feed
+    opportunities/[id]/      RSC detail + score bars with their weights
+    passport/                Skill Passport, audio-retention toggle
+    admin/                   Opportunities, taxonomy, sessions (no transcripts)
+  components/                SkillCard, Waveform, MatchRing, AskVoicePath, ...
+  lib/
+    api.ts                   Typed client. Errors carry the backend's own words
+    session.tsx              Session state; health with retry and backoff
+    i18n.ts                  ta/hi/en copy, written in each language
+    recorder.ts              getUserMedia, MediaRecorder, live levels
+    wav.ts                   WebM/Opus -> 16kHz mono WAV, in the browser
+    browser-speech.ts        On-device recognition and synthesis fallback
+```
+
+---
+
 ## Task checklist
 
 ### Phase 0 — Scaffold & docs ✅
