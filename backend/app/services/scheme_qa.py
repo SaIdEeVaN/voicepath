@@ -159,14 +159,26 @@ async def _answer_from_corpus(clean: str, *, language: str) -> SchemeAnswer:
     try:
         payload = await llm.complete_json(_SYSTEM, prompt, temperature=0.2, max_tokens=600)
     except (llm.LLMUnavailable, llm.LLMResponseError) as exc:
-        logger.warning("Scheme answer unavailable (%s); returning the passage", exc)
-        best = usable[0]
-        return SchemeAnswer(
-            answer=best.content.strip()[:600],
-            citations=[_cite(best)],
-            grounded=True,
-            provider="offline",
-        )
+        # Refuse, rather than fall back to the offline shape above.
+        #
+        # That shape -- hand back the best passage, grounded, with its citation
+        # -- is a considered trade when there is no model *by design*: nothing
+        # can summarise, so the citation is the answer. Reused for a transient
+        # failure it does something else entirely. It removes the only judge
+        # this module has and then asserts anyway.
+        #
+        # Retrieval cannot supply that judgement. e5 scores every passage in a
+        # narrow high band, so a question the corpus has never heard of still
+        # returns five confident-looking neighbours: asking about the capital
+        # of France returned a passage on the Ambedkar International Centre,
+        # marked grounded, because Groq had answered 429 a moment earlier.
+        #
+        # A deployment configured with a model is expected to use it. When the
+        # call fails, the honest answer is that nothing could be answered right
+        # now -- and a retry will usually succeed, which a false assertion
+        # forecloses.
+        logger.warning("Scheme answer unavailable (%s); refusing", exc)
+        return SchemeAnswer(answer=_refusal(language), citations=[], grounded=False)
 
     answer = str((payload or {}).get("answer") or "").strip()
     if not answer:

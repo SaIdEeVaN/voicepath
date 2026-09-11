@@ -1,0 +1,126 @@
+Page 12 of 46  
+1.2 % of households provided with clean drinking water >75% 
+50-75% 
+<50% 
+2 
+1 
+0 
+1.3 % of households having Individual Household Latrines 
+(IHHLs) 
+Yes 
+No 
+2 
+0 
+1.4 Have toilets been provided in all schools and 
+Anganwadis in the village? (Yes/No) 
+Yes=100% 
+No=0% 
+2 
+0 
+1.5 Whether people are still defecating in the open in the 
+village? (Yes/No) 
+Yes 
+No 
+0 
+2 
+1.6 % of drains available along all internal roads >75% 
+50-75% 
+<50% 
+2 
+1 
+0 
+1.7 % of existing drains functioning >75% 
+50-75% 
+<50% 
+2 
+1 
+0 
+1.8 % of solid and liquid waste being disposed of 
+effectively 
+>75% 
+50-75% 
+<50% 
+2 
+1 
+0 
+2. Education   
+2.1 % of children (6-10years), both boys and girls, 
+attending 
+primary schools 
+100% 
+<100% 
+2 
+0 
+2.2 % of children (11-13 years), both boys and girls, 
+attending middle school 
+100% 
+<100% 
+2 
+0 
+2.3 % of children (14-15 years), both boys and girls, 
+attending secondary school 
+100% 
+<100% 
+2 
+0 
+2.4 % of children (16-17 years), both boys and girls, 
+attending higher secondary school 
+100% 
+<100% 
+2 
+0 
+2.5 % of children (18-23 years), both boys and girls, 
+attending post higher secondary education 
+>75% 
+50-75% 
+<50% 
+2 
+1 
+0 
+2.6 % of SC children (out of those attending school & 
+eligible) 
+receiving pre-matric scholarship 
+100% 
+<100% 
+2 
+0 
+2.7 % of SC children (out of those pursuing post matric 
+education and eligible) receiving post-matric 
+scholarship 
+100% 
+<100% 
+2 
+0 
+3. Health and Nutrition   
+3.1 % of eligible households covered under any Health 
+Protection Scheme 
+100% 
+<100% 
+2 
+0 
+3.2 Is an emergency Ambulance facility available on call? 
+(Yes/No) 
+Yes 
+No 
+2 
+0 
+3.3 % of pregnant women who are severely anemic 0% 
+>0% 
+2 
+0 
+3.4 % of institutional deliveries in the village during the 
+last one year 
+100% 
+<100% 
+2 
+0 
+3.5 % of low-birth-weight children born during the last one 
+year 
+0% 
+>0% 
+2 
+0 
+3.6 % of full immunization of children (< 1 year) 100% 
+<100% 
+2 
+0
