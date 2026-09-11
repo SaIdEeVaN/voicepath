@@ -9,10 +9,12 @@
  * their own and press it.
  */
 
+import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { MicIcon } from "@/components/MicIcon";
+import { ApiError, api } from "@/lib/api";
 import { PrivacyNote } from "@/components/Notices";
 import { COPY, LANGUAGES, copyFor } from "@/lib/i18n";
 import { useSession } from "@/lib/session";
@@ -20,14 +22,43 @@ import type { Language } from "@/lib/types";
 
 export default function LandingPage() {
   const router = useRouter();
-  const { language, setLanguage } = useSession();
+  const { language, setLanguage, setSession } = useSession();
   const copy = copyFor(language);
+
+  const [typed, setTyped] = useState("");
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const others = LANGUAGES.filter((entry) => entry.code !== language);
 
   const start = (chosen: Language) => {
     setLanguage(chosen);
     router.push("/speak");
+  };
+
+  /**
+   * Typing is a third way in, not a lesser one.
+   *
+   * It joins the pipeline at exactly the point speech does: the transcript.
+   * Everything downstream -- extraction, the evidence check, normalisation,
+   * matching -- runs identically, so a typed sentence is held to the same rule
+   * that nothing may be attributed to someone that they did not say.
+   */
+  const submitTyped = async () => {
+    const text = typed.trim();
+    if (!text || sending) return;
+    setSending(true);
+    setError(null);
+    try {
+      const result = await api.clientTranscript(text, language);
+      setSession(result.session_id, result.transcript, language);
+      router.push("/understanding");
+    } catch (cause) {
+      setError(
+        cause instanceof ApiError ? cause.message : "Something went wrong.",
+      );
+      setSending(false);
+    }
   };
 
   return (
@@ -95,6 +126,53 @@ export default function LandingPage() {
         >
           {copy.speakHint}
         </p>
+
+        {/* The second way in. Under the microphone rather than beside it: the
+            mic stays the thing you reach for first, because it asks least of
+            someone who cannot comfortably type. Both land on the same
+            transcript, so neither path is a lesser version of the other. */}
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            void submitTyped();
+          }}
+          className="flex w-full max-w-[420px] flex-col items-center gap-3"
+        >
+          <span className="text-xs" style={{ color: "var(--ink-45)" }} lang={language}>
+            {copy.orType}
+          </span>
+
+          <div className="flex w-full gap-2 max-[400px]:flex-col">
+            <input
+              value={typed}
+              onChange={(event) => setTyped(event.target.value)}
+              placeholder={copy.typePlaceholder}
+              disabled={sending}
+              aria-label={copy.typePlaceholder}
+              lang={language}
+              className="min-w-0 flex-1 rounded-full px-4.5 py-2.5 text-[15px] disabled:opacity-50"
+              style={{
+                background: "var(--color-surface)",
+                border: "1px solid var(--ink-22)",
+                padding: "0.625rem 1.125rem",
+              }}
+            />
+            <button
+              type="submit"
+              disabled={sending || typed.trim() === ""}
+              className="vp-pill vp-pill-primary flex-none justify-center disabled:opacity-40"
+              lang={language}
+            >
+              {sending ? copy.loading : copy.typeSubmit}
+            </button>
+          </div>
+
+          {error && (
+            <p className="text-center text-[13px]" style={{ color: "var(--color-danger)" }}>
+              {error}
+            </p>
+          )}
+        </form>
 
         <PrivacyNote />
 

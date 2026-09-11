@@ -17,6 +17,9 @@ export interface Copy {
   /* Landing */
   statement: string;
   speakHint: string;
+  orType: string;
+  typePlaceholder: string;
+  typeSubmit: string;
   notKept: string;
   /* Speak */
   listening: string;
@@ -91,6 +94,9 @@ export interface Copy {
 const en: Copy = {
   statement: "Your experience has a voice.",
   speakHint: "Press and tell me about the work you have done.",
+  orType: "or type it",
+  typePlaceholder: "I repair two-wheelers",
+  typeSubmit: "Find work",
   notKept: "Your voice is not saved. Only what you said in words is kept.",
   listening: "Listening",
   stopHint: "Press to finish",
@@ -168,6 +174,9 @@ const en: Copy = {
 const ta: Copy = {
   statement: "உங்கள் அனுபவத்திற்கு ஒரு குரல் இருக்கிறது.",
   speakHint: "அழுத்தி, நீங்கள் செய்த வேலையைப் பற்றி சொல்லுங்கள்.",
+  orType: "அல்லது தட்டச்சு செய்யுங்கள்",
+  typePlaceholder: "நான் டூ-வீலர் ரிப்பேர் செய்வேன்",
+  typeSubmit: "வேலை தேடு",
   notKept: "உங்கள் குரல் சேமிக்கப்படுவதில்லை. நீங்கள் சொன்ன வார்த்தைகள் மட்டுமே வைக்கப்படும்.",
   listening: "கேட்டுக்கொண்டிருக்கிறேன்",
   stopHint: "முடிக்க அழுத்துங்கள்",
@@ -247,6 +256,9 @@ const ta: Copy = {
 const hi: Copy = {
   statement: "आपके अनुभव की एक आवाज़ है।",
   speakHint: "दबाइए और अपने किए हुए काम के बारे में बताइए।",
+  orType: "या टाइप कीजिए",
+  typePlaceholder: "मैं दोपहिया गाड़ी ठीक करता हूँ",
+  typeSubmit: "काम खोजिए",
   notKept: "आपकी आवाज़ सहेजी नहीं जाती। सिर्फ़ आपके कहे शब्द रखे जाते हैं।",
   listening: "सुन रहा हूँ",
   stopHint: "खत्म करने के लिए दबाइए",

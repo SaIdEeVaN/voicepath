@@ -34,10 +34,16 @@ class TranscribeResponse(Base):
 
 
 class ClientTranscriptRequest(Base):
-    """A transcript the browser produced on-device.
+    """A transcript that did not come from server-side speech recognition.
 
-    Used when server-side STT is unavailable. The audio never leaves the
-    device in this path, which is stricter than the default, not looser.
+    Two ways in: the browser recognised the speech on-device when server-side
+    STT was unavailable, or the person typed it. Either way no audio exists to
+    send, which is stricter than the default path rather than looser.
+
+    Typed text joins the pipeline here deliberately. Extraction, the evidence
+    check, normalisation and matching then run identically, so a typed sentence
+    is held to the same rule as a spoken one: nothing may be attributed to
+    someone that they did not say.
     """
 
     transcript: str = Field(min_length=1, max_length=20000)
