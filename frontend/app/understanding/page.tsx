@@ -9,7 +9,7 @@
  * profile the person has not seen.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { DegradedNote, ErrorNote } from "@/components/Notices";
@@ -38,9 +38,12 @@ export default function UnderstandingPage() {
   const [error, setError] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [answer, setAnswer] = useState<AssistantQueryResponse | null>(null);
-  // Classification runs once per visit; re-running it on every render
-  // would re-ask the same question of the same transcript.
-  const [asked, setAsked] = useState(false);
+  // A ref, not state. As state this was in the effect's own dependency
+  // array, so setting it re-ran the effect, which fired the previous
+  // cleanup, which set cancelled -- and the answer was thrown away when it
+  // arrived. The guard against asking twice was what stopped it answering
+  // once. A ref changes nothing React watches.
+  const asked = useRef(false);
 
   useEffect(() => setHydrated(true), []);
 
@@ -95,8 +98,8 @@ export default function UnderstandingPage() {
    * scheme for welding", which is the true answer.
    */
   useEffect(() => {
-    if (!hydrated || !transcript.trim() || asked) return;
-    setAsked(true);
+    if (!hydrated || !transcript.trim() || asked.current) return;
+    asked.current = true;
 
     let cancelled = false;
     api
@@ -120,7 +123,7 @@ export default function UnderstandingPage() {
     return () => {
       cancelled = true;
     };
-  }, [hydrated, transcript, sessionId, language, asked]);
+  }, [hydrated, transcript, sessionId, language]);
 
   const push = useCallback(
     async (edits: SkillEdit[]) => {
