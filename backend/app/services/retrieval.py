@@ -73,6 +73,18 @@ _TARGET_CHARS = 2000
 # that straddles a boundary is not cut in half.
 _OVERLAP_CHARS = 200
 
+# Two independent signs that a block is prose. A block needs only one.
+#
+# Words per line catches ordinary wrapped prose, and is the original test --
+# calibrated against portal pages, where menus run two to four words a line and
+# the prose beside them fifteen and up.
+_MIN_WORDS_PER_LINE = 6
+# Sentence endings per 100 characters catches prose that wraps short because a
+# PDF's layout made it, which the line test reads as a menu. Measured across a
+# scheme playbook and the PM-AJAY guidelines: prose 0.61-0.75, contents pages
+# and score tables 0.20-0.29.
+_MIN_SENTENCE_DENSITY = 0.45
+
 # A heading is a short line that is not a sentence: numbered clauses, ALL CAPS
 # titles, or a bare title case line. Crude, and deliberately so -- the cost of a
 # missed heading is a chunk with no label, not a wrong answer.
@@ -142,6 +154,12 @@ def chunk_text(text: str) -> list[Chunk]:
     return [c for c in chunks if _is_prose(c.content)]
 
 
+# A sentence ending, not a decimal point or a section number. "1.2 % of
+# households" must not read as two sentences -- that is exactly the shape of
+# the scoring tables this filter exists to reject.
+_SENTENCE_END = re.compile(r"(?<!\d)[.!?।](?=\s|$)")
+
+
 def _is_prose(text: str) -> bool:
     """Reject chunks that are flattened tables rather than sentences.
 
@@ -156,25 +174,46 @@ def _is_prose(text: str) -> bool:
     The share of characters that are letters rejects a table of figures: real
     sentences run well above 70% in every script we handle.
 
-    Sentence length rejects a navigation menu, which the first test passes
-    easily -- "Screen Reader Access", "About Us", "Contact" are all letters.
-    What they are not is sentences. A page of links averages a few words per
-    line; prose runs much longer, in any of our three languages.
+    Sentence-ending density rejects the rest -- a contents page, an annexure
+    list, a navigation menu. None of them are sentences, and none of them carry
+    full stops at anything like the rate prose does.
+
+    Either sign of prose is enough, and that is the fix rather than the
+    thresholds. Words per line alone was the original test, and it does not
+    survive a designed PDF: ingesting a 107-page scheme playbook it rejected 88
+    of 106 blocks and threw away 150,000 of 188,000 characters, including the
+    scheme descriptions themselves, which the card layout wraps at four to five
+    words a line. Sentence density alone is no better -- government prose runs
+    to very long sentences, and a department's vision statement measured 0.29,
+    indistinguishable from a contents page.
+
+    A block that wraps long is prose. A block that wraps short but ends
+    sentences at a normal rate is also prose. Only a block that does neither is
+    furniture.
     """
     stripped = text.strip()
     if len(stripped) < 80:
         return False
 
-    lines = [line.strip() for line in stripped.split("\n") if line.strip()]
-    if lines:
-        words_per_line = sum(len(line.split()) for line in lines) / len(lines)
-        # Measured against ingested portal pages: menus sit at two to four
-        # words a line, the prose on the same pages at fifteen and up.
-        if words_per_line < 6:
-            return False
-
     letters = sum(1 for ch in stripped if ch.isalpha())
-    return letters / len(stripped) >= 0.65
+    if letters / len(stripped) < 0.65:
+        return False
+
+    lines = [line.strip() for line in stripped.splitlines() if line.strip()]
+    if not lines:
+        return False
+
+    # Two independent signs of prose, and either is enough. Requiring both is
+    # what broke card layouts: they wrap short, so they fail the line test
+    # while reading as perfectly good sentences.
+    words_per_line = sum(len(line.split()) for line in lines) / len(lines)
+    if words_per_line >= _MIN_WORDS_PER_LINE:
+        return True
+
+    # Flattened, so a wrapped sentence counts once rather than once per line.
+    flat = " ".join(lines)
+    endings = len(_SENTENCE_END.findall(flat))
+    return 100.0 * endings / len(flat) >= _MIN_SENTENCE_DENSITY
 
 
 def _clean_overlap(tail: str) -> str:

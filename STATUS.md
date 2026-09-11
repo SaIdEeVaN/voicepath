@@ -3,7 +3,7 @@
 > **This file is the live todo list.** It is updated every time a task is completed.
 > Start at **To-do** — that is the working checklist. **Next up** carries the
 > detail behind the top items; everything below it is the record of the build.
-> Last updated: 2026-09-12 (results are filtered on skill evidence; 258 tests)
+> Last updated: 2026-09-12 (full scheme corpus ingested: 21 docs, 1096 passages)
 
 **Project root:** `C:\Users\Sai Dixit\voicepath`
 **Sources:** `PRD_File_For_Project.md` (spec) · `VoicePath Mockups.html` (design canvas, unpacked)
@@ -184,7 +184,7 @@ Four approaches, in order of effort:
 | 2. Backend core (config, db, providers) | ✅ Done |
 | 3. Backend pipeline (extract → normalize → match → explain) | ✅ Done |
 | 4. Backend routes + rate limiting | ✅ Done |
-| 5. Backend tests | ✅ Done — **258 passing**, 7 skipped |
+| 5. Backend tests | ✅ Done — **268 passing**, 7 skipped |
 | 6. Frontend scaffold + design tokens | ✅ Done |
 | 7. Frontend screens | ✅ Done — all 8 |
 | 8. Admin (Phase 2) | ✅ Done |
@@ -285,11 +285,13 @@ backend/
       fetch_voices.py        Piper voices for ta/hi/en (~190MB)
       ingest_documents.py    PDF/text -> chunks -> embeddings
       migrate.py
-  tests/                     265, fully offline -- no keys, network or database.
-                             258 pass; 7 skip without one (intent topic check)
-  data/scheme_docs/          Source PDFs, committed (~2.1MB): PM-AJAY
-                             and PMAGY guidelines, TN Sigaram Thodu EOI.
-                             Public documents, kept so retrieval is reproducible
+  tests/                     275, fully offline -- no keys, network or database.
+                             268 pass; 7 skip without one (intent topic check)
+  data/scheme_docs/          Source PDFs, committed (~37MB): 22 central and
+                             state scheme documents -- PM-AJAY, PMAGY, NHDP,
+                             NLM, NULM, SFURTI, Khadi, the startup playbook and
+                             more. Public documents, kept so retrieval is
+                             reproducible. Two are scanned and yield nothing
 
 frontend/
   app/
@@ -352,7 +354,7 @@ frontend/
 - [x] `/api/admin/*` — server-side role check, sha256 tokens, bootstrap that self-disables
 - [x] Rate limiting on public routes · `GET /health` reporting every provider honestly
 
-### Phase 5 — Backend tests ✅ (258 passing, 7 skipped)
+### Phase 5 — Backend tests ✅ (268 passing, 7 skipped)
 - [x] `test_matching.py` — weights, determinism, each component, grounding
 - [x] `test_extraction.py` — evidence grounding in ta/hi/en, invention rejected
 - [x] `test_normalization.py` — alias matching across scripts, no silent upgrades
@@ -369,6 +371,8 @@ frontend/
 - [x] `test_admin_gate_messages.py` — unconfigured is 503; a wrong token never reveals how the deployment is set up
 - [x] `test_admin_overview.py` — the figures add up, and carry no transcript or question text
 - [x] `test_matching_relevance.py` — a mismatch scores low, and a skill-less scheme cannot top the list
+- [x] `test_chunk_quality.py` — card-layout prose survives; contents pages and score tables do not
+- [x] `test_scheme_qa_refusal.py` — a failed model refuses instead of asserting a passage
 
 ### Phase 6 — Frontend scaffold ✅
 - [x] Next 16.3.4, React 19, TS strict, Tailwind v4
@@ -390,7 +394,7 @@ frontend/
 - [x] `/admin/schemes`, `/admin/taxonomy`, `/admin/sessions` (read-only, no transcripts)
 
 ### Phase 9 — Verification ✅
-- [x] `pytest` — 258 passed, 7 skipped (the 7 need a database)
+- [x] `pytest` — 268 passed, 7 skipped (the 7 need a database)
 - [x] `npx tsc --noEmit` — clean
 - [x] `next build` — 12 routes
 - [x] Both servers running; RSC detail page pulling live backend data
@@ -516,6 +520,72 @@ discards every response and the failure is indistinguishable from a dead server.
   eslint is not a dependency.
 - **Rate limiting is per-process.** Multiplies behind multiple instances; move
   the counter to Redis before scaling.
+
+---
+
+## Done on 2026-09-12 — the full scheme corpus, and two defects found ingesting it
+
+Nineteen more scheme PDFs were added to `data/scheme_docs`, taking it to 22
+files and 37MB. The corpus now holds **21 documents and 1096 passages**, up
+from 4 and 121.
+
+Two of the twenty-two extract **zero characters** -- they are scanned images,
+and the ingest script skips them rather than storing empty documents. One of
+those, `2109-Pushpanand-Shankarrao-Nitanvare-Order.pdf`, also looks like a
+court order rather than a scheme document. Neither contributes anything without
+OCR.
+
+### The chunker was discarding three quarters of the largest new document
+
+`Startup-Schemes-Playbook-June-2026.pdf`: 188,000 characters, **24 chunks**.
+The blocks being thrown away were the scheme descriptions themselves -- *"ADITI
+is a government program that supports startups and innovators in building new
+defence technologies..."* -- dropped as though they were navigation menus.
+
+`_is_prose` rejected any block under six words a line. That was calibrated
+against government *portal pages*, where a menu runs two to four words a line
+and the prose beside it fifteen and up. A designed PDF wraps prose short inside
+cards, so real content measured 5.3 and was cut.
+
+Replacing the line test with sentence-ender density was also wrong, and was
+caught before shipping: it cut a department's vision statement at 0.29 endings
+per 100 characters, indistinguishable from a contents page, because government
+prose runs to very long sentences.
+
+**The fix is that either signal suffices.** A block that wraps long is prose. A
+block that wraps short but ends sentences at a normal rate is also prose. Only
+a block that does neither is furniture. Requiring both was the bug.
+
+944 → **1094** chunks offered, the playbook going 24 → 93, with contents pages,
+annexure lists and scoring tables still correctly excluded. The tests use real
+extracted blocks saved as fixtures under `tests/fixtures/`, because two
+hand-written "faithful" samples landed at 6.0 words a line and passed a filter
+that rejected the real thing at 5.3.
+
+### A rate-limited model was asserting unrelated passages
+
+Asking *"What is the capital of France?"* against the new corpus returned
+`grounded=True` and a passage about the Ambedkar International Centre.
+
+Retrieval was not at fault. Groq answered **429 Rate limit reached**, and the
+handler for that fell back to "return the best passage, grounded, with its
+citation". That shape is a considered trade when there is no model *by design*
+-- nothing can summarise, so the citation is the answer. Reused for a transient
+failure it removes the only judge the module has and then asserts anyway, and
+e5's narrow band guarantees there is always a confident-looking passage to
+assert.
+
+A transient failure now refuses. Deliberate offline operation is unchanged,
+and a test pins that distinction.
+
+### Known operational limit
+
+Groq's free tier allows **7000 input tokens per minute**, and one question
+sends five passages -- roughly 2500 tokens. That is about two or three
+questions a minute across the whole deployment, shared by every user. It was
+hit three times while testing seven questions in a row. Worth knowing before a
+demo; the fix is a paid tier or fewer passages per question, and it is a
+configuration decision rather than a bug.
 
 ---
 
