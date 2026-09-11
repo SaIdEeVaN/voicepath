@@ -104,6 +104,10 @@ export default function SchemesPage() {
 
   const ranked = matches.length > 0;
 
+  // `skill_evidence` is the domain's judgment, computed in matching; this is
+  // only the interface acting on it.
+  const relevant = matches.filter((m) => m.skill_evidence);
+
   return (
     <section className="mx-auto w-full max-w-[1080px] flex-1 px-[7vw] py-[clamp(2rem,5vw,3.5rem)] pb-20">
       <DegradedNote />
@@ -129,12 +133,23 @@ export default function SchemesPage() {
       )}
 
       <div className="mt-10 flex flex-col gap-3">
+        {/* Results are filtered, not just sorted.
+        
+            A scheme that declares no skills cannot be ruled out, and one in a
+            different trade scores nothing on skill -- but both still collect
+            experience, eligibility and distance, so both used to sit on this
+            page at a plausible-looking number. A carpenter was shown a pharma
+            job at the top of their results that way.
+        
+            None of that is why someone comes here. They come to be matched on
+            the work they have done, so a result without skill evidence is not
+            shown at all, and the empty state says so plainly. */}
         {/* The one orchestrated moment in the product: results arriving in
             rank order, best first. It shows that the list is ordered, which a
             simultaneous appearance does not. Suppressed when the person has
             asked for reduced motion. */}
         {ranked
-          ? matches.map((match, index) => (
+          ? relevant.map((match, index) => (
               <motion.div
                 key={match.scheme.id}
                 initial={reduceMotion ? false : { opacity: 0, y: 10 }}
@@ -161,6 +176,12 @@ export default function SchemesPage() {
                 onOpen={() => open(scheme.id)}
               />
             ))}
+
+        {!loading && ranked && relevant.length === 0 && (
+          <p className="text-[15px]" style={{ color: "var(--ink-62)" }} lang={language}>
+            {copy.noMatches}
+          </p>
+        )}
 
         {!loading && !ranked && (browse?.length ?? 0) === 0 && (
           <p className="text-[15px]" style={{ color: "var(--ink-62)" }} lang={language}>

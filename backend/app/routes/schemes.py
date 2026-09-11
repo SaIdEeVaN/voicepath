@@ -106,6 +106,7 @@ async def match(payload: schemas.MatchRequest) -> schemas.MatchResponse:
                 explanation_bullets=explanations[m.scheme.id].bullets
                 if m.scheme.id in explanations else [],
                 matched_skill_codes=m.matched_skill_codes,
+                skill_evidence=m.skill_evidence,
             )
             for m in ranked
         ],
