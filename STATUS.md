@@ -3,7 +3,7 @@
 > **This file is the live todo list.** It is updated every time a task is completed.
 > Start at **To-do** — that is the working checklist. **Next up** carries the
 > detail behind the top items; everything below it is the record of the build.
-> Last updated: 2026-09-12 (matching scored everything 86-95; fixed. 254 tests)
+> Last updated: 2026-09-12 (results are filtered on skill evidence; 258 tests)
 
 **Project root:** `C:\Users\Sai Dixit\voicepath`
 **Sources:** `PRD_File_For_Project.md` (spec) · `VoicePath Mockups.html` (design canvas, unpacked)
@@ -45,12 +45,9 @@ twice is harmless. There is no cost to doing this in the safe order.
 
 ### Now — correctness, and the largest spec gaps
 
-- [ ] **Two live schemes still have no required skills.** `Pharma Business`
-      (18) and `Plumbing Works` (19) were created before the admin form had a
-      skills field, so they score the neutral 0.5 for everyone and sit above a
-      real mismatch. The form can fix them now; the rows themselves were left
-      alone because choosing which skills a scheme needs is a decision about
-      the catalogue, not a bug fix.
+- [x] **Two live schemes had no required skills** — fixed 2026-09-12.
+      `Pharma Business` now requires Retail Sales, `Plumbing Works` requires
+      Plumbing. Every active scheme declares at least one skill.
 - [ ] **The spec disagrees with itself about the weights.** §14 lists Skill 40
       / Education 20 / Experience 15 / Location 15 / Other 10; §4.4 and §8 give
       the 50 / 25 / 15 / 10 the code implements, and there is no education
@@ -187,7 +184,7 @@ Four approaches, in order of effort:
 | 2. Backend core (config, db, providers) | ✅ Done |
 | 3. Backend pipeline (extract → normalize → match → explain) | ✅ Done |
 | 4. Backend routes + rate limiting | ✅ Done |
-| 5. Backend tests | ✅ Done — **254 passing**, 7 skipped |
+| 5. Backend tests | ✅ Done — **258 passing**, 7 skipped |
 | 6. Frontend scaffold + design tokens | ✅ Done |
 | 7. Frontend screens | ✅ Done — all 8 |
 | 8. Admin (Phase 2) | ✅ Done |
@@ -288,8 +285,8 @@ backend/
       fetch_voices.py        Piper voices for ta/hi/en (~190MB)
       ingest_documents.py    PDF/text -> chunks -> embeddings
       migrate.py
-  tests/                     261, fully offline -- no keys, network or database.
-                             254 pass; 7 skip without one (intent topic check)
+  tests/                     265, fully offline -- no keys, network or database.
+                             258 pass; 7 skip without one (intent topic check)
   data/scheme_docs/          Source PDFs, committed (~2.1MB): PM-AJAY
                              and PMAGY guidelines, TN Sigaram Thodu EOI.
                              Public documents, kept so retrieval is reproducible
@@ -355,7 +352,7 @@ frontend/
 - [x] `/api/admin/*` — server-side role check, sha256 tokens, bootstrap that self-disables
 - [x] Rate limiting on public routes · `GET /health` reporting every provider honestly
 
-### Phase 5 — Backend tests ✅ (254 passing, 7 skipped)
+### Phase 5 — Backend tests ✅ (258 passing, 7 skipped)
 - [x] `test_matching.py` — weights, determinism, each component, grounding
 - [x] `test_extraction.py` — evidence grounding in ta/hi/en, invention rejected
 - [x] `test_normalization.py` — alias matching across scripts, no silent upgrades
@@ -393,7 +390,7 @@ frontend/
 - [x] `/admin/schemes`, `/admin/taxonomy`, `/admin/sessions` (read-only, no transcripts)
 
 ### Phase 9 — Verification ✅
-- [x] `pytest` — 254 passed, 7 skipped (the 7 need a database)
+- [x] `pytest` — 258 passed, 7 skipped (the 7 need a database)
 - [x] `npx tsc --noEmit` — clean
 - [x] `next build` — 12 routes
 - [x] Both servers running; RSC detail page pulling live backend data
@@ -519,6 +516,58 @@ discards every response and the failure is indistinguishable from a dead server.
   eslint is not a dependency.
 - **Rate limiting is per-process.** Multiplies behind multiple instances; move
   the counter to Redis before scaling.
+
+---
+
+## Fixed on 2026-09-12 — results are filtered on evidence, not just ordered
+
+Follow-up to the scoring fix, from the obvious next question: *why did Pharma
+Business and Plumbing Works score exactly the same for a carpenter?*
+
+Because every component input was identical. Neither declared any skills (both
+took the neutral 0.5), both asked one year against a stated three (1.0), neither
+required certificates (1.0), and no location was given (0.5). There was nothing
+to tell them apart, so nothing did.
+
+**The obvious fix was measured and rejected.** Reading the scheme's own title
+and description instead of its declared skills gets it backwards: embedding
+each scheme's text and probing with Carpentry ranks *Pharma Business* (0.8162)
+**above** *Plumbing Works* (0.8079), and probing with Plumbing itself clears
+Pharma by only 0.02 — the same narrow band that caused the original bug.
+Inferring requirements from free text would have made the ranking confidently
+wrong rather than honestly flat, so it was not added.
+
+**Two real fixes instead.**
+
+The catalogue was completed: `Pharma Business` requires Retail Sales,
+`Plumbing Works` requires Plumbing. Every active scheme now declares at least
+one skill, which is the mechanism matching actually reasons over.
+
+And `skill_evidence` was added to `ScoredMatch` — true only when a scheme
+declares requirements *and* this person earned at least `SKILL_EVIDENCE_AT`
+(0.05) against them. Not simply "more than zero": the similarity floor is a
+measurement, and the closest unrelated pair measured sits 0.0007 above it,
+rescaling to 0.009. The threshold clears that slop while admitting a genuine
+neighbour at 0.34.
+
+`/schemes` shows only results carrying that evidence. A scheme declaring no
+skills cannot be *ruled out*, which is not the same as fitting, and a scheme in
+another trade scores nothing on skill — but both still collect experience,
+eligibility and distance, so both sat on the page at a plausible-looking
+number. None of that is why someone comes here. When nothing carries evidence
+the existing empty state says so, which is a truer answer than a list of near
+misses.
+
+The flag changes no score and is computed in `matching`, where the knowledge
+is; what to do with a result that lacks it stays the interface's decision.
+
+Measured against the live catalogue afterwards:
+
+| input | shown |
+|---|---|
+| carpenter, 3 years | nothing — *"Nothing here fits your work yet."* |
+| two-wheeler mechanic, 6 years | Two-Wheeler Training 79, Technician 73, Workshop 67, Auto Electrician 62 |
+| plumbing, 2 years | Plumbing Works 95, an exact match |
 
 ---
 

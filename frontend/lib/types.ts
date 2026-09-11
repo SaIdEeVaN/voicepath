@@ -121,6 +121,7 @@ export interface MatchResult {
   explanation_text: string | null;
   explanation_bullets: string[];
   matched_skill_codes: string[];
+  skill_evidence?: boolean;
 }
 
 export interface MatchResponse {

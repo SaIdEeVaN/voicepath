@@ -51,6 +51,17 @@ class ScoredMatch:
     overall_score: float
     rank: int = 0
     matched_skill_codes: list[str] = field(default_factory=list)
+    # Whether the skill term was *earned* rather than defaulted.
+    #
+    # True only when the scheme declares requirements and this person earned
+    # something against them. It separates "this fits the work you described"
+    # from "this does not exclude you" -- a scheme declaring no skills cannot
+    # be ruled out, which is not the same as fitting, and a carpenter was
+    # shown one at the top of their results because of it.
+    #
+    # The flag does not change any score. What to do with a result that lacks
+    # it is the interface's decision, not this module's.
+    skill_evidence: bool = False
     # Facts the explanation layer is permitted to draw on. Nothing else.
     grounding: dict[str, object] = field(default_factory=dict)
 
@@ -150,6 +161,16 @@ SKILL_SIMILARITY_FLOOR = 0.92
 # name it as a skill the person has. Partial credit still counts toward the
 # score below this -- it is simply not something to claim out loud.
 SKILL_MATCHED_AT = 0.5
+
+# How much of the required weight must be earned before a result counts as
+# fitting the work someone described, rather than merely not excluding them.
+#
+# Not simply "more than zero". The floor above is a measurement, and a value a
+# hair over it is slop rather than overlap: the closest unrelated pair measured
+# (Carpentry to Welding, 0.9207) sits 0.0007 above the 0.92 floor and rescales
+# to 0.009. This clears that comfortably while admitting a genuine neighbour --
+# Two-Wheeler to Four-Wheeler Repair rescales to 0.34.
+SKILL_EVIDENCE_AT = 0.05
 
 
 def _norm(value: str | None) -> str:
@@ -386,6 +407,10 @@ def score_one(profile: ProfileInput, scheme: Scheme) -> ScoredMatch:
     settings = get_settings()
 
     skill, matched = skill_similarity(profile, scheme)
+    # Declared requirements, and enough earned against them to mean something.
+    # A scheme with no requirements returns SKILL_UNKNOWN, which is not
+    # evidence however large it looks.
+    skill_evidence = bool(scheme.required_skills) and skill >= SKILL_EVIDENCE_AT
     experience = experience_score(profile, scheme)
     eligibility = eligibility_score(profile, scheme)
     location = location_score(profile, scheme)
@@ -405,6 +430,7 @@ def score_one(profile: ProfileInput, scheme: Scheme) -> ScoredMatch:
         location_score=round(location, 4),
         overall_score=round(min(1.0, max(0.0, overall)), 4),
         matched_skill_codes=matched,
+        skill_evidence=skill_evidence,
         grounding=_grounding(profile, scheme, matched),
     )
 

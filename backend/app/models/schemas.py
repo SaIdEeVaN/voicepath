@@ -198,6 +198,11 @@ class MatchResult(Base):
     explanation_bullets: list[str] = Field(default_factory=list)
     # Which of the user's skills carried the match, for the trust layer.
     matched_skill_codes: list[str] = Field(default_factory=list)
+    # Whether this fits the work the person described, as opposed to merely
+    # not excluding them. A scheme declaring no skills cannot be ruled out,
+    # which is not the same as fitting. Defaults false so a stored match read
+    # back from before this existed is not claimed as a fit.
+    skill_evidence: bool = False
 
 
 class MatchRequest(Base):

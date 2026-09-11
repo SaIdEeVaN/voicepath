@@ -204,3 +204,65 @@ class TestScoresStillSpanTheirRange:
         assert result.overall_score <= 0.55, (
             f"a total mismatch still scored {result.overall_score}"
         )
+
+
+class TestWhetherAResultIsWorthShowing:
+    """`skill_evidence` separates "this fits your trade" from "this does not
+    exclude you".
+
+    A carpenter was shown Pharma Business at the top of the results because it
+    declared no skills and so could not be ruled out. The score was honest --
+    experience, eligibility and location genuinely did fit -- but the page was
+    not, because none of that is why someone comes here. They come to be
+    matched on the work they have done.
+
+    The flag is computed where the knowledge is, in matching, and says only
+    whether the skill term was *earned* rather than defaulted. What to do with
+    a result that lacks it is the interface's decision.
+    """
+
+    def test_a_scheme_requiring_the_persons_trade_has_evidence(self):
+        owned = _owned(1, "SK001", _unit(0))
+        scheme = _scheme(
+            [RequiredSkill(skill_id=1, code="SK001", name="Two-Wheeler Repair",
+                           weight=1.0, is_essential=True, embedding=_unit(0))]
+        )
+
+        assert score_one(_profile([owned]), scheme).skill_evidence is True
+
+    def test_a_scheme_that_declares_nothing_has_none(self):
+        """It cannot be ruled out, which is not the same as fitting."""
+        owned = _owned(1, "SK001", _unit(0))
+
+        result = score_one(_profile([owned]), _scheme([]))
+
+        assert result.skill_evidence is False
+        # The score is still what it is -- the flag does not rewrite it.
+        assert result.skill_similarity_score == 0.5
+
+    def test_an_unrelated_trade_has_none(self):
+        owned = _owned(42, "SK042", _unit(0))
+        unrelated = _scheme(
+            [RequiredSkill(skill_id=22, code="SK022", name="Welding",
+                           weight=1.0, is_essential=True,
+                           embedding=_unit(23.07))]
+        )
+
+        assert score_one(_profile([owned]), unrelated).skill_evidence is False
+
+    def test_partial_credit_counts_as_evidence(self):
+        """A neighbouring trade is a real reason to show someone a listing,
+        even though it is not close enough to name in an explanation."""
+        owned = _owned(1, "SK001", _unit(0))
+        related = _scheme(
+            [RequiredSkill(skill_id=2, code="SK002", name="Four-Wheeler Repair",
+                           weight=1.0, is_essential=True,
+                           embedding=_unit(18.66))]
+        )
+
+        result = score_one(_profile([owned]), related)
+
+        assert result.skill_evidence is True
+        assert result.matched_skill_codes == [], (
+            "close enough to show, not close enough to claim"
+        )
