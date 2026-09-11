@@ -45,6 +45,8 @@ export interface Copy {
   addByTyping: string;
   addSkillPlaceholder: string;
   addSkillSubmit: string;
+  /** Typed text that was neither work nor a question. */
+  notWork: string;
   youSaid: string;
   notSure: string;
   edit: string;
@@ -140,6 +142,8 @@ const en: Copy = {
   addByTyping: "Or type the work you do",
   addSkillPlaceholder: "carpentry",
   addSkillSubmit: "Add",
+  notWork:
+    "That is not work I can use. Tell me the kind of work you do — like carpentry, welding or driving — or ask about a scheme.",
   youSaid: "YOU SAID",
   notSure: "I am not fully sure about this one",
   edit: "Edit",
@@ -243,6 +247,8 @@ const ta: Copy = {
   addByTyping: "அல்லது நீங்கள் செய்யும் வேலையைத் தட்டச்சு செய்யுங்கள்",
   addSkillPlaceholder: "தச்சு வேலை",
   addSkillSubmit: "சேர்",
+  notWork:
+    "அது வேலை போல் தெரியவில்லை. நீங்கள் செய்யும் வேலையைச் சொல்லுங்கள் — தச்சு, வெல்டிங், ஓட்டுநர் — அல்லது ஒரு திட்டத்தைப் பற்றிக் கேளுங்கள்.",
   youSaid: "நீங்கள் சொன்னது",
   notSure: "இதில் எனக்கு முழு உறுதி இல்லை",
   edit: "மாற்று",
@@ -343,6 +349,8 @@ const hi: Copy = {
   addByTyping: "या जो काम आप करते हैं वह लिखिए",
   addSkillPlaceholder: "बढ़ईगीरी",
   addSkillSubmit: "जोड़ें",
+  notWork:
+    "यह काम जैसा नहीं लगा। जो काम आप करते हैं वह बताइए — बढ़ईगीरी, वेल्डिंग, ड्राइविंग — या किसी योजना के बारे में पूछिए।",
   youSaid: "आपने कहा",
   notSure: "इस बारे में मुझे पूरा भरोसा नहीं है",
   edit: "बदलें",

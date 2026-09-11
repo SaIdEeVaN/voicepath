@@ -3,7 +3,7 @@
 > **This file is the live todo list.** It is updated every time a task is completed.
 > Start at **To-do** — that is the working checklist. **Next up** carries the
 > detail behind the top items; everything below it is the record of the build.
-> Last updated: 2026-09-12 (understanding takes typed skills; 273 tests passing)
+> Last updated: 2026-09-12 (typed input is classified before it is believed)
 
 **Project root:** `C:\Users\Sai Dixit\voicepath`
 **Sources:** `PRD_File_For_Project.md` (spec) · `VoicePath Mockups.html` (design canvas, unpacked)
@@ -184,7 +184,7 @@ Four approaches, in order of effort:
 | 2. Backend core (config, db, providers) | ✅ Done |
 | 3. Backend pipeline (extract → normalize → match → explain) | ✅ Done |
 | 4. Backend routes + rate limiting | ✅ Done |
-| 5. Backend tests | ✅ Done — **273 passing**, 7 skipped |
+| 5. Backend tests | ✅ Done — **290 passing**, 7 skipped |
 | 6. Frontend scaffold + design tokens | ✅ Done |
 | 7. Frontend screens | ✅ Done — all 8 |
 | 8. Admin (Phase 2) | ✅ Done |
@@ -285,8 +285,8 @@ backend/
       fetch_voices.py        Piper voices for ta/hi/en (~190MB)
       ingest_documents.py    PDF/text -> chunks -> embeddings
       migrate.py
-  tests/                     280, fully offline -- no keys, network or database.
-                             273 pass; 7 skip without one (intent topic check)
+  tests/                     297, fully offline -- no keys, network or database.
+                             290 pass; 7 skip without one (intent topic check)
   data/scheme_docs/          Source PDFs, committed (~28MB): 20 central and
                              state scheme documents -- PM-AJAY, PMAGY, PM SETU,
                              PMGSY, NHDP (handicrafts and handloom), NLM, NULM,
@@ -357,7 +357,7 @@ frontend/
 - [x] `/api/admin/*` — server-side role check, sha256 tokens, bootstrap that self-disables
 - [x] Rate limiting on public routes · `GET /health` reporting every provider honestly
 
-### Phase 5 — Backend tests ✅ (273 passing, 7 skipped)
+### Phase 5 — Backend tests ✅ (290 passing, 7 skipped)
 - [x] `test_matching.py` — weights, determinism, each component, grounding
 - [x] `test_extraction.py` — evidence grounding in ta/hi/en, invention rejected
 - [x] `test_normalization.py` — alias matching across scripts, no silent upgrades
@@ -376,7 +376,8 @@ frontend/
 - [x] `test_matching_relevance.py` — a mismatch scores low, and a skill-less scheme cannot top the list
 - [x] `test_chunk_quality.py` — card-layout prose survives; contents pages and score tables do not
 - [x] `test_scheme_qa_refusal.py` — a failed model refuses instead of asserting a passage
-- [x] `test_typed_skill.py` — a typed skill is accepted, and still normalized like any other
+- [x] `test_typed_skill.py` — normalize tolerates an entry it has never stored
+- [x] `test_typed_input_validation.py` — off-topic text never becomes a skill; a question is still answered
 
 ### Phase 6 — Frontend scaffold ✅
 - [x] Next 16.3.4, React 19, TS strict, Tailwind v4
@@ -398,7 +399,7 @@ frontend/
 - [x] `/admin/schemes`, `/admin/taxonomy`, `/admin/sessions` (read-only, no transcripts)
 
 ### Phase 9 — Verification ✅
-- [x] `pytest` — 273 passed, 7 skipped (the 7 need a database)
+- [x] `pytest` — 290 passed, 7 skipped (the 7 need a database)
 - [x] `npx tsc --noEmit` — clean
 - [x] `next build` — 12 routes
 - [x] Both servers running; RSC detail page pulling live backend data
@@ -524,6 +525,57 @@ discards every response and the failure is indistinguishable from a dead server.
   eslint is not a dependency.
 - **Rate limiting is per-process.** Multiplies behind multiple instances; move
   the counter to Redis before scaling.
+
+---
+
+## Fixed on 2026-09-12 — off-topic typing became a skill card
+
+Reported from the deployed app: typing *"desire doue or ousmane dembele ?"* on
+the understanding screen produced a skill card titled with those words, flagged
+*"I am not fully sure about this one"*, and let the person carry on to their
+matches.
+
+**This was a defect in the typed box added hours earlier, not in the pipeline.**
+The spoken path never had it: extraction reads a transcript and returns nothing
+for football players, so an off-topic recording lands on the empty state.
+Verified against the live model — that input yields zero skills, and intent
+classifies it `work=False, question=True`.
+
+The typed box skipped extraction and went straight to normalization, which
+answers a different question: *which taxonomy node is this nearest?* And e5
+answers that for anything. Measured against the live taxonomy:
+
+| typed | similarity | became |
+|---|---|---|
+| `desire doue or ousmane dembele ?` | 0.7528 | uncertain skill |
+| `who is the prime minister` | 0.7568 | uncertain skill |
+| `asdfghjkl` | 0.7795 | uncertain skill |
+| `carpentry` | 1.0000 | Carpentry |
+
+All three clear the 0.60 candidate threshold. **This is the third place the
+same property has had to be handled** — matching scored every scheme 86-95,
+retrieval scores "asdfghjkl" at 0.794 against the corpus, and now this. e5 has
+no concept of "unrelated", only of "nearest".
+
+The landing page already stated the rule the box broke: typing "joins the
+pipeline at exactly the point speech does: the transcript". It does now.
+`POST /api/profile/skills` classifies the text with the same step that routes
+speech, and has three answers rather than two:
+
+- **work** — extracted exactly as from speech, so each skill still carries
+  evidence quoted from what was typed and `_validate` still drops what it
+  cannot find there.
+- **a question** — *"who is eligible for PM-AJAY"* is not work, but refusing it
+  would be wrong. It is handed back and answered by the panel already on the
+  screen.
+- **neither** — refused, nothing stored, and the reason shown beside the field
+  in amber rather than red. Typing something unusable is a normal part of being
+  asked an open question, not an error the person committed.
+
+Extraction is the arbiter for the work case rather than classification alone,
+because it is what reads the text and finds no trade in it. Checked that it
+does not over-reject short input: *carpentry*, *welding*, *bike repair*,
+*I stitch clothes*, *tailoring work* and *lorry driving* each yield one skill.
 
 ---
 

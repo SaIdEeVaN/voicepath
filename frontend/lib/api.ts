@@ -167,6 +167,20 @@ export const api = {
       `/api/schemes/${id}/match/${sessionId}?language=${language}`,
     ),
 
+  /**
+   * Work typed on the understanding screen.
+   *
+   * Goes through extraction, exactly as speech does, rather than straight to
+   * normalization -- which would answer "which skill is this nearest?" for any
+   * text at all, and did: football players scored 0.75 against the taxonomy
+   * and became an uncertain skill card.
+   */
+  addTypedSkill: (sessionId: string, text: string, language: Language) =>
+    request<import("./types").AddSkillResponse>("/api/profile/skills", {
+      method: "POST",
+      body: JSON.stringify({ session_id: sessionId, text, language }),
+    }),
+
   /** What was this person doing -- describing work, asking, or both. */
   understand: (text: string, language: Language) =>
     request<QueryUnderstandResponse>("/api/query/understand", {

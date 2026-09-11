@@ -29,11 +29,14 @@ import type { Language } from "@/lib/types";
 export function AddSkillByTyping({
   language,
   busy,
+  error,
   onAdd,
 }: {
   language: Language;
   busy: boolean;
-  /** The typed words, which become both the name and the evidence. */
+  /** Shown under the field when the text was not work. */
+  error?: string | null;
+  /** The typed words. The server decides what they are. */
   onAdd(text: string): void;
 }) {
   const copy = copyFor(language);
@@ -86,6 +89,23 @@ export function AddSkillByTyping({
           {busy ? copy.loading : copy.addSkillSubmit}
         </button>
       </div>
+
+      {/* Amber, not red, and beside the field rather than at the top of the
+          page. Typing something the system cannot use is a normal part of
+          being asked an open question -- not an error the person committed. */}
+      {error && (
+        <p
+          className="vp-rise rounded-[10px] px-3.5 py-2.5 text-[13px] leading-relaxed"
+          style={{
+            background: "var(--ink-03)",
+            color: "var(--color-caution-ink)",
+          }}
+          role="status"
+          lang={language}
+        >
+          {error}
+        </p>
+      )}
     </form>
   );
 }

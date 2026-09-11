@@ -1,21 +1,22 @@
-"""A skill someone typed instead of said (spec sections 4.3 and 5).
+"""`/api/profile/normalize` tolerates a skill it has never stored.
 
-Every route into this product used to end at the microphone. The understanding
-screen offered "say something more" beside the cards and "say it again" when
-nothing was found, and both went back to `/speak`. That leaves someone in a
-noisy room, on a shared phone, or whose trade was misheard -- which is exactly
-where Tamil speech recognition is weakest -- with nothing else to try.
+Written on 2026-09-12 for the understanding screen's typed box, which sent new
+skills through this route carrying no id. That box was moved to
+`/api/profile/skills` hours later, because going through normalization skipped
+extraction -- the only step that asks whether the words describe work at all --
+and so turned "desire doue or ousmane dembele ?" into an uncertain skill card.
+See `test_typed_input_validation.py` for that.
 
-The screen takes typed skills now, and they enter through `/api/profile/normalize`
-carrying no id, because they have never been stored. These tests pin that
-contract, since the interface depends on it.
+These tests are kept because the property is still real and still worth
+guarding: the route takes the full corrected list and replaces what is stored,
+so an entry without an id has to be accepted rather than dropped, and the
+entries already there must survive. Nothing in the interface relies on it
+today.
 
-What must stay true: **typing is a way in, not a way around.** A typed skill is
-normalized like any other -- exact alias, then embedding, then the
-disambiguation screen if it is not clear enough -- and it carries evidence like
-any other. The evidence is what the person typed, which is the same rule the
-landing page follows when someone types a sentence instead of speaking it.
-Nothing is attributed to anyone that they did not say, in either medium.
+The last test matters most, and is the one the move was made for: typing
+"asdfghjkl" resolves to no taxonomy skill. Normalization will always name a
+nearest node -- e5 has no concept of "unrelated" -- so what it must never do is
+claim one.
 """
 
 from __future__ import annotations

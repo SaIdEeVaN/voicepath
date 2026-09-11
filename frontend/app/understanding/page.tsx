@@ -39,6 +39,9 @@ export default function UnderstandingPage() {
   const [error, setError] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [answer, setAnswer] = useState<AssistantQueryResponse | null>(null);
+  // Shown beside the typing box, where the person is looking, rather than
+  // as a page-level error about something they did not do wrong.
+  const [typedError, setTypedError] = useState<string | null>(null);
   // A ref, not state. As state this was in the effect's own dependency
   // array, so setting it re-ran the effect, which fired the previous
   // cleanup, which set cancelled -- and the answer was thrown away when it
@@ -161,21 +164,51 @@ export default function UnderstandingPage() {
     }));
 
   /**
-   * A skill the person typed rather than spoke.
+   * Text the person typed rather than spoke.
    *
-   * It joins the list as any other does, and goes through the same
-   * normalization: exact alias, then embedding, then the disambiguation screen
-   * if it is not clear enough. Nothing is accepted just because it was typed.
+   * This used to append a skill directly, which skipped extraction and so
+   * skipped the only step that asks whether the words describe work at all.
+   * Normalization answers a different question -- which taxonomy node is this
+   * nearest -- and answers it for anything: "desire doue or ousmane dembele ?"
+   * scored 0.75 and became a skill card flagged as uncertain.
    *
-   * The typed words are the evidence. Every card shows the words that produced
-   * it, and for this one that is what they wrote -- the same rule the landing
-   * page follows when someone types instead of speaking.
+   * The server decides now, from the same classification that routes speech,
+   * and the three answers are handled here.
    */
-  const addTyped = (text: string) => {
-    void push([
-      ...asEdits(),
-      { raw_name: text, evidence_phrase: text, chosen_skill_id: null },
-    ]);
+  const addTyped = async (text: string) => {
+    if (!sessionId) return;
+    setBusy(true);
+    setTypedError(null);
+    try {
+      const result = await api.addTypedSkill(sessionId, text, language);
+
+      if (result.kind === "work") {
+        setSkills(result.skills);
+        return;
+      }
+
+      if (result.kind === "question") {
+        // Not work, but not nonsense. Answer it rather than refuse it -- the
+        // panel for this is already on the screen.
+        const answered = await api.ask({
+          sessionId,
+          schemeId: null,
+          question: result.question ?? text,
+          language,
+        });
+        if ((answered.citations?.length ?? 0) > 0) setAnswer(answered);
+        else setTypedError(copy.notWork);
+        return;
+      }
+
+      setTypedError(copy.notWork);
+    } catch (cause) {
+      setTypedError(
+        cause instanceof ApiError ? cause.message : copy.somethingWentWrong,
+      );
+    } finally {
+      setBusy(false);
+    }
   };
 
   const rename = (index: number, name: string) => {
@@ -327,6 +360,7 @@ export default function UnderstandingPage() {
           <AddSkillByTyping
             language={language}
             busy={busy}
+            error={typedError}
             onAdd={addTyped}
           />
         </div>
@@ -363,7 +397,12 @@ export default function UnderstandingPage() {
           place as the first thing offered, and this is the second way. */}
       {!loading && skills.length > 0 && (
         <div className="mt-7 flex justify-center">
-          <AddSkillByTyping language={language} busy={busy} onAdd={addTyped} />
+          <AddSkillByTyping
+            language={language}
+            busy={busy}
+            error={typedError}
+            onAdd={addTyped}
+          />
         </div>
       )}
     </section>
