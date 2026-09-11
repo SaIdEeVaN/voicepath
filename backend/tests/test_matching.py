@@ -8,7 +8,7 @@ import pytest
 
 from app.config import get_settings
 from app.services import matching
-from app.services.matching import ProfileInput, rank, score_one
+from app.services.matching import ProfileInput, rank, score_one, SKILL_UNKNOWN
 from app.services.normalization import NormalizedSkill
 from app.services.schemes import Scheme, RequiredSkill
 
@@ -221,9 +221,16 @@ class TestSkillSimilarity:
         # 1.0 of 1.4 available weight.
         assert result.skill_similarity_score == pytest.approx(1.0 / 1.4, abs=1e-3)
 
-    def test_no_requirements_cannot_be_unmet(self):
+    def test_no_requirements_is_unknown_rather_than_perfect(self):
+        """This asserted 1.0 until 2026-09-12, on the reasoning that nothing
+        asked for cannot be unmet. That held while every scheme was seeded with
+        its skills, and broke as soon as the admin form -- which has no field
+        for skills -- created one: the scheme scored 0.95 for everybody and led
+        every result page. Asking for nothing is the absence of evidence, so it
+        takes the same neutral value as an unknown location."""
         result = score_one(make_profile(), make_scheme(required_skills=[]))
-        assert result.skill_similarity_score == 1.0
+        assert result.skill_similarity_score == SKILL_UNKNOWN
+        assert result.skill_similarity_score < 1.0
 
 
 class TestRanking:

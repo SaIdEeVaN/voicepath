@@ -3,7 +3,7 @@
 > **This file is the live todo list.** It is updated every time a task is completed.
 > Start at **To-do** — that is the working checklist. **Next up** carries the
 > detail behind the top items; everything below it is the record of the build.
-> Last updated: 2026-09-12 (motion layer on the public screens; admin in the navbar)
+> Last updated: 2026-09-12 (matching scored everything 86-95; fixed. 254 tests)
 
 **Project root:** `C:\Users\Sai Dixit\voicepath`
 **Sources:** `PRD_File_For_Project.md` (spec) · `VoicePath Mockups.html` (design canvas, unpacked)
@@ -44,6 +44,17 @@ twice is harmless. There is no cost to doing this in the safe order.
       depends on — would have turned a silent outage into a red banner.
 
 ### Now — correctness, and the largest spec gaps
+
+- [ ] **Two live schemes still have no required skills.** `Pharma Business`
+      (18) and `Plumbing Works` (19) were created before the admin form had a
+      skills field, so they score the neutral 0.5 for everyone and sit above a
+      real mismatch. The form can fix them now; the rows themselves were left
+      alone because choosing which skills a scheme needs is a decision about
+      the catalogue, not a bug fix.
+- [ ] **The spec disagrees with itself about the weights.** §14 lists Skill 40
+      / Education 20 / Experience 15 / Location 15 / Other 10; §4.4 and §8 give
+      the 50 / 25 / 15 / 10 the code implements, and there is no education
+      term anywhere. Worth settling before a jury asks which is authoritative.
 
 - [ ] **Tamil speech recognition.** Whisper mishears English loanwords inside
       Tamil: "வெல்டிங்" (welding) → "வெள்ளி" (silver), and extraction then
@@ -176,7 +187,7 @@ Four approaches, in order of effort:
 | 2. Backend core (config, db, providers) | ✅ Done |
 | 3. Backend pipeline (extract → normalize → match → explain) | ✅ Done |
 | 4. Backend routes + rate limiting | ✅ Done |
-| 5. Backend tests | ✅ Done — **247 passing**, 7 skipped |
+| 5. Backend tests | ✅ Done — **254 passing**, 7 skipped |
 | 6. Frontend scaffold + design tokens | ✅ Done |
 | 7. Frontend screens | ✅ Done — all 8 |
 | 8. Admin (Phase 2) | ✅ Done |
@@ -277,8 +288,8 @@ backend/
       fetch_voices.py        Piper voices for ta/hi/en (~190MB)
       ingest_documents.py    PDF/text -> chunks -> embeddings
       migrate.py
-  tests/                     254, fully offline -- no keys, network or database.
-                             247 pass; 7 skip without one (intent topic check)
+  tests/                     261, fully offline -- no keys, network or database.
+                             254 pass; 7 skip without one (intent topic check)
   data/scheme_docs/          Source PDFs, committed (~2.1MB): PM-AJAY
                              and PMAGY guidelines, TN Sigaram Thodu EOI.
                              Public documents, kept so retrieval is reproducible
@@ -344,7 +355,7 @@ frontend/
 - [x] `/api/admin/*` — server-side role check, sha256 tokens, bootstrap that self-disables
 - [x] Rate limiting on public routes · `GET /health` reporting every provider honestly
 
-### Phase 5 — Backend tests ✅ (247 passing, 7 skipped)
+### Phase 5 — Backend tests ✅ (254 passing, 7 skipped)
 - [x] `test_matching.py` — weights, determinism, each component, grounding
 - [x] `test_extraction.py` — evidence grounding in ta/hi/en, invention rejected
 - [x] `test_normalization.py` — alias matching across scripts, no silent upgrades
@@ -360,6 +371,7 @@ frontend/
 - [x] `test_language_switching.py` — a stored match re-reads in any language, scores unmoved
 - [x] `test_admin_gate_messages.py` — unconfigured is 503; a wrong token never reveals how the deployment is set up
 - [x] `test_admin_overview.py` — the figures add up, and carry no transcript or question text
+- [x] `test_matching_relevance.py` — a mismatch scores low, and a skill-less scheme cannot top the list
 
 ### Phase 6 — Frontend scaffold ✅
 - [x] Next 16.3.4, React 19, TS strict, Tailwind v4
@@ -381,7 +393,7 @@ frontend/
 - [x] `/admin/schemes`, `/admin/taxonomy`, `/admin/sessions` (read-only, no transcripts)
 
 ### Phase 9 — Verification ✅
-- [x] `pytest` — 247 passed, 7 skipped (the 7 need a database)
+- [x] `pytest` — 254 passed, 7 skipped (the 7 need a database)
 - [x] `npx tsc --noEmit` — clean
 - [x] `next build` — 12 routes
 - [x] Both servers running; RSC detail page pulling live backend data
@@ -507,6 +519,62 @@ discards every response and the failure is indistinguishable from a dead server.
   eslint is not a dependency.
 - **Rate limiting is per-process.** Multiplies behind multiple instances; move
   the counter to Redis before scaling.
+
+---
+
+## Fixed on 2026-09-12 — every scheme scored 86-95, whatever you said
+
+Reported from the deployed app: *"I was a carpenter for 3 years"* returned
+Pharma Business **95**, Plumbing Works **95**, a welding course **91** — while
+the explanations underneath correctly said there was no connection between
+carpentry and any of them. The reasoning knew; the number did not.
+
+Reproduced exactly against the live catalogue. **Extraction and normalization
+were never at fault** — "carpenter" resolved to `Carpentry (SK042)` at
+confidence 1.0. Both defects were in `matching.skill_similarity`.
+
+**A scheme that asks for nothing scored full marks.** It returned 1.0 when
+`required_skills` was empty, reasoning that "nothing asked for cannot be
+unmet". Fair while every scheme was seeded with its skills; false the moment
+the admin form created one. Both 95s were admin-created schemes with zero
+requirements, and such a scheme always leads: 0.50 + 0.25 + 0.15 + 0.05 = 0.95.
+Asking for nothing is the absence of evidence, so it now takes `SKILL_UNKNOWN`
+= 0.5, the same neutral value an unknown location and unknown experience use.
+
+**The similarity floor sat far below the model's noise floor.** Measured over
+this taxonomy with `multilingual-e5-base`, cosine from Carpentry to all 22
+required skills in the catalogue runs **0.853 to 0.921** — a spread of 0.068,
+with Retail Sales (0.918) essentially tied with Welding (0.921). There is no
+signal in that band. A real relationship separates cleanly above it:
+Two-Wheeler Repair scores **1.000** against itself and **0.947** against
+Four-Wheeler Repair, then drops to 0.84-0.89 for everything else.
+
+The code admitted anything over **0.55** and paid `weight × similarity`, so an
+unrelated trade collected 85-92% of the weight. Similarity is now rescaled
+linearly from a measured floor of 0.92, so the noise band pays nothing. This is
+the same narrow-band property already documented for retrieval, where
+"asdfghjkl" scores 0.794 against the corpus — one model, one weakness, two
+places it had to be handled.
+
+Measured before and after, against the live catalogue:
+
+| input | before | after |
+|---|---|---|
+| carpenter, 3 years | Pharma 95, Plumbing 95, Welding 91 | Pharma 70, Plumbing 70, rest 45 |
+| two-wheeler mechanic, 6 years | — | **Two-Wheeler Training 79**, Two-Wheeler Technician 73, Workshop Setup 67 |
+
+**The root cause was in the admin form, and is closed too.** The API always
+accepted `skill_ids` and `create_scheme` always wrote them; the form sent
+`skill_ids: []` unconditionally, so every scheme created through the UI was
+skill-less by construction and the scoring fix alone would have been undone by
+the next one. The form now has a skill picker, editing carries existing skills
+through rather than stripping them, and choosing none says plainly what that
+costs.
+
+A naming change worth knowing: a requirement is only listed as *matched* —
+which is what an explanation may claim about a person — when the rescaled
+credit clears 0.5. Partial credit still moves the score below that; it is
+simply not something to say out loud.
 
 ---
 

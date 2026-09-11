@@ -117,6 +117,40 @@ LOCATION_ELSEWHERE = 0.2
 # interface asks. Scoring 0 would bury people who simply did not mention it.
 EXPERIENCE_UNKNOWN = 0.5
 
+# A scheme that lists no required skills tells us nothing about whether this
+# person fits it. That is the absence of evidence, not evidence of a perfect
+# fit, so it takes the same neutral value as an unknown location or unknown
+# experience rather than full marks.
+#
+# It used to return 1.0, on the reasoning that "nothing asked for cannot be
+# unmet". True while every scheme was seeded with its skills; false the moment
+# the admin form -- which has no field for skills -- created one. Such a scheme
+# then scored 0.50 + 0.25 + 0.15 + 0.05 = 0.95 for everybody and sat at the top
+# of every result page.
+SKILL_UNKNOWN = 0.5
+
+# Below this cosine, two different taxonomy skills are not related -- they are
+# merely both embedded by the same model.
+#
+# Measured, not guessed. With multilingual-e5-base over this taxonomy, cosine
+# from Carpentry to all twenty-two required skills in the catalogue runs 0.853
+# (Engine Diagnostics) to 0.921 (Welding), with Retail Sales at 0.918 -- a
+# spread of 0.068 containing no usable signal. A genuine relationship separates
+# cleanly above it: Two-Wheeler Repair scores 1.000 against itself and 0.947
+# against Four-Wheeler Repair.
+#
+# The old floor was 0.55, which admitted the entire noise band and paid it
+# `weight * similarity`, so an unrelated trade collected 85-92% of the weight.
+#
+# Re-measure this if the taxonomy or the embedding model changes; it describes
+# the model's behaviour over this vocabulary, not a universal constant.
+SKILL_SIMILARITY_FLOOR = 0.92
+
+# How close a requirement must be, after rescaling, before an explanation may
+# name it as a skill the person has. Partial credit still counts toward the
+# score below this -- it is simply not something to claim out loud.
+SKILL_MATCHED_AT = 0.5
+
 
 def _norm(value: str | None) -> str:
     return unicodedata.normalize("NFKC", (value or "")).strip().casefold()
@@ -194,6 +228,18 @@ def canonical_place(value: str | None) -> str:
 # ---------------------------------------------------------------------------
 
 
+def transferable(similarity: float) -> float:
+    """Raw cosine to usable credit, against the model's measured noise floor.
+
+    Linear from the floor to 1.0, so a similarity at the floor is worth
+    nothing and only the distance above it counts. Without this the score is
+    dominated by the fact that e5 rates every pair of trades around 0.9.
+    """
+    if similarity <= SKILL_SIMILARITY_FLOOR:
+        return 0.0
+    return (similarity - SKILL_SIMILARITY_FLOOR) / (1.0 - SKILL_SIMILARITY_FLOOR)
+
+
 def skill_similarity(profile: ProfileInput, scheme: Scheme) -> tuple[float, list[str]]:
     """How well the person's skills cover what this scheme asks for.
 
@@ -209,8 +255,8 @@ def skill_similarity(profile: ProfileInput, scheme: Scheme) -> tuple[float, list
     """
     required = scheme.required_skills
     if not required:
-        # Nothing asked for cannot be unmet. Rare in practice.
-        return 1.0, []
+        # Not "everyone fits" -- "we cannot tell". See SKILL_UNKNOWN.
+        return SKILL_UNKNOWN, []
 
     owned_ids = {s.skill_id for s in profile.skills if s.skill_id is not None}
     owned_vectors = [
@@ -245,10 +291,14 @@ def skill_similarity(profile: ProfileInput, scheme: Scheme) -> tuple[float, list
                 best = similarity
                 best_code = code
 
-        # Below this, the resemblance is noise rather than transferable skill.
-        if best >= 0.55:
-            earned += weight * best
-            if best_code and best >= 0.7:
+        # Below the floor the resemblance is noise rather than transferable
+        # skill, and `transferable` returns nothing for it.
+        credit = transferable(best)
+        if credit > 0.0:
+            earned += weight * credit
+            # Naming a skill in an explanation is a claim about the person.
+            # Partial credit can move a score without being worth saying.
+            if best_code and credit >= SKILL_MATCHED_AT:
                 matched.append(requirement.code)
 
     if total_weight == 0.0:

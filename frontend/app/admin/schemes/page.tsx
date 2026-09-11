@@ -16,7 +16,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { useAdminToken } from "@/lib/admin-token";
 import { API_BASE } from "@/lib/api";
-import type { SchemeDetail } from "@/lib/types";
+import type { SchemeDetail, SkillCandidate } from "@/lib/types";
 
 const TYPES = [
   "Full-time",
@@ -40,6 +40,16 @@ interface FormState {
   official_url: string;
   description: string;
   is_active: boolean;
+  /**
+   * The taxonomy skills this scheme needs, by id.
+   *
+   * Not optional in practice. A scheme with no required skills cannot be
+   * scored against anybody -- matching reads it as "we cannot tell", and it
+   * then sits mid-table for every person regardless of trade. This form used
+   * to send `skill_ids: []` unconditionally, which is why every scheme created
+   * here behaved that way.
+   */
+  skill_ids: number[];
 }
 
 const EMPTY: FormState = {
@@ -56,6 +66,7 @@ const EMPTY: FormState = {
   official_url: "",
   description: "",
   is_active: true,
+  skill_ids: [],
 };
 
 function toForm(scheme: SchemeDetail): FormState {
@@ -75,6 +86,9 @@ function toForm(scheme: SchemeDetail): FormState {
     // Carried through, not assumed: editing a deactivated scheme must not
     // quietly put it back in front of people.
     is_active: scheme.is_active ?? true,
+    // Likewise: editing a scheme's pay must not silently strip the skills it
+    // is matched on. `required_skills` comes back on the detail record.
+    skill_ids: (scheme.required_skills ?? []).map((s) => s.id),
   };
 }
 
@@ -98,7 +112,7 @@ function toPayload(form: FormState) {
     official_url: text(form.official_url),
     description: text(form.description),
     is_active: form.is_active,
-    skill_ids: [],
+    skill_ids: form.skill_ids,
   };
 }
 
@@ -259,6 +273,7 @@ export default function AdminSchemesPage() {
       {form && (
         <SchemeForm
           form={form}
+          token={token}
           editing={editingId !== null}
           busy={busy}
           onChange={setForm}
@@ -357,6 +372,7 @@ export default function AdminSchemesPage() {
 
 function SchemeForm({
   form,
+  token,
   editing,
   busy,
   onChange,
@@ -364,13 +380,15 @@ function SchemeForm({
   onSave,
 }: {
   form: FormState;
+  /** The picker reads the taxonomy, which is behind the same admin gate. */
+  token: string;
   editing: boolean;
   busy: boolean;
   onChange(next: FormState): void;
   onCancel(): void;
   onSave(): void;
 }) {
-  const set = (key: keyof FormState, value: string | boolean) =>
+  const set = (key: keyof FormState, value: string | boolean | number[]) =>
     onChange({ ...form, [key]: value });
 
   // Mirrors the server's pattern check, so a typo is caught while the person
@@ -456,6 +474,12 @@ function SchemeForm({
         />
       </div>
 
+      <SkillPicker
+        token={token}
+        selected={form.skill_ids}
+        onChange={(ids) => set("skill_ids", ids)}
+      />
+
       <label className="flex flex-col gap-1.5">
         <span className="text-[12px]" style={{ color: "var(--ink-55)" }}>
           Official government page
@@ -512,6 +536,103 @@ function SchemeForm({
         </button>
       </div>
     </form>
+  );
+}
+
+/**
+ * Which taxonomy skills this scheme needs.
+ *
+ * The most consequential field on the form, and until now the only one that
+ * was not on it. Matching scores a person against these; a scheme with none
+ * cannot be told apart from any other, so it drifts to the middle of every
+ * result page for every trade.
+ *
+ * A plain list of checkboxes rather than a combobox: there are 44 skills, an
+ * operator needs to see what the vocabulary *is* to pick from it, and a scheme
+ * usually needs two or three.
+ */
+function SkillPicker({
+  token,
+  selected,
+  onChange,
+}: {
+  token: string;
+  selected: number[];
+  onChange(ids: number[]): void;
+}) {
+  const [skills, setSkills] = useState<SkillCandidate[]>([]);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    if (!token) return;
+    let cancelled = false;
+    fetch(`${API_BASE}/api/admin/taxonomy`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("failed"))))
+      .then((rows: SkillCandidate[]) => !cancelled && setSkills(rows))
+      .catch(() => !cancelled && setFailed(true));
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  const toggle = (id: number) =>
+    onChange(
+      selected.includes(id)
+        ? selected.filter((s) => s !== id)
+        : [...selected, id],
+    );
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-[12px]" style={{ color: "var(--ink-55)" }}>
+        Skills this needs
+      </span>
+
+      {failed ? (
+        <p className="text-[12px]" style={{ color: "var(--color-danger)" }}>
+          Could not load the taxonomy.
+        </p>
+      ) : (
+        <div
+          className="flex max-h-[190px] flex-wrap gap-1.5 overflow-y-auto rounded-lg p-2.5"
+          style={{ background: "var(--ink-03)", border: "1px solid var(--ink-09)" }}
+        >
+          {skills.map((skill) => {
+            const on = selected.includes(skill.id);
+            return (
+              <button
+                key={skill.id}
+                type="button"
+                onClick={() => toggle(skill.id)}
+                aria-pressed={on}
+                className="rounded-full px-2.5 py-1 text-[12px] transition-colors"
+                style={{
+                  background: on ? "var(--color-accent)" : "var(--color-surface)",
+                  color: on ? "var(--color-paper)" : "var(--ink-70)",
+                  border: `1px solid ${on ? "var(--color-accent)" : "var(--ink-12)"}`,
+                }}
+              >
+                {skill.name}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      <span
+        className="text-[11px]"
+        style={{
+          color: selected.length === 0 ? "var(--color-caution-ink)" : "var(--ink-45)",
+        }}
+      >
+        {selected.length === 0
+          ? "None chosen. This scheme cannot be matched to anyone's trade, and will sit mid-table for everybody."
+          : `${selected.length} chosen. Matching scores people against these.`}
+      </span>
+    </div>
   );
 }
 
