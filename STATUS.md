@@ -3,7 +3,7 @@
 > **This file is the live todo list.** It is updated every time a task is completed.
 > Start at **To-do** — that is the working checklist. **Next up** carries the
 > detail behind the top items; everything below it is the record of the build.
-> Last updated: 2026-09-12 (full scheme corpus ingested: 21 docs, 1096 passages)
+> Last updated: 2026-09-12 (corpus named and reconciled: 21 docs, 1096 passages)
 
 **Project root:** `C:\Users\Sai Dixit\voicepath`
 **Sources:** `PRD_File_For_Project.md` (spec) · `VoicePath Mockups.html` (design canvas, unpacked)
@@ -287,11 +287,14 @@ backend/
       migrate.py
   tests/                     275, fully offline -- no keys, network or database.
                              268 pass; 7 skip without one (intent topic check)
-  data/scheme_docs/          Source PDFs, committed (~37MB): 22 central and
-                             state scheme documents -- PM-AJAY, PMAGY, NHDP,
-                             NLM, NULM, SFURTI, Khadi, the startup playbook and
-                             more. Public documents, kept so retrieval is
-                             reproducible. Two are scanned and yield nothing
+  data/scheme_docs/          Source PDFs, committed (~28MB): 20 central and
+                             state scheme documents -- PM-AJAY, PMAGY, PM SETU,
+                             PMGSY, NHDP (handicrafts and handloom), NLM, NULM,
+                             SFURTI, Khadi, the startup playbook and more.
+                             Public documents, kept so retrieval is
+                             reproducible. Every filename says what it holds:
+                             a citation shows the source file, so a hash for a
+                             name is shown to the person reading the answer
 
 frontend/
   app/
@@ -520,6 +523,45 @@ discards every response and the failure is indistinguishable from a dead server.
   eslint is not a dependency.
 - **Rate limiting is per-process.** Multiplies behind multiple instances; move
   the counter to Redis before scaling.
+
+---
+
+## Done on 2026-09-12 — the corpus says what it is
+
+Three documents were stored under hashes, and a citation shows the source
+filename to the person reading the answer. Somebody asking about ITI training
+was being told the claim came from `6d3fed46d8d6c01f6035291880f3213c.pdf`,
+which is no better than showing them nothing.
+
+Identified from their own first pages and renamed:
+
+| was | is |
+|---|---|
+| `240a33870657b8ddc72d8d835b5f6823.pdf` | PMGSY — road connectivity for Left Wing Extremism affected areas (2017) |
+| `6d3fed46d8d6c01f6035291880f3213c.pdf` | PM SETU — upgradation of ITIs, Component I guidelines |
+| `71441776233188.pdf` | Ministry of Social Justice and Empowerment, Annual Report 2025-26 |
+
+The two scanned files were dropped: `8509766cf8cc0c490eb25299f0fbc9af.pdf`
+(10MB) and `2109-Pushpanand-Shankarrao-Nitanvare-Order.pdf`, which is a court
+order rather than a scheme document. Both extracted zero characters and were
+skipped at ingest, so they carried 10MB of repository weight for nothing.
+22 files and 37MB down to 20 and 28MB.
+
+Renaming a file orphans its rows, because `source` is the filename and
+`retrieval.ingest` replaces by it. The three stale documents were deleted and
+their files re-ingested under the real names, then the corpus was reconciled
+against the directory in both directions: **no document stored under a name
+that is not on disk, and no PDF on disk that is not in the corpus.** 21
+documents and 1096 passages, unchanged in content.
+
+### Still ambiguous, and left alone
+
+`nhdp.pdf` is the National **Handicrafts** Development Programme; `Final
+Revised  Guidelines NHDP 12.04.2023.pdf` is the National **Handloom**
+Development Programme. Different schemes, one acronym, and the second carries a
+double space in its filename. An artisan asking about handicrafts can be shown
+a handloom citation with no way to tell them apart. Renaming them was not asked
+for, so it was not done.
 
 ---
 
