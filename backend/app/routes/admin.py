@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field
 
 from app.config import get_settings
 from app.models import schemas
-from app.services import db, schemes, pipeline, taxonomy
+from app.services import db, repository, schemes, pipeline, taxonomy
 
 logger = logging.getLogger(__name__)
 
@@ -284,6 +284,31 @@ async def deactivate_scheme(
     if result.endswith("0"):
         raise HTTPException(status_code=404, detail="Not found.")
     schemes.reset_memory_cache()
+
+
+# ---------------------------------------------------------------------------
+# Overview (PRD section 18)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/overview")
+async def overview(
+    _: Annotated[AdminIdentity, Depends(require_admin)],
+) -> dict:
+    """Totals for the dashboard: catalogue, activity, corpus, and what is common.
+
+    Read-only and gated like everything else here -- an aggregate is still a
+    view of what people have been doing. It carries no transcript and no
+    question text: `/admin/sessions` already refuses to show what people said
+    about their own lives, and a summary is not a loophole for that. Popular
+    *skills* are taxonomy names rather than the words someone used, which is
+    the same rule applied one level up.
+
+    No `_require_database()`. The figures come from whichever store is live,
+    because a dashboard that 503s in offline mode is worse than one showing
+    zeros honestly.
+    """
+    return await repository.overview()
 
 
 # ---------------------------------------------------------------------------

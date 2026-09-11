@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { AdminOverview } from "@/components/AdminOverview";
+
 /**
  * Admin landing.
  *
@@ -7,6 +9,9 @@ import Link from "next/link";
  * linking to the dashboard by its obvious name hit a dead end. This is the
  * index those links deserve: what each view is for, and a word on what admin
  * deliberately cannot see.
+ *
+ * The figures come first now. An operator arrives asking whether anything is
+ * happening, and a page of navigation cards could not answer that.
  */
 
 const SECTIONS = [
@@ -49,6 +54,8 @@ export default function AdminHomePage() {
           session onward.
         </p>
       </div>
+
+      <AdminOverview />
 
       <ul className="grid gap-3.5 [grid-template-columns:repeat(auto-fill,minmax(280px,1fr))]">
         {SECTIONS.map((section) => (

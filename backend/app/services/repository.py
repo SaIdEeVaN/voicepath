@@ -487,6 +487,197 @@ def _match_from_row(row) -> MatchRow:
     )
 
 
+# ---------------------------------------------------------------------------
+# Admin overview (spec section 18)
+# ---------------------------------------------------------------------------
+
+_POPULAR_LIMIT = 10
+
+
+async def overview() -> dict[str, Any]:
+    """Aggregate counts for the admin dashboard.
+
+    Two rules shape what is counted, both inherited from `/admin/sessions`,
+    which shows activity without showing what anyone said:
+
+    * **Skills are counted by their taxonomy name, never by `raw_name`.** A
+      raw name is the person's own words. An aggregate is not a loophole for
+      the transcript rule, so a skill that never normalized is left out rather
+      than reported in the phrasing someone used about their own life.
+    * **Question text is never touched.** Questions are counted, not sampled.
+
+    Works from either store, because the admin surface is reachable in offline
+    mode and a dashboard that 503s there would be worse than one showing zeros.
+    """
+    if db.is_available():
+        return await _overview_sql()
+    return await _overview_memory()
+
+
+async def _overview_sql() -> dict[str, Any]:
+    schemes = await db.fetchrow(
+        "select count(*) as total, "
+        "       count(*) filter (where is_active) as active "
+        "from schemes"
+    )
+    by_type = await db.fetch(
+        "select type, count(*) as count from schemes "
+        "where is_active group by type order by count desc, type"
+    )
+    sessions = await db.fetchrow(
+        "select count(*) as total, "
+        "       count(*) filter (where created_at >= date_trunc('day', now())) as today "
+        "from sessions"
+    )
+    by_language = await db.fetch(
+        "select coalesce(language_detected, 'unknown') as language, count(*) as count "
+        "from sessions group by 1 order by count desc, language"
+    )
+    questions = await db.fetchrow(
+        "select count(*) as total, "
+        "       count(*) filter (where created_at >= date_trunc('day', now())) as today "
+        "from assistant_queries"
+    )
+    corpus = await db.fetchrow(
+        "select (select count(*) from scheme_documents) as documents, "
+        "       (select count(*) from document_chunks) as chunks"
+    )
+    skills = await db.fetch(
+        "select t.name, t.code, count(*) as count "
+        "from extracted_skills e join skill_taxonomy t on t.id = e.normalized_skill_id "
+        "where e.normalized_skill_id is not null "
+        "group by t.name, t.code order by count desc, t.name limit $1",
+        _POPULAR_LIMIT,
+    )
+    locations = await db.fetch(
+        "select location as name, count(*) as count from extracted_profiles "
+        "where location is not null and btrim(location) <> '' "
+        "group by location order by count desc, location limit $1",
+        _POPULAR_LIMIT,
+    )
+
+    total = int(schemes["total"])
+    active = int(schemes["active"])
+    return {
+        "schemes": {
+            "total": total,
+            "active": active,
+            "inactive": total - active,
+            "by_type": [
+                {"type": r["type"], "count": int(r["count"])} for r in by_type
+            ],
+        },
+        "sessions": {
+            "total": int(sessions["total"]),
+            "today": int(sessions["today"]),
+            "questions": int(questions["total"]),
+            "questions_today": int(questions["today"]),
+            "by_language": [
+                {"language": r["language"], "count": int(r["count"])}
+                for r in by_language
+            ],
+        },
+        "corpus": {
+            "documents": int(corpus["documents"]),
+            "chunks": int(corpus["chunks"]),
+        },
+        "popular": {
+            "skills": [
+                {"name": r["name"], "code": r["code"], "count": int(r["count"])}
+                for r in skills
+            ],
+            "locations": [
+                {"name": r["name"], "count": int(r["count"])} for r in locations
+            ],
+        },
+    }
+
+
+async def _overview_memory() -> dict[str, Any]:
+    # Imported here: schemes imports this module for its own catalogue work,
+    # and at module scope the two would not finish importing each other.
+    from app.services import schemes as schemes_service, taxonomy
+
+    catalogue = await schemes_service.list_active()
+    by_type: dict[str, int] = {}
+    for scheme in catalogue:
+        by_type[scheme.type] = by_type.get(scheme.type, 0) + 1
+
+    start_of_day = _now().replace(hour=0, minute=0, second=0, microsecond=0)
+    entries = list(_memory.values())
+
+    languages: dict[str, int] = {}
+    locations: dict[str, int] = {}
+    skill_ids: dict[int, int] = {}
+    questions = 0
+    questions_today = 0
+
+    for entry in entries:
+        language = entry.session.language_detected or "unknown"
+        languages[language] = languages.get(language, 0) + 1
+
+        place = (entry.profile.location or "").strip() if entry.profile else ""
+        if place:
+            locations[place] = locations.get(place, 0) + 1
+
+        for skill in entry.skills:
+            if skill.normalized_skill_id is not None:
+                skill_ids[skill.normalized_skill_id] = (
+                    skill_ids.get(skill.normalized_skill_id, 0) + 1
+                )
+
+        for question in entry.questions:
+            questions += 1
+            asked = question.get("created_at")
+            if isinstance(asked, datetime) and asked >= start_of_day:
+                questions_today += 1
+
+    named = await taxonomy.get_by_ids(list(skill_ids))
+    skills = [
+        {
+            "name": named[skill_id].name,
+            "code": named[skill_id].code,
+            "count": count,
+        }
+        for skill_id, count in skill_ids.items()
+        if skill_id in named
+    ]
+    skills.sort(key=lambda s: (-s["count"], s["name"]))
+
+    ranked_locations = sorted(
+        ({"name": name, "count": count} for name, count in locations.items()),
+        key=lambda entry: (-entry["count"], entry["name"]),
+    )
+
+    return {
+        "schemes": {
+            "total": len(catalogue),
+            "active": len(catalogue),
+            # The in-memory catalogue holds no deactivated rows to count.
+            "inactive": 0,
+            "by_type": sorted(
+                ({"type": name, "count": count} for name, count in by_type.items()),
+                key=lambda entry: (-entry["count"], entry["type"]),
+            ),
+        },
+        "sessions": {
+            "total": len(entries),
+            "today": sum(1 for e in entries if e.session.created_at >= start_of_day),
+            "questions": questions,
+            "questions_today": questions_today,
+            "by_language": sorted(
+                ({"language": name, "count": count} for name, count in languages.items()),
+                key=lambda entry: (-entry["count"], entry["language"]),
+            ),
+        },
+        "corpus": {"documents": 0, "chunks": 0},
+        "popular": {
+            "skills": skills[:_POPULAR_LIMIT],
+            "locations": ranked_locations[:_POPULAR_LIMIT],
+        },
+    }
+
+
 async def get_matches(session_id: UUID) -> list[MatchRow]:
     if db.is_available():
         rows = await db.fetch(
