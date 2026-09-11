@@ -3,7 +3,7 @@
 > **This file is the live todo list.** It is updated every time a task is completed.
 > Start at **To-do** — that is the working checklist. **Next up** carries the
 > detail behind the top items; everything below it is the record of the build.
-> Last updated: 2026-09-11 (language switching fixed; 231 tests passing)
+> Last updated: 2026-09-12 (db/007 applied to production; see **Deploy order**)
 
 **Project root:** `C:\Users\Sai Dixit\voicepath`
 **Sources:** `PRD_File_For_Project.md` (spec) · `VoicePath Mockups.html` (design canvas, unpacked)
@@ -17,6 +17,31 @@
 > section below. Add new items here as they are found, rather than in prose.
 > Completed work is not deleted from the file — it moves down, so the history
 > of what was built stays readable.
+
+### Deploy order — read before merging anything that touches `db/`
+
+**Apply the migration before the code that needs it reaches production.**
+Render redeploys on a push to `main`, and Supabase does not. On 2026-09-12
+PR #2 merged code that selects and inserts `matches.explanation_language`
+while the column existed only in `db/007_match_language.sql`. Every route
+touching a match returned 500 — `/schemes` among them, which is the screen
+the whole product leads to. `/health` stayed green throughout, because it
+never reads that table, so nothing announced the breakage.
+
+The order that works:
+
+```bash
+cd backend && python -m app.scripts.migrate --only 007   # first
+git push origin main                                     # then
+```
+
+Every file in `db/` is idempotent, so applying early is free and applying
+twice is harmless. There is no cost to doing this in the safe order.
+
+- [ ] **`/health` does not notice a schema it cannot use.** It reports the
+      database as connected because it is; the column the code needs is a
+      different question. A cheap check — select the newest column the code
+      depends on — would have turned a silent outage into a red banner.
 
 ### Now — correctness, and the largest spec gaps
 
@@ -477,6 +502,36 @@ discards every response and the failure is indistinguishable from a dead server.
   eslint is not a dependency.
 - **Rate limiting is per-process.** Multiplies behind multiple instances; move
   the counter to Redis before scaling.
+
+---
+
+## Fixed on 2026-09-12 — the schemes page could not load in production
+
+Reported as *"Could not reach VoicePath. Check that the backend is running."*
+on `voicepath.vercel.app/schemes`. The backend was running.
+
+`/health` returned 200 in 0.29s with the database connected and 17 active
+schemes, so the banner was misleading: it is the health-retry message, and a
+free tier waking from sleep produces it too. The real failure was underneath.
+
+Reading a stored match returned **500 where it should have returned 404** —
+`select ... explanation_language from matches` against a column that did not
+exist. PR #2 merged the code that depends on `db/007_match_language.sql`; the
+migration had never been applied to Supabase.
+
+Applied it with `python -m app.scripts.migrate --only 007`. Verified:
+
+- the probe that returned 500 now returns 404 with *"This scheme has not been
+  matched for that session."*
+- `matches.explanation_language` is `text`, nullable, with the check
+  constraint restricting it to `ta`/`hi`/`en` or null
+- all 106 pre-existing rows are null, which is what the nullable column was
+  for: they hold prose in an unknown language and correctly force a rewrite
+- a full run — transcript, extract, match, then the same match read in Tamil —
+  returns 200 at every step, and new rows store `en`
+
+Nothing in the application code was wrong. The lesson is in **Deploy order**,
+at the top of the to-do list.
 
 ---
 
