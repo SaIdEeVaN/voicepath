@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field
 
 from app.config import get_settings
 from app.models import schemas
-from app.services import db, opportunities, pipeline, taxonomy
+from app.services import db, schemes, pipeline, taxonomy
 
 logger = logging.getLogger(__name__)
 
@@ -124,7 +124,7 @@ def _require_database() -> None:
 # ---------------------------------------------------------------------------
 
 
-class OpportunityWrite(BaseModel):
+class SchemeWrite(BaseModel):
     title: str = Field(min_length=1, max_length=300)
     organization: str = Field(min_length=1, max_length=300)
     location: str = Field(min_length=1, max_length=200)
@@ -136,6 +136,10 @@ class OpportunityWrite(BaseModel):
     salary_max: int | None = None
     nsqf_level: str | None = None
     source_reference: str | None = None
+    # The government's own page for this scheme. Pattern-checked here as
+    # well as in the database: rejected at the edge it names the field,
+    # where a constraint violation would surface as a 500.
+    official_url: str | None = Field(default=None, pattern=r"^https?://\S+$")
     description: str | None = None
     is_active: bool = True
     skill_ids: list[int] = Field(default_factory=list)
@@ -150,103 +154,105 @@ class TaxonomyWrite(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# Opportunities
+# Schemes
 # ---------------------------------------------------------------------------
 
 
-@router.get("/opportunities", response_model=list[schemas.OpportunityDetail])
-async def list_opportunities(
+@router.get("/schemes", response_model=list[schemas.SchemeDetail])
+async def list_schemes(
     _: Annotated[AdminIdentity, Depends(require_role("viewer"))],
-) -> list[schemas.OpportunityDetail]:
-    catalogue = await opportunities.list_active()
-    return [pipeline.opportunity_to_detail(o) for o in catalogue]
+) -> list[schemas.SchemeDetail]:
+    catalogue = await schemes.list_active()
+    return [pipeline.scheme_to_detail(o) for o in catalogue]
 
 
-@router.post("/opportunities", response_model=schemas.OpportunityDetail, status_code=201)
-async def create_opportunity(
-    payload: OpportunityWrite,
+@router.post("/schemes", response_model=schemas.SchemeDetail, status_code=201)
+async def create_scheme(
+    payload: SchemeWrite,
     _: Annotated[AdminIdentity, Depends(require_role("editor"))],
-) -> schemas.OpportunityDetail:
+) -> schemas.SchemeDetail:
     _require_database()
     async with db.transaction() as conn:
         row = await conn.fetchrow(
-            "insert into opportunities "
+            "insert into schemes "
             "(title, organization, location, district, type, minimum_experience, "
             " certifications_required, salary_min, salary_max, nsqf_level, "
-            " source_reference, description, is_active) "
-            "values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) returning id",
+            " source_reference, official_url, description, is_active) "
+            "values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) returning id",
             payload.title, payload.organization, payload.location, payload.district,
             payload.type, payload.minimum_experience, payload.certifications_required,
             payload.salary_min, payload.salary_max, payload.nsqf_level,
-            payload.source_reference, payload.description, payload.is_active,
+            payload.source_reference, payload.official_url, payload.description,
+            payload.is_active,
         )
         for skill_id in payload.skill_ids:
             await conn.execute(
-                "insert into opportunity_skills (opportunity_id, skill_id) "
+                "insert into scheme_skills (scheme_id, skill_id) "
                 "values ($1, $2) on conflict do nothing",
                 row["id"], skill_id,
             )
-    opportunities.reset_memory_cache()
-    created = await opportunities.get(row["id"])
+    schemes.reset_memory_cache()
+    created = await schemes.get(row["id"])
     assert created is not None
-    return pipeline.opportunity_to_detail(created)
+    return pipeline.scheme_to_detail(created)
 
 
-@router.put("/opportunities/{opportunity_id}", response_model=schemas.OpportunityDetail)
-async def update_opportunity(
-    opportunity_id: int,
-    payload: OpportunityWrite,
+@router.put("/schemes/{scheme_id}", response_model=schemas.SchemeDetail)
+async def update_scheme(
+    scheme_id: int,
+    payload: SchemeWrite,
     _: Annotated[AdminIdentity, Depends(require_role("editor"))],
-) -> schemas.OpportunityDetail:
+) -> schemas.SchemeDetail:
     _require_database()
     async with db.transaction() as conn:
         updated = await conn.fetchrow(
-            "update opportunities set title=$2, organization=$3, location=$4, "
+            "update schemes set title=$2, organization=$3, location=$4, "
             "district=$5, type=$6, minimum_experience=$7, certifications_required=$8, "
             "salary_min=$9, salary_max=$10, nsqf_level=$11, source_reference=$12, "
-            "description=$13, is_active=$14 where id=$1 returning id",
-            opportunity_id, payload.title, payload.organization, payload.location,
+            "official_url=$13, description=$14, is_active=$15 "
+            "where id=$1 returning id",
+            scheme_id, payload.title, payload.organization, payload.location,
             payload.district, payload.type, payload.minimum_experience,
             payload.certifications_required, payload.salary_min, payload.salary_max,
-            payload.nsqf_level, payload.source_reference, payload.description,
-            payload.is_active,
+            payload.nsqf_level, payload.source_reference, payload.official_url,
+            payload.description, payload.is_active,
         )
         if updated is None:
             raise HTTPException(status_code=404, detail="Not found.")
         await conn.execute(
-            "delete from opportunity_skills where opportunity_id = $1", opportunity_id
+            "delete from scheme_skills where scheme_id = $1", scheme_id
         )
         for skill_id in payload.skill_ids:
             await conn.execute(
-                "insert into opportunity_skills (opportunity_id, skill_id) "
+                "insert into scheme_skills (scheme_id, skill_id) "
                 "values ($1, $2) on conflict do nothing",
-                opportunity_id, skill_id,
+                scheme_id, skill_id,
             )
-    opportunities.reset_memory_cache()
-    result = await opportunities.get(opportunity_id)
+    schemes.reset_memory_cache()
+    result = await schemes.get(scheme_id)
     assert result is not None
-    return pipeline.opportunity_to_detail(result)
+    return pipeline.scheme_to_detail(result)
 
 
 @router.delete(
-    "/opportunities/{opportunity_id}", status_code=204, response_model=None
+    "/schemes/{scheme_id}", status_code=204, response_model=None
 )
-async def deactivate_opportunity(
-    opportunity_id: int,
+async def deactivate_scheme(
+    scheme_id: int,
     _: Annotated[AdminIdentity, Depends(require_role("editor"))],
 ) -> None:
     """Deactivate rather than delete.
 
-    Matches reference opportunities, and hard-deleting one would take the audit
+    Matches reference schemes, and hard-deleting one would take the audit
     trail with it.
     """
     _require_database()
     result = await db.execute(
-        "update opportunities set is_active = false where id = $1", opportunity_id
+        "update schemes set is_active = false where id = $1", scheme_id
     )
     if result.endswith("0"):
         raise HTTPException(status_code=404, detail="Not found.")
-    opportunities.reset_memory_cache()
+    schemes.reset_memory_cache()
 
 
 # ---------------------------------------------------------------------------
@@ -291,7 +297,7 @@ async def upsert_taxonomy(
         payload.code, payload.name, payload.category, payload.hint, payload.aliases,
     )
     taxonomy.reset_memory_cache()
-    opportunities.reset_memory_cache()
+    schemes.reset_memory_cache()
     return schemas.SkillCandidate(
         id=row["id"], code=row["code"], name=row["name"],
         category=row["category"], hint=row["hint"], similarity=1.0,

@@ -146,11 +146,11 @@ class NormalizeResponse(Base):
 
 
 # ---------------------------------------------------------------------------
-# Opportunities and matching
+# Schemes and matching
 # ---------------------------------------------------------------------------
 
 
-class OpportunitySummary(Base):
+class SchemeSummary(Base):
     id: int
     title: str
     organization: str
@@ -163,11 +163,17 @@ class OpportunitySummary(Base):
     salary_max: int | None = None
     nsqf_level: str | None = None
     source_reference: str | None = None
+    # Where the government describes this scheme. A page a person can open,
+    # as opposed to source_reference, which is a code to quote at an office.
+    official_url: str | None = None
 
 
-class OpportunityDetail(OpportunitySummary):
+class SchemeDetail(SchemeSummary):
     description: str | None = None
     required_skills: list[SkillCandidate] = Field(default_factory=list)
+    # Admin views only. Public listings filter on it, so a beneficiary
+    # never sees a row where this is false.
+    is_active: bool = True
 
 
 class ScoreBreakdown(Base):
@@ -178,7 +184,7 @@ class ScoreBreakdown(Base):
 
 
 class MatchResult(Base):
-    opportunity: OpportunitySummary
+    scheme: SchemeSummary
     rank: int
     overall_score: float
     breakdown: ScoreBreakdown
@@ -215,7 +221,7 @@ class MatchResponse(Base):
 
 class AssistantQueryRequest(Base):
     session_id: UUID | None = None
-    opportunity_id: int | None = None
+    scheme_id: int | None = None
     question_text: str = Field(min_length=1, max_length=1000)
     language: Language = "en"
 
@@ -234,7 +240,7 @@ class AssistantQueryLog(Base):
     question_text: str
     answer_text: str
     source_note: str | None
-    opportunity_id: int | None
+    scheme_id: int | None
     created_at: datetime
 
 

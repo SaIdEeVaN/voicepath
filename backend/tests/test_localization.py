@@ -17,7 +17,7 @@ from app.services import taxonomy
 from app.services.explanation import explain_offline
 from app.services.matching import ProfileInput, score_one
 from app.services.normalization import NormalizedSkill, normalize_many
-from app.services.opportunities import Opportunity, RequiredSkill
+from app.services.schemes import Scheme, RequiredSkill
 
 LATIN = re.compile(r"[A-Za-z]{3,}")
 
@@ -77,7 +77,7 @@ class TestTaxonomyLocalization:
 
 class TestExplanationLanguage:
     def _match(self):
-        opportunity = Opportunity(
+        scheme = Scheme(
             id=1, title="Welder", organization="Annai Steel", location="Salem",
             district="Salem", type="Full-time", minimum_experience=1,
             certifications_required=[], salary_min=16000, salary_max=21000,
@@ -96,7 +96,7 @@ class TestExplanationLanguage:
                 )
             ],
         )
-        return score_one(profile, opportunity)
+        return score_one(profile, scheme)
 
     def test_the_tamil_sentence_names_the_skill_in_tamil(self):
         bullets = explain_offline(self._match(), language="ta").bullets
@@ -115,7 +115,7 @@ class TestExplanationLanguage:
 
     def test_a_skill_without_labels_still_produces_a_sentence(self):
         """An unlocalized skill must not blank the card."""
-        opportunity = Opportunity(
+        scheme = Scheme(
             id=1, title="X", organization="Y", location="Salem", district="Salem",
             type="Full-time", minimum_experience=0, certifications_required=[],
             salary_min=None, salary_max=None, nsqf_level=None,
@@ -130,5 +130,5 @@ class TestExplanationLanguage:
                 )
             ]
         )
-        result = explain_offline(score_one(profile, opportunity), language="ta")
+        result = explain_offline(score_one(profile, scheme), language="ta")
         assert result.bullets

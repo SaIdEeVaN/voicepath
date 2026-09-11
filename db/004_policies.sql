@@ -21,8 +21,8 @@
 -- Reference catalogues -- world-readable, service-writable.
 -- ---------------------------------------------------------------------------
 alter table skill_taxonomy      enable row level security;
-alter table opportunities       enable row level security;
-alter table opportunity_skills  enable row level security;
+alter table schemes       enable row level security;
+alter table scheme_skills  enable row level security;
 
 drop policy if exists skill_taxonomy_public_read on skill_taxonomy;
 create policy skill_taxonomy_public_read
@@ -30,15 +30,15 @@ create policy skill_taxonomy_public_read
   to anon, authenticated
   using (true);
 
-drop policy if exists opportunities_public_read on opportunities;
-create policy opportunities_public_read
-  on opportunities for select
+drop policy if exists schemes_public_read on schemes;
+create policy schemes_public_read
+  on schemes for select
   to anon, authenticated
   using (is_active);
 
-drop policy if exists opportunity_skills_public_read on opportunity_skills;
-create policy opportunity_skills_public_read
-  on opportunity_skills for select
+drop policy if exists scheme_skills_public_read on scheme_skills;
+create policy scheme_skills_public_read
+  on scheme_skills for select
   to anon, authenticated
   using (true);
 
@@ -66,7 +66,7 @@ revoke all on sessions, extracted_profiles, extracted_skills,
 -- Vector lookups read only the public catalogue, so they are safe to expose.
 grant execute on function match_skill_taxonomy(vector, integer, double precision)
   to anon, authenticated;
-grant execute on function opportunity_skill_vectors(text)
+grant execute on function scheme_skill_vectors(text)
   to anon, authenticated;
 
 -- ---------------------------------------------------------------------------

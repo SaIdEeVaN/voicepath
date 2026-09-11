@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-from app.data.catalogue import OPPORTUNITIES, TAXONOMY
+from app.data.catalogue import SCHEMES, TAXONOMY
 
 SEED = Path(__file__).resolve().parents[2] / "db" / "003_seed.sql"
 
@@ -35,9 +35,9 @@ def test_every_sql_skill_code_is_in_python(seed_sql: str):
     assert not missing, f"In 003_seed.sql but not in catalogue.py: {sorted(missing)}"
 
 
-def test_opportunity_source_references_match(seed_sql: str):
+def test_scheme_source_references_match(seed_sql: str):
     sql_refs = set(re.findall(r"'((?:OGD|PMAJAY)/[A-Z0-9/]+)'", seed_sql))
-    python_refs = {o["source_reference"] for o in OPPORTUNITIES}
+    python_refs = {o["source_reference"] for o in SCHEMES}
     assert python_refs <= sql_refs, (
         f"In catalogue.py but not in 003_seed.sql: {sorted(python_refs - sql_refs)}"
     )
@@ -49,16 +49,16 @@ def test_skill_codes_are_unique():
 
 
 def test_source_references_are_unique():
-    refs = [o["source_reference"] for o in OPPORTUNITIES]
+    refs = [o["source_reference"] for o in SCHEMES]
     assert len(refs) == len(set(refs))
 
 
-def test_every_opportunity_requires_a_real_skill():
+def test_every_scheme_requires_a_real_skill():
     known = {e["code"] for e in TAXONOMY}
-    for opportunity in OPPORTUNITIES:
-        assert opportunity["skills"], f"{opportunity['title']} requires nothing"
-        for code, _weight, _essential in opportunity["skills"]:
-            assert code in known, f"{opportunity['title']} references unknown {code}"
+    for scheme in SCHEMES:
+        assert scheme["skills"], f"{scheme['title']} requires nothing"
+        for code, _weight, _essential in scheme["skills"]:
+            assert code in known, f"{scheme['title']} references unknown {code}"
 
 
 def test_the_mockup_worked_example_survives():
@@ -70,16 +70,16 @@ def test_the_mockup_worked_example_survives():
 
 
 def test_weights_are_in_range():
-    for opportunity in OPPORTUNITIES:
-        for code, weight, _essential in opportunity["skills"]:
-            assert 0 < weight <= 1, f"{opportunity['title']}/{code} weight {weight}"
+    for scheme in SCHEMES:
+        for code, weight, _essential in scheme["skills"]:
+            assert 0 < weight <= 1, f"{scheme['title']}/{code} weight {weight}"
 
 
 def test_salary_ranges_are_ordered():
-    for opportunity in OPPORTUNITIES:
-        low, high = opportunity["salary_min"], opportunity["salary_max"]
+    for scheme in SCHEMES:
+        low, high = scheme["salary_min"], scheme["salary_max"]
         if low is not None and high is not None:
-            assert low <= high, opportunity["title"]
+            assert low <= high, scheme["title"]
 
 
 def test_types_match_the_database_constraint():
@@ -87,8 +87,8 @@ def test_types_match_the_database_constraint():
         "Full-time", "Part-time", "Training", "Apprenticeship",
         "Self-employment support",
     }
-    for opportunity in OPPORTUNITIES:
-        assert opportunity["type"] in allowed, opportunity["title"]
+    for scheme in SCHEMES:
+        assert scheme["type"] in allowed, scheme["title"]
 
 
 def test_aliases_cover_all_three_languages():

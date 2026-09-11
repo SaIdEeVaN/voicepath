@@ -142,21 +142,21 @@ async def explain_many(
 
     Concurrent, because these were sequential and a page of eight meant eight
     round trips end to end. The ranking is already fixed before this is called,
-    and the result is keyed by opportunity id, so the order calls complete in
+    and the result is keyed by scheme id, so the order calls complete in
     cannot influence anything.
     """
     limit = asyncio.Semaphore(_EXPLAIN_CONCURRENCY)
 
     async def one(match: ScoredMatch) -> tuple[int, Explanation]:
         async with limit:
-            return match.opportunity.id, await explain(match, language=language)
+            return match.scheme.id, await explain(match, language=language)
 
     return dict(await asyncio.gather(*(one(m) for m in matches)))
 
 
 async def _explain_with_llm(match: ScoredMatch, *, language: str) -> Explanation:
     grounding = match.grounding
-    opportunity = match.opportunity
+    scheme = match.scheme
 
     prompt = EXPLANATION_USER_TEMPLATE.format(
         skills=_join(list(grounding.get("user_skill_names") or []), "en") or "not stated",
@@ -166,15 +166,15 @@ async def _explain_with_llm(match: ScoredMatch, *, language: str) -> Explanation
             [c for c in (grounding.get("missing_certifications") or [])], "en"
         )
         or "none stated",
-        title=opportunity.title,
-        organization=opportunity.organization,
-        location_opportunity=opportunity.location,
-        type=opportunity.type,
-        minimum_experience=_number(opportunity.minimum_experience) or "0",
-        certifications_required=_join(opportunity.certifications_required, "en")
+        title=scheme.title,
+        organization=scheme.organization,
+        location_scheme=scheme.location,
+        type=scheme.type,
+        minimum_experience=_number(scheme.minimum_experience) or "0",
+        certifications_required=_join(scheme.certifications_required, "en")
         or "none listed",
-        pay=_pay_phrase(opportunity),
-        description=opportunity.description or "no further detail in the record",
+        pay=_pay_phrase(scheme),
+        description=scheme.description or "no further detail in the record",
         skill_score=f"{match.skill_similarity_score:.2f}",
         experience_score=f"{match.experience_score:.2f}",
         eligibility_score=f"{match.eligibility_score:.2f}",
@@ -210,15 +210,15 @@ async def _explain_with_llm(match: ScoredMatch, *, language: str) -> Explanation
     )
 
 
-def _pay_phrase(opportunity) -> str:
-    if opportunity.salary_min and opportunity.salary_max:
-        if opportunity.salary_min == opportunity.salary_max:
-            return f"Rs {opportunity.salary_min} a month"
-        return f"Rs {opportunity.salary_min} to {opportunity.salary_max} a month"
-    if opportunity.salary_max:
-        return f"up to Rs {opportunity.salary_max}"
-    if opportunity.salary_min:
-        return f"from Rs {opportunity.salary_min}"
+def _pay_phrase(scheme) -> str:
+    if scheme.salary_min and scheme.salary_max:
+        if scheme.salary_min == scheme.salary_max:
+            return f"Rs {scheme.salary_min} a month"
+        return f"Rs {scheme.salary_min} to {scheme.salary_max} a month"
+    if scheme.salary_max:
+        return f"up to Rs {scheme.salary_max}"
+    if scheme.salary_min:
+        return f"from Rs {scheme.salary_min}"
     return "not stated in the record"
 
 
@@ -230,7 +230,7 @@ def explain_offline(match: ScoredMatch, *, language: str = "en") -> Explanation:
     """
     language = language if language in TEMPLATES else "en"
     grounding = match.grounding
-    opportunity = match.opportunity
+    scheme = match.scheme
     bullets: list[str] = []
 
     # Prefer the label map so the sentence stays in one language throughout.
@@ -249,7 +249,7 @@ def explain_offline(match: ScoredMatch, *, language: str = "en") -> Explanation:
             _t(language, key).format(skills=_join(matched_names[:2], language))
         )
 
-    minimum = float(opportunity.minimum_experience or 0)
+    minimum = float(scheme.minimum_experience or 0)
     years = grounding.get("experience_years")
     if minimum <= 0:
         bullets.append(_t(language, "experience_none_needed"))
@@ -270,29 +270,29 @@ def explain_offline(match: ScoredMatch, *, language: str = "en") -> Explanation:
             _t(language, "cert_missing").format(certs=_join(missing, language))
         )
 
-    if opportunity.type == "Training":
+    if scheme.type == "Training":
         bullets.append(_t(language, "training"))
-        if opportunity.salary_min:
+        if scheme.salary_min:
             bullets.append(
-                _t(language, "stipend").format(amount=f"{opportunity.salary_min:,}")
+                _t(language, "stipend").format(amount=f"{scheme.salary_min:,}")
             )
-    elif opportunity.type == "Self-employment support":
-        if opportunity.salary_max:
+    elif scheme.type == "Self-employment support":
+        if scheme.salary_max:
             bullets.append(
-                _t(language, "support").format(amount=f"{opportunity.salary_max:,}")
+                _t(language, "support").format(amount=f"{scheme.salary_max:,}")
             )
-    elif opportunity.salary_min and opportunity.salary_max:
+    elif scheme.salary_min and scheme.salary_max:
         bullets.append(
             _t(language, "pay").format(
-                low=f"{opportunity.salary_min:,}", high=f"{opportunity.salary_max:,}"
+                low=f"{scheme.salary_min:,}", high=f"{scheme.salary_max:,}"
             )
         )
 
     if grounding.get("same_place"):
-        bullets.append(_t(language, "same_place").format(place=opportunity.location))
+        bullets.append(_t(language, "same_place").format(place=scheme.location))
     elif match.location_score <= 0.5:
         bullets.append(
-            _t(language, "different_place").format(place=opportunity.location)
+            _t(language, "different_place").format(place=scheme.location)
         )
 
     if match.overall_score >= 0.8:

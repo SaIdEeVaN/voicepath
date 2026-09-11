@@ -35,7 +35,7 @@ interface Exchange {
   fromData: boolean;
 }
 
-export function AskVoicePath({ opportunityId }: { opportunityId: number }) {
+export function AskVoicePath({ schemeId }: { schemeId: number }) {
   const { language, sessionId } = useSession();
   const copy = copyFor(language);
 
@@ -61,6 +61,12 @@ export function AskVoicePath({ opportunityId }: { opportunityId: number }) {
     [],
   );
 
+  // TODO: RAG integration. This asks about one scheme, and the backend
+  // answers from that row alone -- deliberately, so it cannot invent an
+  // eligibility rule. Questions about the scheme itself ("do I qualify if
+  // my income is above the limit?") need the published guidelines, which
+  // the retrieval layer on the `rag` branch answers with a citation.
+  // Route there when a question is not about this listing.
   const ask = useCallback(
     async (question: string) => {
       const clean = question.trim();
@@ -72,7 +78,7 @@ export function AskVoicePath({ opportunityId }: { opportunityId: number }) {
       try {
         const result = await api.ask({
           sessionId,
-          opportunityId,
+          schemeId,
           question: clean,
           language: language as Language,
         });
@@ -118,7 +124,7 @@ export function AskVoicePath({ opportunityId }: { opportunityId: number }) {
         setThinking(false);
       }
     },
-    [language, opportunityId, sessionId],
+    [language, schemeId, sessionId],
   );
 
   const toggleListening = useCallback(() => {

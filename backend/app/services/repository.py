@@ -72,7 +72,7 @@ class SkillRow:
 class MatchRow:
     id: UUID
     session_id: UUID
-    opportunity_id: int
+    scheme_id: int
     skill_similarity_score: float
     experience_score: float
     eligibility_score: float
@@ -403,8 +403,8 @@ async def replace_matches(
 ) -> list[MatchRow]:
     explanations = explanations or {}
 
-    def _explanation(opportunity_id: int) -> tuple[str | None, list[str]]:
-        found = explanations.get(opportunity_id)
+    def _explanation(scheme_id: int) -> tuple[str | None, list[str]]:
+        found = explanations.get(scheme_id)
         if found is None:
             return None, []
         return found.summary, list(found.bullets)
@@ -414,17 +414,17 @@ async def replace_matches(
             await conn.execute("delete from matches where session_id = $1", session_id)
             rows = []
             for match in matches:
-                summary, bullets = _explanation(match.opportunity.id)
+                summary, bullets = _explanation(match.scheme.id)
                 row = await conn.fetchrow(
                     "insert into matches "
-                    "(session_id, opportunity_id, skill_similarity_score, "
+                    "(session_id, scheme_id, skill_similarity_score, "
                     " experience_score, eligibility_score, location_score, "
                     " overall_score, rank, explanation_text, explanation_bullets) "
                     "values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) "
-                    "returning id, session_id, opportunity_id, skill_similarity_score, "
+                    "returning id, session_id, scheme_id, skill_similarity_score, "
                     "experience_score, eligibility_score, location_score, "
                     "overall_score, rank, explanation_text, explanation_bullets",
-                    session_id, match.opportunity.id, match.skill_similarity_score,
+                    session_id, match.scheme.id, match.skill_similarity_score,
                     match.experience_score, match.eligibility_score,
                     match.location_score, match.overall_score, match.rank,
                     summary, bullets,
@@ -437,12 +437,12 @@ async def replace_matches(
         raise ValueError(f"Unknown session {session_id}")
     entry.matches = []
     for match in matches:
-        summary, bullets = _explanation(match.opportunity.id)
+        summary, bullets = _explanation(match.scheme.id)
         entry.matches.append(
             MatchRow(
                 id=uuid4(),
                 session_id=session_id,
-                opportunity_id=match.opportunity.id,
+                scheme_id=match.scheme.id,
                 skill_similarity_score=match.skill_similarity_score,
                 experience_score=match.experience_score,
                 eligibility_score=match.eligibility_score,
@@ -460,7 +460,7 @@ def _match_from_row(row) -> MatchRow:
     return MatchRow(
         id=row["id"],
         session_id=row["session_id"],
-        opportunity_id=row["opportunity_id"],
+        scheme_id=row["scheme_id"],
         skill_similarity_score=float(row["skill_similarity_score"]),
         experience_score=float(row["experience_score"]),
         eligibility_score=float(row["eligibility_score"]),
@@ -475,7 +475,7 @@ def _match_from_row(row) -> MatchRow:
 async def get_matches(session_id: UUID) -> list[MatchRow]:
     if db.is_available():
         rows = await db.fetch(
-            "select id, session_id, opportunity_id, skill_similarity_score, "
+            "select id, session_id, scheme_id, skill_similarity_score, "
             "experience_score, eligibility_score, location_score, overall_score, "
             "rank, explanation_text, explanation_bullets "
             "from matches where session_id = $1 order by rank",
@@ -486,9 +486,9 @@ async def get_matches(session_id: UUID) -> list[MatchRow]:
     return list(entry.matches) if entry else []
 
 
-async def get_match(session_id: UUID, opportunity_id: int) -> MatchRow | None:
+async def get_match(session_id: UUID, scheme_id: int) -> MatchRow | None:
     for match in await get_matches(session_id):
-        if match.opportunity_id == opportunity_id:
+        if match.scheme_id == scheme_id:
             return match
     return None
 
@@ -501,7 +501,7 @@ async def get_match(session_id: UUID, opportunity_id: int) -> MatchRow | None:
 async def log_assistant_query(
     session_id: UUID,
     *,
-    opportunity_id: int | None,
+    scheme_id: int | None,
     question_text: str,
     answer_text: str,
     source_note: str | None,
@@ -509,9 +509,9 @@ async def log_assistant_query(
     if db.is_available():
         await db.execute(
             "insert into assistant_queries "
-            "(session_id, opportunity_id, question_text, answer_text, source_note) "
+            "(session_id, scheme_id, question_text, answer_text, source_note) "
             "values ($1, $2, $3, $4, $5)",
-            session_id, opportunity_id, question_text, answer_text, source_note,
+            session_id, scheme_id, question_text, answer_text, source_note,
         )
         return
     entry = _memory.get(session_id)
@@ -520,7 +520,7 @@ async def log_assistant_query(
     entry.questions.append(
         {
             "id": uuid4(),
-            "opportunity_id": opportunity_id,
+            "scheme_id": scheme_id,
             "question_text": question_text,
             "answer_text": answer_text,
             "source_note": source_note,
@@ -532,7 +532,7 @@ async def log_assistant_query(
 async def list_assistant_queries(session_id: UUID, limit: int = 20) -> list[dict[str, Any]]:
     if db.is_available():
         rows = await db.fetch(
-            "select id, question_text, answer_text, source_note, opportunity_id, "
+            "select id, question_text, answer_text, source_note, scheme_id, "
             "created_at from assistant_queries where session_id = $1 "
             "order by created_at desc limit $2",
             session_id, limit,

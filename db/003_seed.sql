@@ -208,11 +208,11 @@ update skill_taxonomy t
  where t.code = l.code;
 
 -- ---------------------------------------------------------------------------
--- opportunities
+-- schemes
 -- Salem / Erode district (Tamil Nadu) worked example. source_reference points
 -- back at the OGD / scheme record the row was derived from.
 -- ---------------------------------------------------------------------------
-insert into opportunities (
+insert into schemes (
   title, organization, location, district, type, minimum_experience,
   certifications_required, salary_min, salary_max, nsqf_level,
   source_reference, description
@@ -299,7 +299,7 @@ insert into opportunities (
 on conflict do nothing;
 
 -- ---------------------------------------------------------------------------
--- opportunity_skills
+-- scheme_skills
 -- Joined by natural keys so the block is re-runnable and readable.
 -- ---------------------------------------------------------------------------
 with wanted (source_reference, skill_code, weight, is_essential) as (values
@@ -352,11 +352,11 @@ with wanted (source_reference, skill_code, weight, is_essential) as (values
   ('OGD/TN/SLM/HLT/2024/0088', 'SK063', 1.00, true),
   ('OGD/TN/SLM/HLT/2024/0088', 'SK109', 0.80, true)
 )
-insert into opportunity_skills (opportunity_id, skill_id, weight, is_essential)
+insert into scheme_skills (scheme_id, skill_id, weight, is_essential)
 select o.id, t.id, w.weight::numeric(3,2), w.is_essential
 from wanted w
-join opportunities o on o.source_reference = w.source_reference
+join schemes o on o.source_reference = w.source_reference
 join skill_taxonomy t on t.code = w.skill_code
-on conflict (opportunity_id, skill_id) do update
+on conflict (scheme_id, skill_id) do update
   set weight = excluded.weight,
       is_essential = excluded.is_essential;

@@ -1,8 +1,8 @@
 """Follow-up spoken Q&A (PRD section 4.6).
 
 The assistant answers from a context object assembled here from stored rows. It
-is not given the catalogue, the taxonomy, or anything about other opportunities
--- only the opportunity in front of the user, their own profile, and the match
+is not given the catalogue, the taxonomy, or anything about other schemes
+-- only the scheme in front of the user, their own profile, and the match
 that connects them. Narrowing the context is what makes "no invented figures" a
 property of the request rather than a hope about the model.
 
@@ -20,7 +20,7 @@ from typing import Any
 
 from app.prompts import ASSISTANT_SYSTEM, ASSISTANT_USER_TEMPLATE
 from app.services import llm
-from app.services.opportunities import Opportunity
+from app.services.schemes import Scheme
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +37,7 @@ class Answer:
 
 @dataclass
 class QueryContext:
-    opportunity: Opportunity | None = None
+    scheme: Scheme | None = None
     experience_years: float | None = None
     location: str | None = None
     certifications: list[str] | None = None
@@ -70,6 +70,8 @@ COPY: dict[str, dict[str, str]] = {
         "privacy_retained": "You turned on keeping your voice clips, so they are saved. You can turn that off any time.",
         "why_match": "You match on {skills}.",
         "unknown": "I do not have that in the record for this one. I will not guess at it.",
+        "official_page": "The government page for this is {url}",
+        "official_page_none": "The record has no government page for this one. Ask at the district Social Welfare Office.",
         "source_listing": "from the listing",
         "source_you": "from what you told me",
         "source_privacy": "from this session's setting",
@@ -93,6 +95,8 @@ COPY: dict[str, dict[str, str]] = {
         "privacy_retained": "आपने आवाज़ रखने का विकल्प चालू किया है, इसलिए वे सहेजी गई हैं। इसे कभी भी बंद कर सकते हैं।",
         "why_match": "आपका {skills} इससे मेल खाता है।",
         "unknown": "इसके रिकॉर्ड में यह नहीं है। मैं अंदाज़ा नहीं लगाऊँगा।",
+        "official_page": "इसका सरकारी पेज यह है: {url}",
+        "official_page_none": "इस रिकॉर्ड में कोई सरकारी पेज नहीं है। ज़िला समाज कल्याण कार्यालय में पूछिए।",
         "source_listing": "सूची से",
         "source_you": "आपने जो बताया उससे",
         "source_privacy": "इस सेशन की सेटिंग से",
@@ -116,6 +120,8 @@ COPY: dict[str, dict[str, str]] = {
         "privacy_retained": "குரல் பதிவுகளை வைத்திருக்கும் விருப்பத்தை நீங்கள் இயக்கியுள்ளீர்கள். எப்போது வேண்டுமானாலும் நிறுத்தலாம்.",
         "why_match": "உங்கள் {skills} இதற்கு பொருந்துகிறது.",
         "unknown": "இதன் பதிவில் அது இல்லை. நான் ஊகிக்க மாட்டேன்.",
+        "official_page": "இதன் அரசு பக்கம்: {url}",
+        "official_page_none": "இந்தப் பதிவில் அரசு பக்கம் இல்லை. மாவட்ட சமூக நலத் துறை அலுவலகத்தில் கேளுங்கள்.",
         "source_listing": "வேலை பட்டியலிலிருந்து",
         "source_you": "நீங்கள் சொன்னதிலிருந்து",
         "source_privacy": "இந்த அமர்வின் அமைப்பிலிருந்து",
@@ -131,6 +137,14 @@ def _c(language: str, key: str) -> str:
 
 # Intent keywords across the three languages. Deliberately shallow -- this is a
 # fallback for when there is no model, not an attempt to be one.
+# TODO: RAG integration. Questions about the scheme itself -- eligibility
+# rules, application procedure, what a component covers -- cannot be answered
+# from a single row, and keyword intents do not reach them either. The
+# retrieval layer on the `rag` branch (services/retrieval.py, scheme_qa.py)
+# answers those from the published guidelines with a citation, and refuses
+# when the corpus does not cover the question. Route here once it is merged:
+# an unmatched intent is the signal that the question is about the scheme
+# rather than about this listing.
 INTENTS: dict[str, list[str]] = {
     "pay": ["salary", "pay", "wage", "money", "stipend", "how much", "सैलरी", "तनख्वाह",
             "पैसा", "वजीफ़ा", "कितना", "சம்பளம்", "salary என்ன", "பணம்", "எவ்வளவு"],
@@ -138,6 +152,9 @@ INTENTS: dict[str, list[str]] = {
                     "सर्टिफिकेट", "प्रमाणपत्र", "डिग्री", "சான்றிதழ்", "படிப்பு"],
     "experience": ["experience", "years", "how long", "अनुभव", "साल", "தகுதி",
                    "அனுபவம்", "வருடம்"],
+    "official_page": ["website", "link", "url", "official", "government page",
+                      "read more", "apply online", "वेबसाइट", "लिंक", "सरकारी",
+                      "ऑनलाइन", "இணையதளம்", "லிங்க்", "அரசு", "ஆன்லைன்"],
     "location": ["where", "location", "place", "far", "distance", "कहाँ", "कहां",
                  "जगह", "दूर", "எங்கே", "இடம்", "தூரம்"],
     "type": ["training", "job", "course", "what is this", "प्रशिक्षण", "नौकरी", "कोर्स",
@@ -180,7 +197,7 @@ async def _answer_with_llm(
 ) -> Answer:
     prompt = ASSISTANT_USER_TEMPLATE.format(
         question=question.strip(),
-        opportunity=_describe_opportunity(context.opportunity),
+        scheme=_describe_scheme(context.scheme),
         profile=_describe_profile(context),
         match=_describe_match(context),
         audio_retained="on" if context.audio_retained else "off",
@@ -207,29 +224,34 @@ async def _answer_with_llm(
     )
 
 
-def _describe_opportunity(opportunity: Opportunity | None) -> str:
-    if opportunity is None:
-        return "No specific opportunity is in view."
+def _describe_scheme(scheme: Scheme | None) -> str:
+    if scheme is None:
+        return "No specific scheme is in view."
     lines = [
-        f"- Title: {opportunity.title}",
-        f"- Organisation: {opportunity.organization}",
-        f"- Place: {opportunity.location}",
-        f"- Type: {opportunity.type}",
-        f"- Minimum experience: {opportunity.minimum_experience}",
+        f"- Title: {scheme.title}",
+        f"- Organisation: {scheme.organization}",
+        f"- Place: {scheme.location}",
+        f"- Type: {scheme.type}",
+        f"- Minimum experience: {scheme.minimum_experience}",
         f"- Certificates required: "
-        f"{', '.join(opportunity.certifications_required) or 'none listed'}",
+        f"{', '.join(scheme.certifications_required) or 'none listed'}",
     ]
-    if opportunity.salary_min or opportunity.salary_max:
+    if scheme.salary_min or scheme.salary_max:
         lines.append(
-            f"- Money: min {opportunity.salary_min}, max {opportunity.salary_max} "
+            f"- Money: min {scheme.salary_min}, max {scheme.salary_max} "
             f"(rupees)"
         )
     else:
         lines.append("- Money: not stated in the record")
-    if opportunity.nsqf_level:
-        lines.append(f"- NSQF level: {opportunity.nsqf_level} (never say this aloud)")
-    if opportunity.description:
-        lines.append(f"- Listing text: {opportunity.description}")
+    if scheme.nsqf_level:
+        lines.append(f"- NSQF level: {scheme.nsqf_level} (never say this aloud)")
+    if scheme.official_url:
+        lines.append(
+            f"- Official government page: {scheme.official_url} "
+            "(quote this URL exactly as written; never alter or invent one)"
+        )
+    if scheme.description:
+        lines.append(f"- Listing text: {scheme.description}")
     return "\n".join(lines)
 
 
@@ -264,25 +286,25 @@ def answer_offline(
 ) -> Answer:
     language = language if language in COPY else "en"
     intent = detect_intent(question)
-    opportunity = context.opportunity
+    scheme = context.scheme
 
     if intent == "privacy":
         key = "privacy_retained" if context.audio_retained else "privacy"
         return Answer(_c(language, key), _c(language, "source_privacy"), "offline")
 
-    if opportunity is None:
+    if scheme is None:
         return Answer(
             _c(language, "unknown"), _c(language, "source_none"), "offline",
             answered_from_data=False,
         )
 
     if intent == "pay":
-        return Answer(_pay_answer(opportunity, language),
+        return Answer(_pay_answer(scheme, language),
                       _c(language, "source_listing"), "offline",
-                      answered_from_data=bool(opportunity.salary_min or opportunity.salary_max))
+                      answered_from_data=bool(scheme.salary_min or scheme.salary_max))
 
     if intent == "certificate":
-        required = opportunity.certifications_required or []
+        required = scheme.certifications_required or []
         if not required:
             return Answer(_c(language, "certs_none"),
                           _c(language, "source_listing"), "offline")
@@ -292,7 +314,7 @@ def answer_offline(
         )
 
     if intent == "experience":
-        minimum = float(opportunity.minimum_experience or 0)
+        minimum = float(scheme.minimum_experience or 0)
         if minimum <= 0:
             return Answer(_c(language, "experience_none"),
                           _c(language, "source_listing"), "offline")
@@ -304,18 +326,37 @@ def answer_offline(
     if intent == "location":
         return Answer(
             _c(language, "where").format(
-                organization=opportunity.organization, location=opportunity.location
+                organization=scheme.organization, location=scheme.location
             ),
             _c(language, "source_listing"), "offline",
         )
 
+    if intent == "official_page":
+        # Verbatim from the row, or an honest "not in the record". A URL is
+        # the one field where a plausible guess is most dangerous: a wrong
+        # one looks official and sends someone somewhere real.
+        if scheme.official_url:
+            return Answer(
+                _c(language, "official_page").format(url=scheme.official_url),
+                _c(language, "source_listing"), "offline",
+                answered_from_data=True,
+            )
+        # answered_from_data is false here by the same definition the prompt
+        # uses: we had to say the record does not cover it. The UI reads this
+        # to mark an answer as grounded, and "there is no page" is not.
+        return Answer(
+            _c(language, "official_page_none"),
+            _c(language, "source_listing"), "offline",
+            answered_from_data=False,
+        )
+
     if intent == "type":
-        if opportunity.type == "Training":
+        if scheme.type == "Training":
             text = _c(language, "type_training")
-        elif opportunity.type == "Self-employment support":
+        elif scheme.type == "Self-employment support":
             text = _c(language, "type_self")
         else:
-            text = _c(language, "type_job").format(type=opportunity.type)
+            text = _c(language, "type_job").format(type=scheme.type)
         return Answer(text, _c(language, "source_listing"), "offline")
 
     if intent == "why":
@@ -332,21 +373,21 @@ def answer_offline(
     )
 
 
-def _pay_answer(opportunity: Opportunity, language: str) -> str:
-    if opportunity.type == "Training" and opportunity.salary_min:
-        return _c(language, "pay_stipend").format(amount=f"{opportunity.salary_min:,}")
-    if opportunity.type == "Self-employment support" and opportunity.salary_max:
-        return _c(language, "pay_support").format(amount=f"{opportunity.salary_max:,}")
-    if opportunity.salary_min and opportunity.salary_max:
-        if opportunity.salary_min == opportunity.salary_max:
+def _pay_answer(scheme: Scheme, language: str) -> str:
+    if scheme.type == "Training" and scheme.salary_min:
+        return _c(language, "pay_stipend").format(amount=f"{scheme.salary_min:,}")
+    if scheme.type == "Self-employment support" and scheme.salary_max:
+        return _c(language, "pay_support").format(amount=f"{scheme.salary_max:,}")
+    if scheme.salary_min and scheme.salary_max:
+        if scheme.salary_min == scheme.salary_max:
             return _c(language, "pay_fixed").format(
-                amount=f"{opportunity.salary_min:,}"
+                amount=f"{scheme.salary_min:,}"
             )
         return _c(language, "pay_range").format(
-            low=f"{opportunity.salary_min:,}", high=f"{opportunity.salary_max:,}"
+            low=f"{scheme.salary_min:,}", high=f"{scheme.salary_max:,}"
         )
-    if opportunity.salary_max:
-        return _c(language, "pay_support").format(amount=f"{opportunity.salary_max:,}")
+    if scheme.salary_max:
+        return _c(language, "pay_support").format(amount=f"{scheme.salary_max:,}")
     return _c(language, "pay_unknown")
 
 

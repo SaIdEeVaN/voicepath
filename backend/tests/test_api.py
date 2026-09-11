@@ -167,7 +167,7 @@ class TestPipeline:
         session_id = self._session(client)
         client.post("/api/profile/extract", json={"session_id": session_id})
         response = client.post(
-            "/api/opportunities/match", json={"session_id": session_id}
+            "/api/schemes/match", json={"session_id": session_id}
         )
         assert response.status_code == 200
         body = response.json()
@@ -190,7 +190,7 @@ class TestPipeline:
     def test_match_without_skills_returns_empty_not_an_error(self, client):
         session_id = self._session(client)
         response = client.post(
-            "/api/opportunities/match",
+            "/api/schemes/match",
             json={"session_id": session_id, "profile": {}, "skills": []},
         )
         assert response.status_code in (200, 400)
@@ -199,34 +199,34 @@ class TestPipeline:
         session_id = self._session(client)
         client.post("/api/profile/extract", json={"session_id": session_id})
         matched = client.post(
-            "/api/opportunities/match", json={"session_id": session_id}
+            "/api/schemes/match", json={"session_id": session_id}
         ).json()
-        opportunity_id = matched["matches"][0]["opportunity"]["id"]
+        scheme_id = matched["matches"][0]["scheme"]["id"]
 
         response = client.get(
-            f"/api/opportunities/{opportunity_id}/match/{session_id}"
+            f"/api/schemes/{scheme_id}/match/{session_id}"
         )
         assert response.status_code == 200
         assert response.json()["overall_score"] == matched["matches"][0]["overall_score"]
 
 
-class TestOpportunities:
+class TestSchemes:
     def test_catalogue_lists(self, client):
-        body = client.get("/api/opportunities").json()
+        body = client.get("/api/schemes").json()
         assert len(body) >= 10
 
     def test_district_filter_narrows(self, client):
-        body = client.get("/api/opportunities", params={"district": "Erode"}).json()
+        body = client.get("/api/schemes", params={"district": "Erode"}).json()
         assert body
         assert all(o["district"] == "Erode" for o in body)
 
     def test_detail_includes_the_listing_text_and_requirements(self, client):
-        body = client.get("/api/opportunities/1").json()
+        body = client.get("/api/schemes/1").json()
         assert body["description"]
         assert body["required_skills"]
 
-    def test_missing_opportunity_is_a_404(self, client):
-        assert client.get("/api/opportunities/99999").status_code == 404
+    def test_missing_scheme_is_a_404(self, client):
+        assert client.get("/api/schemes/99999").status_code == 404
 
 
 class TestAssistant:
@@ -237,17 +237,17 @@ class TestAssistant:
         ).json()["session_id"]
         client.post("/api/profile/extract", json={"session_id": session_id})
         matched = client.post(
-            "/api/opportunities/match", json={"session_id": session_id}
+            "/api/schemes/match", json={"session_id": session_id}
         ).json()
-        return session_id, matched["matches"][0]["opportunity"]["id"]
+        return session_id, matched["matches"][0]["scheme"]["id"]
 
     def test_salary_question_is_answered_from_the_listing(self, client):
-        session_id, opportunity_id = self._matched_session(client)
+        session_id, scheme_id = self._matched_session(client)
         body = client.post(
             "/api/assistant/query",
             json={
                 "session_id": session_id,
-                "opportunity_id": opportunity_id,
+                "scheme_id": scheme_id,
                 "question_text": "What is the salary for this?",
                 "language": "en",
             },
@@ -256,12 +256,12 @@ class TestAssistant:
         assert "₹" in body["answer_text"]
 
     def test_privacy_question_is_answered_from_the_session(self, client):
-        session_id, opportunity_id = self._matched_session(client)
+        session_id, scheme_id = self._matched_session(client)
         body = client.post(
             "/api/assistant/query",
             json={
                 "session_id": session_id,
-                "opportunity_id": opportunity_id,
+                "scheme_id": scheme_id,
                 "question_text": "Who hears my voice?",
                 "language": "en",
             },
@@ -269,12 +269,12 @@ class TestAssistant:
         assert "not saved" in body["answer_text"].lower()
 
     def test_unanswerable_question_says_so_instead_of_guessing(self, client):
-        session_id, opportunity_id = self._matched_session(client)
+        session_id, scheme_id = self._matched_session(client)
         body = client.post(
             "/api/assistant/query",
             json={
                 "session_id": session_id,
-                "opportunity_id": opportunity_id,
+                "scheme_id": scheme_id,
                 "question_text": "Who is the manager's cousin?",
                 "language": "en",
             },
@@ -283,12 +283,12 @@ class TestAssistant:
         assert "not" in body["answer_text"].lower()
 
     def test_questions_are_logged_for_the_session(self, client):
-        session_id, opportunity_id = self._matched_session(client)
+        session_id, scheme_id = self._matched_session(client)
         client.post(
             "/api/assistant/query",
             json={
                 "session_id": session_id,
-                "opportunity_id": opportunity_id,
+                "scheme_id": scheme_id,
                 "question_text": "What is the salary?",
                 "language": "en",
             },
@@ -350,7 +350,7 @@ class TestAdminGate:
     """PRD section 6.6: every admin route verifies the role server-side."""
 
     ADMIN_ROUTES = [
-        ("get", "/api/admin/opportunities"),
+        ("get", "/api/admin/schemes"),
         ("get", "/api/admin/taxonomy"),
         ("get", "/api/admin/sessions"),
         ("get", "/api/admin/whoami"),
@@ -369,7 +369,7 @@ class TestAdminGate:
 
     def test_malformed_header_is_rejected(self, client):
         response = client.get(
-            "/api/admin/opportunities", headers={"Authorization": "Basic abc"}
+            "/api/admin/schemes", headers={"Authorization": "Basic abc"}
         )
         assert response.status_code == 401
 

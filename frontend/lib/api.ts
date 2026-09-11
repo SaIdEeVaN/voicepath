@@ -13,8 +13,8 @@ import type {
   Language,
   MatchResponse,
   NormalizeResponse,
-  OpportunityDetail,
-  OpportunitySummary,
+  SchemeDetail,
+  SchemeSummary,
   PassportResponse,
   SessionSummary,
   SkillEdit,
@@ -138,7 +138,7 @@ export const api = {
   // to re-ask rather than re-render.
   match: (sessionId: string, language: Language) =>
     request<MatchResponse>(
-      "/api/opportunities/match",
+      "/api/schemes/match",
       {
         method: "POST",
         body: JSON.stringify({ session_id: sessionId, language }),
@@ -146,22 +146,22 @@ export const api = {
       sessionId,
     ),
 
-  opportunities: (district?: string) =>
-    request<OpportunitySummary[]>(
-      `/api/opportunities${district ? `?district=${encodeURIComponent(district)}` : ""}`,
+  schemes: (district?: string) =>
+    request<SchemeSummary[]>(
+      `/api/schemes${district ? `?district=${encodeURIComponent(district)}` : ""}`,
     ),
 
-  opportunity: (id: number) =>
-    request<OpportunityDetail>(`/api/opportunities/${id}`),
+  scheme: (id: number) =>
+    request<SchemeDetail>(`/api/schemes/${id}`),
 
   storedMatch: (id: number, sessionId: string) =>
     request<import("./types").MatchResult>(
-      `/api/opportunities/${id}/match/${sessionId}`,
+      `/api/schemes/${id}/match/${sessionId}`,
     ),
 
   ask: (params: {
     sessionId: string | null;
-    opportunityId: number | null;
+    schemeId: number | null;
     question: string;
     language: Language;
   }) =>
@@ -171,7 +171,7 @@ export const api = {
         method: "POST",
         body: JSON.stringify({
           session_id: params.sessionId,
-          opportunity_id: params.opportunityId,
+          scheme_id: params.schemeId,
           question_text: params.question,
           language: params.language,
         }),

@@ -39,7 +39,7 @@ producing a full-looking result, and more than making the person sound employabl
    When something is ambiguous -- which kind of welding, whether "helping at the \
    shop" was paid work -- record it in uncertainty_flags and leave the field \
    empty. A gap the person can fill in is useful. A guess that looks like a fact \
-   is harmful, because this output decides which livelihood opportunities they \
+   is harmful, because this output decides which livelihood schemes they \
    are shown.
 
 Return this JSON object and nothing else:
@@ -125,7 +125,7 @@ Return the JSON object.
 # ---------------------------------------------------------------------------
 
 EXPLANATION_SYSTEM = """\
-You explain, in plain spoken language, why an opportunity was ranked where it was.
+You explain, in plain spoken language, why a scheme was ranked where it was.
 
 The ranking is already decided. A deterministic scoring engine produced it \
 before you were called. You are describing a result, not producing one.
@@ -136,12 +136,12 @@ Absolute rules:
    it should be different -- no "this is actually the best fit for you", no \
    "you should apply here first". The number stands as given.
 
-2. YOU MAY NOT IMPLY ELIGIBILITY THE DATA DOES NOT SUPPORT. If the opportunity \
+2. YOU MAY NOT IMPLY ELIGIBILITY THE DATA DOES NOT SUPPORT. If the scheme \
    requires a certificate the person does not have, say so plainly. Never write \
    that they qualify, are eligible, will be selected, or are likely to be hired.
 
 3. EVERY SENTENCE MUST REST ON A FACT YOU WERE GIVEN -- a skill of theirs, a \
-   number from their profile, or a line from the opportunity record. Nothing \
+   number from their profile, or a line from the scheme record. Nothing \
    about the employer, the pay, the location or the work may come from anywhere \
    else.
 
@@ -172,10 +172,10 @@ The person:
 - Where they are: {location}
 - Certificates they hold: {certifications}
 
-The opportunity:
+The scheme:
 - Title: {title}
 - Organisation: {organization}
-- Place: {location_opportunity}
+- Place: {location_scheme}
 - Type: {type}
 - Minimum experience asked for: {minimum_experience}
 - Certificates required: {certifications_required}
@@ -199,7 +199,7 @@ Return the JSON object.
 # ---------------------------------------------------------------------------
 
 ASSISTANT_SYSTEM = """\
-You answer a spoken question about an opportunity, using only the facts below.
+You answer a spoken question about a scheme, using only the facts below.
 
 The single rule: if the answer is not in the data you were given, say that you \
 do not have it. Never estimate a salary, never guess a start date, never assume \
@@ -222,20 +222,20 @@ Return this JSON object and nothing else:
 {{"answer": string, "source_note": string, "answered_from_data": boolean}}
 
 - source_note: a short phrase naming where the answer came from, in the same \
-  language as the answer -- "from the job listing", "from what you told me".
+  language as the answer -- "from the scheme listing", "from what you told me".
 - answered_from_data: false when you had to say the data does not cover it.
 """
 
 ASSISTANT_USER_TEMPLATE = """\
 Their question: "{question}"
 
-The opportunity they are asking about:
-{opportunity}
+The scheme they are asking about:
+{scheme}
 
 What they told us about themselves:
 {profile}
 
-How this opportunity was matched to them:
+How this scheme was matched to them:
 {match}
 
 Privacy facts, true for this session:

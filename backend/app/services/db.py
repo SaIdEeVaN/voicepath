@@ -137,15 +137,15 @@ async def healthcheck() -> dict[str, Any]:
             embedded = await conn.fetchval(
                 "select count(*) from skill_taxonomy where embedding is not null"
             )
-            opportunities = await conn.fetchval(
-                "select count(*) from opportunities where is_active"
+            schemes = await conn.fetchval(
+                "select count(*) from schemes where is_active"
             )
         return {
             "connected": True,
             "pgvector": bool(has_vector),
             "taxonomy_rows": taxonomy,
             "taxonomy_embedded": embedded,
-            "active_opportunities": opportunities,
+            "active_schemes": schemes,
         }
     except Exception as exc:  # pragma: no cover - depends on live database
         logger.exception("Database healthcheck failed")

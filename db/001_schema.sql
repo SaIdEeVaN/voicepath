@@ -50,9 +50,9 @@ create index if not exists skill_taxonomy_category_idx
   on skill_taxonomy (category);
 
 -- ---------------------------------------------------------------------------
--- opportunities -- district-level skilling / livelihood opportunities.
+-- schemes -- district-level skilling / livelihood schemes.
 -- ---------------------------------------------------------------------------
-create table if not exists opportunities (
+create table if not exists schemes (
   id                      bigint generated always as identity primary key,
   title                   text not null,
   organization            text not null,
@@ -71,45 +71,45 @@ create table if not exists opportunities (
   is_active               boolean not null default true,
   created_at              timestamptz not null default now(),
   updated_at              timestamptz not null default now(),
-  constraint opportunities_type_allowed check (
+  constraint schemes_type_allowed check (
     type in ('Full-time', 'Part-time', 'Training', 'Apprenticeship', 'Self-employment support')
   ),
-  constraint opportunities_min_exp_nonneg check (minimum_experience >= 0),
-  constraint opportunities_salary_order check (
+  constraint schemes_min_exp_nonneg check (minimum_experience >= 0),
+  constraint schemes_salary_order check (
     salary_min is null or salary_max is null or salary_min <= salary_max
   ),
-  constraint opportunities_salary_nonneg check (
+  constraint schemes_salary_nonneg check (
     (salary_min is null or salary_min >= 0) and (salary_max is null or salary_max >= 0)
   ),
-  constraint opportunities_certs_is_array check (
+  constraint schemes_certs_is_array check (
     jsonb_typeof(certifications_required) = 'array'
   )
 );
 
-comment on column opportunities.description is
+comment on column schemes.description is
   'Verbatim source text. The explanation layer may ground itself only in this row.';
 
 -- Matching scans the active set and filters by district; this covers both.
-create index if not exists opportunities_active_district_idx
-  on opportunities (district)
+create index if not exists schemes_active_district_idx
+  on schemes (district)
   where is_active;
 
 -- ---------------------------------------------------------------------------
--- opportunity_skills -- join table: opportunity -> required taxonomy skills.
+-- scheme_skills -- join table: scheme -> required taxonomy skills.
 -- ---------------------------------------------------------------------------
-create table if not exists opportunity_skills (
-  opportunity_id bigint not null references opportunities (id) on delete cascade,
+create table if not exists scheme_skills (
+  scheme_id bigint not null references schemes (id) on delete cascade,
   skill_id       bigint not null references skill_taxonomy (id) on delete restrict,
-  -- Weight lets one opportunity treat a skill as core vs. nice-to-have.
+  -- Weight lets one scheme treat a skill as core vs. nice-to-have.
   weight         numeric(3,2) not null default 1.0,
   is_essential   boolean not null default true,
-  primary key (opportunity_id, skill_id),
-  constraint opportunity_skills_weight_range check (weight > 0 and weight <= 1)
+  primary key (scheme_id, skill_id),
+  constraint scheme_skills_weight_range check (weight > 0 and weight <= 1)
 );
 
--- The PK already indexes (opportunity_id, ...). The reverse direction does not.
-create index if not exists opportunity_skills_skill_id_idx
-  on opportunity_skills (skill_id);
+-- The PK already indexes (scheme_id, ...). The reverse direction does not.
+create index if not exists scheme_skills_skill_id_idx
+  on scheme_skills (skill_id);
 
 -- ---------------------------------------------------------------------------
 -- sessions -- one row per voice interaction.
@@ -209,7 +209,7 @@ create index if not exists extracted_skills_normalized_skill_id_idx
 create table if not exists matches (
   id                     uuid primary key default gen_random_uuid(),
   session_id             uuid not null references sessions (id) on delete cascade,
-  opportunity_id         bigint not null references opportunities (id) on delete cascade,
+  scheme_id         bigint not null references schemes (id) on delete cascade,
   skill_similarity_score numeric(5,4) not null,
   experience_score       numeric(5,4) not null,
   eligibility_score      numeric(5,4) not null,
@@ -220,7 +220,7 @@ create table if not exists matches (
   -- The bullet list rendered in the UI, each grounded in a stored fact.
   explanation_bullets    jsonb not null default '[]'::jsonb,
   created_at             timestamptz not null default now(),
-  unique (session_id, opportunity_id),
+  unique (session_id, scheme_id),
   constraint matches_scores_are_fractions check (
     skill_similarity_score between 0 and 1
     and experience_score between 0 and 1
@@ -236,8 +236,8 @@ create table if not exists matches (
 create index if not exists matches_session_rank_idx
   on matches (session_id, rank);
 
-create index if not exists matches_opportunity_id_idx
-  on matches (opportunity_id);
+create index if not exists matches_scheme_id_idx
+  on matches (scheme_id);
 
 -- ---------------------------------------------------------------------------
 -- assistant_queries -- follow-up spoken Q&A log.
@@ -245,7 +245,7 @@ create index if not exists matches_opportunity_id_idx
 create table if not exists assistant_queries (
   id             uuid primary key default gen_random_uuid(),
   session_id     uuid not null references sessions (id) on delete cascade,
-  opportunity_id bigint references opportunities (id) on delete set null,
+  scheme_id bigint references schemes (id) on delete set null,
   question_text  text not null,
   answer_text    text not null,
   -- Where the answer came from, e.g. 'from the job listing'. Shown to the user.
@@ -256,9 +256,9 @@ create table if not exists assistant_queries (
 create index if not exists assistant_queries_session_id_idx
   on assistant_queries (session_id, created_at desc);
 
-create index if not exists assistant_queries_opportunity_id_idx
-  on assistant_queries (opportunity_id)
-  where opportunity_id is not null;
+create index if not exists assistant_queries_scheme_id_idx
+  on assistant_queries (scheme_id)
+  where scheme_id is not null;
 
 -- ---------------------------------------------------------------------------
 -- admin_users -- Phase 2. Role gate for /api/admin/*.
@@ -293,7 +293,7 @@ begin
 end;
 $$;
 
-drop trigger if exists opportunities_set_updated_at on opportunities;
-create trigger opportunities_set_updated_at
-  before update on opportunities
+drop trigger if exists schemes_set_updated_at on schemes;
+create trigger schemes_set_updated_at
+  before update on schemes
   for each row execute function set_updated_at();

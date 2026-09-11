@@ -7,7 +7,7 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.models import schemas
-from app.services import assistant, opportunities, repository, taxonomy
+from app.services import assistant, schemes, repository, taxonomy
 from app.services.assistant import QueryContext
 from app.services.ratelimit import assistant_limit
 
@@ -32,14 +32,14 @@ async def query(payload: schemas.AssistantQueryRequest) -> schemas.AssistantQuer
     context = QueryContext()
     language = payload.language
 
-    if payload.opportunity_id is not None:
-        found = await opportunities.get(payload.opportunity_id)
+    if payload.scheme_id is not None:
+        found = await schemes.get(payload.scheme_id)
         if found is None:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="That opportunity was not found.",
+                detail="That scheme was not found.",
             )
-        context.opportunity = found
+        context.scheme = found
 
     if payload.session_id is not None:
         session = await repository.get_session(payload.session_id)
@@ -69,8 +69,8 @@ async def query(payload: schemas.AssistantQueryRequest) -> schemas.AssistantQuer
             for r in rows
         ]
 
-        if payload.opportunity_id is not None:
-            stored = await repository.get_match(payload.session_id, payload.opportunity_id)
+        if payload.scheme_id is not None:
+            stored = await repository.get_match(payload.session_id, payload.scheme_id)
             if stored is not None:
                 context.overall_score = stored.overall_score
                 # Only the skills that actually carried this match, so the
@@ -87,7 +87,7 @@ async def query(payload: schemas.AssistantQueryRequest) -> schemas.AssistantQuer
     if payload.session_id is not None:
         await repository.log_assistant_query(
             payload.session_id,
-            opportunity_id=payload.opportunity_id,
+            scheme_id=payload.scheme_id,
             question_text=question,
             answer_text=result.answer_text,
             source_note=result.source_note,

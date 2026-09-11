@@ -52,7 +52,7 @@ export interface Copy {
   statYears: string;
   statSkills: string;
   statLanguages: string;
-  /* Opportunities */
+  /* Schemes */
   matchesTitle: string;
   matchesSub: string;
   matchWord: string;
@@ -63,10 +63,11 @@ export interface Copy {
   confidenceAsking: string;
   confidenceThreshold: string;
   weightsLabel: string;
-  opportunityTypes: Record<string, string>;
+  schemeTypes: Record<string, string>;
   applyHow: string;
   applyRefLabel: string;
   applyNote: string;
+  officialPage: string;
   viewPassport: string;
   fromRecord: string;
   /* Score bars */
@@ -134,7 +135,7 @@ const en: Copy = {
   confidenceAsking: "asking you",
   confidenceThreshold: "needs",
   weightsLabel: "Weights: skill 50% · experience 25% · eligibility 15% · place 10%",
-  opportunityTypes: {
+  schemeTypes: {
     "Full-time": "Full-time",
     "Part-time": "Part-time",
     Training: "Training",
@@ -145,6 +146,7 @@ const en: Copy = {
   applyRefLabel: "Say this number at the office",
   applyNote:
     "VoicePath does not send the application for you. Say this number where you go, and they will find this same work.",
+  officialPage: "Read this on the government's own page",
   viewPassport: "My passport",
   fromRecord: "Taken only from the record. Nothing beyond it has been added.",
   barSkills: "Your skills",
@@ -212,7 +214,7 @@ const ta: Copy = {
   confidenceAsking: "உங்களிடம் கேட்கிறோம்",
   confidenceThreshold: "தேவை",
   weightsLabel: "எடை: திறமை 50% · அனுபவம் 25% · தகுதி 15% · இடம் 10%",
-  opportunityTypes: {
+  schemeTypes: {
     "Full-time": "முழு நேரம்",
     "Part-time": "பகுதி நேரம்",
     Training: "பயிற்சி",
@@ -223,6 +225,7 @@ const ta: Copy = {
   applyRefLabel: "அலுவலகத்தில் இந்த எண்ணைச் சொல்லுங்கள்",
   applyNote:
     "VoicePath உங்களுக்காக விண்ணப்பத்தை அனுப்பாது. நீங்கள் போகும் இடத்தில் இந்த எண்ணைச் சொன்னால், இதே வேலையை அவர்கள் கண்டுபிடிப்பார்கள்.",
+  officialPage: "அரசின் சொந்தப் பக்கத்தில் இதைப் படியுங்கள்",
   viewPassport: "என் பாஸ்போர்ட்",
   fromRecord: "பதிவில் உள்ளது மட்டுமே. அதற்கு மேல் எதுவும் சேர்க்கப்படவில்லை.",
   barSkills: "உங்கள் திறன்கள்",
@@ -287,7 +290,7 @@ const hi: Copy = {
   confidenceAsking: "आपसे पूछ रहे हैं",
   confidenceThreshold: "चाहिए",
   weightsLabel: "भार: कौशल 50% · अनुभव 25% · पात्रता 15% · जगह 10%",
-  opportunityTypes: {
+  schemeTypes: {
     "Full-time": "पूरा समय",
     "Part-time": "आंशिक समय",
     Training: "प्रशिक्षण",
@@ -298,6 +301,7 @@ const hi: Copy = {
   applyRefLabel: "दफ़्तर में यह नंबर बताइए",
   applyNote:
     "VoicePath आपकी ओर से आवेदन नहीं भेजता। जहाँ जाएँ वहाँ यह नंबर बता दीजिए, वे यही काम ढूँढ़ लेंगे।",
+  officialPage: "इसे सरकार के अपने पेज पर पढ़िए",
   viewPassport: "मेरा पासपोर्ट",
   fromRecord: "सिर्फ़ रिकॉर्ड में जो है वही। उसके बाहर कुछ नहीं जोड़ा गया।",
   barSkills: "आपके हुनर",
@@ -359,7 +363,7 @@ export function localeFor(language: Language): string {
   return { ta: "ta-IN", hi: "hi-IN", en: "en-IN" }[language];
 }
 
-/** Localised label for an opportunity type. Unknown values pass through. */
+/** Localised label for a scheme type. Unknown values pass through. */
 export function typeLabel(type: string, language: Language): string {
-  return copyFor(language).opportunityTypes[type] ?? type;
+  return copyFor(language).schemeTypes[type] ?? type;
 }

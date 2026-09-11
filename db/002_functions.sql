@@ -47,15 +47,15 @@ comment on function match_skill_taxonomy is
   'Nearest taxonomy entries by cosine similarity. Returns similarity in [0,1].';
 
 -- ---------------------------------------------------------------------------
--- opportunity_skill_vectors
+-- scheme_skill_vectors
 --
--- The required-skill embedding set for every active opportunity, in one round
+-- The required-skill embedding set for every active scheme, in one round
 -- trip. The matching engine needs all of them to score a profile, and pulling
--- them per-opportunity would be a textbook N+1 (PRD section 4.4).
+-- them per-scheme would be a textbook N+1 (PRD section 4.4).
 -- ---------------------------------------------------------------------------
-create or replace function opportunity_skill_vectors(district_filter text default null)
+create or replace function scheme_skill_vectors(district_filter text default null)
 returns table (
-  opportunity_id bigint,
+  scheme_id bigint,
   skill_id       bigint,
   skill_code     text,
   skill_name     text,
@@ -68,16 +68,16 @@ stable
 set search_path = ''
 as $$
   select
-    os.opportunity_id,
+    os.scheme_id,
     os.skill_id,
     t.code,
     t.name,
     os.weight,
     os.is_essential,
     t.embedding
-  from public.opportunity_skills os
+  from public.scheme_skills os
   join public.skill_taxonomy t on t.id = os.skill_id
-  join public.opportunities o on o.id = os.opportunity_id
+  join public.schemes o on o.id = os.scheme_id
   where o.is_active
     and (district_filter is null or o.district = district_filter);
 $$;

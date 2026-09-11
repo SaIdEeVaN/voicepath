@@ -13,7 +13,7 @@ import pytest
 from app.services import matching
 from app.services.matching import ProfileInput, canonical_place, score_one
 from app.services.normalization import NormalizedSkill
-from app.services.opportunities import Opportunity, RequiredSkill
+from app.services.schemes import Scheme, RequiredSkill
 
 
 class TestCanonicalPlace:
@@ -53,7 +53,7 @@ class TestCanonicalPlace:
         assert canonical_place("Salem") != canonical_place("Erode")
 
 
-def _opportunity(**overrides) -> Opportunity:
+def _scheme(**overrides) -> Scheme:
     defaults = dict(
         id=1, title="Welder", organization="Annai Steel", location="Salem",
         district="Salem", type="Full-time", minimum_experience=1,
@@ -62,7 +62,7 @@ def _opportunity(**overrides) -> Opportunity:
         required_skills=[RequiredSkill(6, "SK022", "Welding", 1.0, True)],
     )
     defaults.update(overrides)
-    return Opportunity(**defaults)
+    return Scheme(**defaults)
 
 
 def _profile(location: str | None) -> ProfileInput:
@@ -83,19 +83,19 @@ def _profile(location: str | None) -> ProfileInput:
 class TestLocationScoringAcrossScripts:
     @pytest.mark.parametrize("said", ["Salem", "சேலம்", "சேலத்துல", "सेलम"])
     def test_saying_where_you_are_in_any_script_scores_as_here(self, said):
-        result = score_one(_profile(said), _opportunity())
+        result = score_one(_profile(said), _scheme())
         assert result.location_score == matching.LOCATION_SAME_PLACE
 
     def test_a_town_in_the_district_is_near_not_far(self):
-        result = score_one(_profile("ஆத்தூர்"), _opportunity())
+        result = score_one(_profile("ஆத்தூர்"), _scheme())
         assert result.location_score == matching.LOCATION_SAME_DISTRICT
 
     def test_a_neighbouring_district_scores_between(self):
-        result = score_one(_profile("ஈரோடு"), _opportunity())
+        result = score_one(_profile("ஈரோடு"), _scheme())
         assert result.location_score == matching.LOCATION_ADJACENT_DISTRICT
 
     def test_somewhere_genuinely_far_still_scores_low(self):
-        result = score_one(_profile("Kolkata"), _opportunity())
+        result = score_one(_profile("Kolkata"), _scheme())
         assert result.location_score == matching.LOCATION_ELSEWHERE
 
     def test_the_explanation_does_not_call_home_far_away(self):
@@ -103,6 +103,6 @@ class TestLocationScoringAcrossScripts:
         away from where they are."""
         from app.services.explanation import explain_offline
 
-        match = score_one(_profile("சேலத்துல"), _opportunity())
+        match = score_one(_profile("சேலத்துல"), _scheme())
         bullets = " ".join(explain_offline(match, language="ta").bullets)
         assert "தூரம்" not in bullets, "called a local opening distant"

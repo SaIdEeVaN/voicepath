@@ -1,17 +1,17 @@
 """Offline mirror of the seeded catalogue.
 
-When ``DATABASE_URL`` is unset the API serves the taxonomy and opportunities
+When ``DATABASE_URL`` is unset the API serves the taxonomy and schemes
 from here, so the whole pipeline can be exercised without Supabase.
 
 This file and ``db/003_seed.sql`` describe the same catalogue.
 ``tests/test_catalogue_sync.py`` parses the SQL and fails if the two drift, so
-adding a skill or an opportunity means editing both -- the test will tell you
+adding a skill or a scheme means editing both -- the test will tell you
 if you forgot.
 """
 
 from __future__ import annotations
 
-from typing import Any, TypedDict
+from typing import Any, NotRequired, TypedDict
 
 
 class TaxonomyEntry(TypedDict):
@@ -22,8 +22,12 @@ class TaxonomyEntry(TypedDict):
     aliases: list[str]
 
 
-class OpportunityEntry(TypedDict):
+class SchemeEntry(TypedDict):
     source_reference: str
+    # NotRequired rather than total=False: every other field here is still
+    # mandatory. A district opening has no government page, and inventing
+    # one would be worse than leaving it out.
+    official_url: NotRequired[str]
     title: str
     organization: str
     location: str
@@ -196,7 +200,7 @@ TAXONOMY: list[TaxonomyEntry] = [
 ]
 
 
-OPPORTUNITIES: list[OpportunityEntry] = [
+SCHEMES: list[SchemeEntry] = [
     {"source_reference": "OGD/TN/SLM/AUTO/2024/0117",
      "title": "Two-Wheeler Service Technician", "organization": "Ratnam Auto Works",
      "location": "Salem", "district": "Salem", "type": "Full-time",

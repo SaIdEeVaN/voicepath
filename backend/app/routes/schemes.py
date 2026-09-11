@@ -1,4 +1,4 @@
-"""Matching and opportunity routes (PRD sections 4.4 and 4.5)."""
+"""Matching and scheme routes (PRD sections 4.4 and 4.5)."""
 
 from __future__ import annotations
 
@@ -8,12 +8,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.config import get_settings
 from app.models import schemas
-from app.services import explanation, matching, opportunities, pipeline, repository
+from app.services import explanation, matching, schemes, pipeline, repository
 from app.services.ratelimit import default_limit
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/opportunities", tags=["opportunities"])
+router = APIRouter(prefix="/api/schemes", tags=["schemes"])
 
 
 @router.post(
@@ -57,7 +57,7 @@ async def match(payload: schemas.MatchRequest) -> schemas.MatchResponse:
             explanation_provider=explanation.provider_name(),
         )
 
-    catalogue = await opportunities.list_active()
+    catalogue = await schemes.list_active()
     ranked = matching.rank(
         profile_input, catalogue, limit=payload.limit or settings.match_result_limit
     )
@@ -86,7 +86,7 @@ async def match(payload: schemas.MatchRequest) -> schemas.MatchResponse:
         session_id=payload.session_id,
         matches=[
             schemas.MatchResult(
-                opportunity=pipeline.opportunity_to_summary(m.opportunity),
+                scheme=pipeline.scheme_to_summary(m.scheme),
                 rank=m.rank,
                 overall_score=m.overall_score,
                 breakdown=schemas.ScoreBreakdown(
@@ -95,10 +95,10 @@ async def match(payload: schemas.MatchRequest) -> schemas.MatchResponse:
                     eligibility_score=m.eligibility_score,
                     location_score=m.location_score,
                 ),
-                explanation_text=explanations[m.opportunity.id].summary
-                if m.opportunity.id in explanations else None,
-                explanation_bullets=explanations[m.opportunity.id].bullets
-                if m.opportunity.id in explanations else [],
+                explanation_text=explanations[m.scheme.id].summary
+                if m.scheme.id in explanations else None,
+                explanation_bullets=explanations[m.scheme.id].bullets
+                if m.scheme.id in explanations else [],
                 matched_skill_codes=m.matched_skill_codes,
             )
             for m in ranked
@@ -108,28 +108,28 @@ async def match(payload: schemas.MatchRequest) -> schemas.MatchResponse:
     )
 
 
-@router.get("", response_model=list[schemas.OpportunitySummary])
-async def list_opportunities(
+@router.get("", response_model=list[schemas.SchemeSummary])
+async def list_schemes(
     district: str | None = Query(default=None),
-) -> list[schemas.OpportunitySummary]:
-    catalogue = await opportunities.list_active(district)
-    return [pipeline.opportunity_to_summary(o) for o in catalogue]
+) -> list[schemas.SchemeSummary]:
+    catalogue = await schemes.list_active(district)
+    return [pipeline.scheme_to_summary(o) for o in catalogue]
 
 
-@router.get("/{opportunity_id}", response_model=schemas.OpportunityDetail)
-async def get_opportunity(opportunity_id: int) -> schemas.OpportunityDetail:
-    found = await opportunities.get(opportunity_id)
+@router.get("/{scheme_id}", response_model=schemas.SchemeDetail)
+async def get_scheme(scheme_id: int) -> schemas.SchemeDetail:
+    found = await schemes.get(scheme_id)
     if found is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="That opportunity was not found.",
+            detail="That scheme was not found.",
         )
-    return pipeline.opportunity_to_detail(found)
+    return pipeline.scheme_to_detail(found)
 
 
-@router.get("/{opportunity_id}/match/{session_id}", response_model=schemas.MatchResult)
-async def get_stored_match(opportunity_id: int, session_id: str) -> schemas.MatchResult:
-    """The stored match for one session and one opportunity.
+@router.get("/{scheme_id}/match/{session_id}", response_model=schemas.MatchResult)
+async def get_stored_match(scheme_id: int, session_id: str) -> schemas.MatchResult:
+    """The stored match for one session and one scheme.
 
     Reads the persisted row rather than re-scoring, so the detail screen shows
     exactly the numbers that were computed and audited, not a fresh computation
@@ -144,21 +144,21 @@ async def get_stored_match(opportunity_id: int, session_id: str) -> schemas.Matc
             status_code=status.HTTP_400_BAD_REQUEST, detail="Bad session id."
         ) from exc
 
-    stored = await repository.get_match(parsed, opportunity_id)
+    stored = await repository.get_match(parsed, scheme_id)
     if stored is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="This opportunity has not been matched for that session.",
+            detail="This scheme has not been matched for that session.",
         )
-    found = await opportunities.get(opportunity_id)
+    found = await schemes.get(scheme_id)
     if found is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="That opportunity was not found.",
+            detail="That scheme was not found.",
         )
 
     return schemas.MatchResult(
-        opportunity=pipeline.opportunity_to_summary(found),
+        scheme=pipeline.scheme_to_summary(found),
         rank=stored.rank,
         overall_score=stored.overall_score,
         breakdown=schemas.ScoreBreakdown(

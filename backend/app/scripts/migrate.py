@@ -70,9 +70,9 @@ async def _report(conn: asyncpg.Connection) -> None:
                 "No embeddings yet. Semantic normalization stays inert until you "
                 "run: python -m app.scripts.embed_taxonomy"
             )
-    if "opportunities" in names:
-        count = await conn.fetchval("select count(*) from opportunities where is_active")
-        logger.info("Active opportunities: %d", count)
+    if "schemes" in names:
+        count = await conn.fetchval("select count(*) from schemes where is_active")
+        logger.info("Active schemes: %d", count)
 
 
 async def main(only: str | None, check_only: bool) -> int:

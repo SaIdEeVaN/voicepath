@@ -82,7 +82,7 @@ export interface NormalizeResponse {
   degraded: boolean;
 }
 
-export interface OpportunitySummary {
+export interface SchemeSummary {
   id: number;
   title: string;
   organization: string;
@@ -95,9 +95,13 @@ export interface OpportunitySummary {
   salary_max: number | null;
   nsqf_level: string | null;
   source_reference: string | null;
+  /** The government's own page for this scheme. Shown as a link, never guessed. */
+  official_url: string | null;
 }
 
-export interface OpportunityDetail extends OpportunitySummary {
+export interface SchemeDetail extends SchemeSummary {
+  /** Admin views only. A deactivated scheme is matched to nobody. */
+  is_active?: boolean;
   description: string | null;
   required_skills: SkillCandidate[];
 }
@@ -110,7 +114,7 @@ export interface ScoreBreakdown {
 }
 
 export interface MatchResult {
-  opportunity: OpportunitySummary;
+  scheme: SchemeSummary;
   rank: number;
   overall_score: number;
   breakdown: ScoreBreakdown;

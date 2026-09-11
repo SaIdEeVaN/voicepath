@@ -198,7 +198,7 @@ export default function PassportPage() {
       <div className="mt-6 flex flex-wrap gap-3">
         <button
           type="button"
-          onClick={() => router.push("/opportunities")}
+          onClick={() => router.push("/schemes")}
           className="vp-pill vp-pill-primary"
           lang={language}
         >

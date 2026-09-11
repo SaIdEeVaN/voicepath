@@ -20,7 +20,7 @@ import { usePathname } from "next/navigation";
 import { useAdminToken } from "@/lib/admin-token";
 
 const TABS = [
-  { href: "/admin/opportunities", label: "Opportunities" },
+  { href: "/admin/schemes", label: "Schemes" },
   { href: "/admin/taxonomy", label: "Skill taxonomy" },
   { href: "/admin/sessions", label: "Sessions" },
 ];
@@ -35,7 +35,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         <div>
           <p className="vp-label">PHASE 2 · ROLE-GATED</p>
           <h1 className="font-display mt-2.5 text-[34px] leading-tight tracking-[-0.03em]">
-            Opportunity data
+            Scheme data
           </h1>
         </div>
 

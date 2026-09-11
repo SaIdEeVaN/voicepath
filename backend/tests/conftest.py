@@ -39,7 +39,7 @@ os.environ["DATABASE_URL"] = ""
 os.environ["LLM_API_KEY"] = ""
 
 from app.config import reload_settings  # noqa: E402
-from app.services import opportunities, ratelimit, repository, taxonomy  # noqa: E402
+from app.services import schemes, ratelimit, repository, taxonomy  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -54,5 +54,5 @@ def _clean_state():
 @pytest.fixture(scope="session", autouse=True)
 def _reset_catalogue_caches():
     taxonomy.reset_memory_cache()
-    opportunities.reset_memory_cache()
+    schemes.reset_memory_cache()
     yield

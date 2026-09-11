@@ -16,7 +16,7 @@ from app.models import schemas
 from app.services import embeddings, repository, taxonomy
 from app.services.matching import ProfileInput
 from app.services.normalization import NormalizedSkill
-from app.services.opportunities import Opportunity
+from app.services.schemes import Scheme
 from app.services.taxonomy import ScoredSkill, TaxonomySkill
 
 logger = logging.getLogger(__name__)
@@ -102,27 +102,29 @@ def normalized_to_schema(skills: list[NormalizedSkill]) -> list[schemas.Extracte
     ]
 
 
-def opportunity_to_summary(opportunity: Opportunity) -> schemas.OpportunitySummary:
-    return schemas.OpportunitySummary(
-        id=opportunity.id,
-        title=opportunity.title,
-        organization=opportunity.organization,
-        location=opportunity.location,
-        district=opportunity.district,
-        type=opportunity.type,
-        minimum_experience=opportunity.minimum_experience,
-        certifications_required=opportunity.certifications_required,
-        salary_min=opportunity.salary_min,
-        salary_max=opportunity.salary_max,
-        nsqf_level=opportunity.nsqf_level,
-        source_reference=opportunity.source_reference,
+def scheme_to_summary(scheme: Scheme) -> schemas.SchemeSummary:
+    return schemas.SchemeSummary(
+        id=scheme.id,
+        title=scheme.title,
+        organization=scheme.organization,
+        location=scheme.location,
+        district=scheme.district,
+        type=scheme.type,
+        minimum_experience=scheme.minimum_experience,
+        certifications_required=scheme.certifications_required,
+        salary_min=scheme.salary_min,
+        salary_max=scheme.salary_max,
+        nsqf_level=scheme.nsqf_level,
+        source_reference=scheme.source_reference,
+        official_url=scheme.official_url,
     )
 
 
-def opportunity_to_detail(opportunity: Opportunity) -> schemas.OpportunityDetail:
-    return schemas.OpportunityDetail(
-        **opportunity_to_summary(opportunity).model_dump(),
-        description=opportunity.description,
+def scheme_to_detail(scheme: Scheme) -> schemas.SchemeDetail:
+    return schemas.SchemeDetail(
+        **scheme_to_summary(scheme).model_dump(),
+        description=scheme.description,
+        is_active=scheme.is_active,
         required_skills=[
             schemas.SkillCandidate(
                 id=r.skill_id,
@@ -132,7 +134,7 @@ def opportunity_to_detail(opportunity: Opportunity) -> schemas.OpportunityDetail
                 hint=None,
                 similarity=r.weight,
             )
-            for r in opportunity.required_skills
+            for r in scheme.required_skills
         ],
     )
 

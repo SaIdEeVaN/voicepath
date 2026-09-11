@@ -274,7 +274,7 @@ async def search_by_vector(
 
 
 async def embedding_for_skill_ids(ids: list[int]) -> dict[int, list[float]]:
-    """Embeddings for taxonomy entries, used to score opportunity requirements."""
+    """Embeddings for taxonomy entries, used to score scheme requirements."""
     if not ids:
         return {}
     if db.is_available():

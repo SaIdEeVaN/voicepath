@@ -1,8 +1,8 @@
-"""Opportunity catalogue access.
+"""Scheme catalogue access.
 
 Postgres when configured, the in-process catalogue otherwise. The required-skill
 sets are fetched for the whole active catalogue in one query
-(``opportunity_skill_vectors``) rather than per opportunity -- matching needs
+(``scheme_skill_vectors``) rather than per scheme -- matching needs
 all of them, and the per-row version is the N+1 that would dominate the
 request.
 """
@@ -13,7 +13,7 @@ import asyncio
 import logging
 from dataclasses import dataclass, field
 
-from app.data.catalogue import OPPORTUNITIES
+from app.data.catalogue import SCHEMES
 from app.services import db, taxonomy
 
 logger = logging.getLogger(__name__)
@@ -30,7 +30,7 @@ class RequiredSkill:
 
 
 @dataclass
-class Opportunity:
+class Scheme:
     id: int
     title: str
     organization: str
@@ -44,10 +44,18 @@ class Opportunity:
     nsqf_level: str | None
     source_reference: str | None
     description: str | None
+    # The government's own page for this scheme, when it has one. Shown and
+    # cited verbatim; never inferred from the title. Defaulted, so it sits
+    # after the fields that have no default.
+    official_url: str | None = None
+    # Only admin views ever see this false: every public query filters on it.
+    # Carried so the admin list can distinguish a live scheme from a
+    # deactivated one rather than showing both as though they were the same.
+    is_active: bool = True
     required_skills: list[RequiredSkill] = field(default_factory=list)
 
 
-_memory_cache: list[Opportunity] | None = None
+_memory_cache: list[Scheme] | None = None
 _memory_lock = asyncio.Lock()
 
 
@@ -56,7 +64,7 @@ def reset_memory_cache() -> None:
     _memory_cache = None
 
 
-async def _memory_opportunities() -> list[Opportunity]:
+async def _memory_schemes() -> list[Scheme]:
     global _memory_cache
     if _memory_cache is not None:
         return _memory_cache
@@ -68,8 +76,8 @@ async def _memory_opportunities() -> list[Opportunity]:
         by_code = {s.code: s for s in skills}
         vectors = await taxonomy.embedding_for_skill_ids([s.id for s in skills])
 
-        built: list[Opportunity] = []
-        for index, entry in enumerate(OPPORTUNITIES):
+        built: list[Scheme] = []
+        for index, entry in enumerate(SCHEMES):
             required = []
             for code, weight, essential in entry["skills"]:
                 skill = by_code.get(code)
@@ -87,7 +95,7 @@ async def _memory_opportunities() -> list[Opportunity]:
                     )
                 )
             built.append(
-                Opportunity(
+                Scheme(
                     id=index + 1,
                     title=entry["title"],
                     organization=entry["organization"],
@@ -100,6 +108,7 @@ async def _memory_opportunities() -> list[Opportunity]:
                     salary_max=entry["salary_max"],
                     nsqf_level=entry["nsqf_level"],
                     source_reference=entry["source_reference"],
+                    official_url=entry.get("official_url"),
                     description=entry["description"],
                     required_skills=required,
                 )
@@ -111,13 +120,13 @@ async def _memory_opportunities() -> list[Opportunity]:
 _SELECT = """
 select id, title, organization, location, district, type, minimum_experience,
        certifications_required, salary_min, salary_max, nsqf_level,
-       source_reference, description
-from opportunities
+       source_reference, official_url, description, is_active
+from schemes
 """
 
 
-def _row_to_opportunity(row) -> Opportunity:
-    return Opportunity(
+def _row_to_scheme(row) -> Scheme:
+    return Scheme(
         id=row["id"],
         title=row["title"],
         organization=row["organization"],
@@ -130,14 +139,16 @@ def _row_to_opportunity(row) -> Opportunity:
         salary_max=row["salary_max"],
         nsqf_level=row["nsqf_level"],
         source_reference=row["source_reference"],
+        official_url=row["official_url"],
         description=row["description"],
+        is_active=row["is_active"],
     )
 
 
-async def list_active(district: str | None = None) -> list[Opportunity]:
+async def list_active(district: str | None = None) -> list[Scheme]:
     """The full active catalogue, with required skills and their embeddings."""
     if not db.is_available():
-        items = await _memory_opportunities()
+        items = await _memory_schemes()
         if district:
             return [o for o in items if o.district == district]
         return list(items)
@@ -149,18 +160,18 @@ async def list_active(district: str | None = None) -> list[Opportunity]:
     else:
         rows = await db.fetch(_SELECT + " where is_active order by id")
 
-    opportunities = {r["id"]: _row_to_opportunity(r) for r in rows}
-    if not opportunities:
+    schemes = {r["id"]: _row_to_scheme(r) for r in rows}
+    if not schemes:
         return []
 
     skill_rows = await db.fetch(
-        "select opportunity_id, skill_id, skill_code, skill_name, weight, "
+        "select scheme_id, skill_id, skill_code, skill_name, weight, "
         "is_essential, embedding::text as embedding "
-        "from opportunity_skill_vectors($1)",
+        "from scheme_skill_vectors($1)",
         district,
     )
     for row in skill_rows:
-        target = opportunities.get(row["opportunity_id"])
+        target = schemes.get(row["scheme_id"])
         if target is None:
             continue
         raw = row["embedding"]
@@ -177,29 +188,29 @@ async def list_active(district: str | None = None) -> list[Opportunity]:
                 embedding=vector,
             )
         )
-    return list(opportunities.values())
+    return list(schemes.values())
 
 
-async def get(opportunity_id: int) -> Opportunity | None:
+async def get(scheme_id: int) -> Scheme | None:
     if not db.is_available():
-        for item in await _memory_opportunities():
-            if item.id == opportunity_id:
+        for item in await _memory_schemes():
+            if item.id == scheme_id:
                 return item
         return None
 
-    row = await db.fetchrow(_SELECT + " where id = $1", opportunity_id)
+    row = await db.fetchrow(_SELECT + " where id = $1", scheme_id)
     if row is None:
         return None
-    opportunity = _row_to_opportunity(row)
+    scheme = _row_to_scheme(row)
     skill_rows = await db.fetch(
         "select os.skill_id, t.code, t.name, os.weight, os.is_essential "
-        "from opportunity_skills os "
+        "from scheme_skills os "
         "join skill_taxonomy t on t.id = os.skill_id "
-        "where os.opportunity_id = $1 "
+        "where os.scheme_id = $1 "
         "order by os.is_essential desc, os.weight desc",
-        opportunity_id,
+        scheme_id,
     )
-    opportunity.required_skills = [
+    scheme.required_skills = [
         RequiredSkill(
             skill_id=r["skill_id"],
             code=r["code"],
@@ -209,4 +220,4 @@ async def get(opportunity_id: int) -> Opportunity | None:
         )
         for r in skill_rows
     ]
-    return opportunity
+    return scheme

@@ -1,13 +1,13 @@
 import { notFound } from "next/navigation";
 
-import { OpportunityView } from "./OpportunityView";
+import { SchemeView } from "./SchemeView";
 import { API_BASE } from "@/lib/api";
-import type { OpportunityDetail } from "@/lib/types";
+import type { SchemeDetail } from "@/lib/types";
 
 /**
- * Opportunity detail.
+ * Scheme detail.
  *
- * A Server Component fetches the opportunity itself (PRD section 6.3: default
+ * A Server Component fetches the scheme itself (PRD section 6.3: default
  * to RSC for data fetching). Everything session-shaped -- the score breakdown
  * and the Ask panel -- is a client child, because it depends on state that
  * lives in the browser.
@@ -15,15 +15,15 @@ import type { OpportunityDetail } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-async function fetchOpportunity(id: string): Promise<OpportunityDetail | null> {
+async function fetchScheme(id: string): Promise<SchemeDetail | null> {
   const numeric = Number(id);
   if (!Number.isInteger(numeric) || numeric <= 0) return null;
   try {
-    const response = await fetch(`${API_BASE}/api/opportunities/${numeric}`, {
+    const response = await fetch(`${API_BASE}/api/schemes/${numeric}`, {
       cache: "no-store",
     });
     if (!response.ok) return null;
-    return (await response.json()) as OpportunityDetail;
+    return (await response.json()) as SchemeDetail;
   } catch {
     // Backend down. Rendering "not found" would be a lie about the data, so
     // the client component reports the connection problem instead.
@@ -31,13 +31,13 @@ async function fetchOpportunity(id: string): Promise<OpportunityDetail | null> {
   }
 }
 
-export default async function OpportunityPage({
+export default async function SchemePage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const opportunity = await fetchOpportunity(id);
-  if (!opportunity) notFound();
-  return <OpportunityView opportunity={opportunity} />;
+  const scheme = await fetchScheme(id);
+  if (!scheme) notFound();
+  return <SchemeView scheme={scheme} />;
 }

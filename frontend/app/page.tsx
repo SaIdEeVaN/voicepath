@@ -98,13 +98,27 @@ export default function LandingPage() {
 
         <PrivacyNote />
 
-        <Link
-          href="/opportunities"
-          className="text-xs underline-offset-4 hover:underline"
-          style={{ color: "var(--ink-45)" }}
-        >
-          See what is available near Salem
-        </Link>
+        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
+          <Link
+            href="/schemes"
+            className="text-xs underline-offset-4 hover:underline"
+            style={{ color: "var(--ink-45)" }}
+          >
+            See what is available near Salem
+          </Link>
+
+          {/* Quiet on purpose. The hero belongs to the person who came here to
+              speak; an operator knows what they are looking for. The route is
+              token-gated server-side either way, so this is a signpost and not
+              a door. */}
+          <Link
+            href="/admin"
+            className="text-xs underline-offset-4 hover:underline"
+            style={{ color: "var(--ink-38)" }}
+          >
+            Admin dashboard
+          </Link>
+        </div>
       </div>
     </section>
   );

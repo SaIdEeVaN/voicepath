@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 from app.config import get_settings
 from app.services.embeddings import cosine_similarity
 from app.services.normalization import NormalizedSkill
-from app.services.opportunities import Opportunity
+from app.services.schemes import Scheme
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +43,7 @@ class ProfileInput:
 
 @dataclass
 class ScoredMatch:
-    opportunity: Opportunity
+    scheme: Scheme
     skill_similarity_score: float
     experience_score: float
     eligibility_score: float
@@ -60,7 +60,7 @@ class ScoredMatch:
 # in Attur looks as far from a Salem opening as someone in Kolkata does.
 #
 # Seeded with the towns the catalogue mentions, then extended at runtime by
-# learn_town_districts() from the catalogue itself, so adding an opportunity in
+# learn_town_districts() from the catalogue itself, so adding a scheme in
 # a new town teaches the scorer that town without a code change.
 TOWN_DISTRICT: dict[str, str] = {
     "attur": "salem",
@@ -77,15 +77,15 @@ TOWN_DISTRICT: dict[str, str] = {
 }
 
 
-def learn_town_districts(catalogue: list[Opportunity]) -> None:
+def learn_town_districts(catalogue: list[Scheme]) -> None:
     """Teach the scorer the town/district pairs the catalogue already knows.
 
     Idempotent, and it never overwrites an existing entry -- the static table
     above wins, so a bad row cannot quietly move a town into another district.
     """
-    for opportunity in catalogue:
-        town = canonical_place(opportunity.location)
-        district = canonical_place(opportunity.district)
+    for scheme in catalogue:
+        town = canonical_place(scheme.location)
+        district = canonical_place(scheme.district)
         if town and district and town != district:
             TOWN_DISTRICT.setdefault(town, district)
 
@@ -194,8 +194,8 @@ def canonical_place(value: str | None) -> str:
 # ---------------------------------------------------------------------------
 
 
-def skill_similarity(profile: ProfileInput, opportunity: Opportunity) -> tuple[float, list[str]]:
-    """How well the person's skills cover what this opportunity asks for.
+def skill_similarity(profile: ProfileInput, scheme: Scheme) -> tuple[float, list[str]]:
+    """How well the person's skills cover what this scheme asks for.
 
     Coverage of the requirement, not of the person: someone with twenty skills
     is not a better fit for a welding job than someone with one, if that one is
@@ -207,7 +207,7 @@ def skill_similarity(profile: ProfileInput, opportunity: Opportunity) -> tuple[f
     is what lets "Four-Wheeler Repair" earn partial credit from a two-wheeler
     mechanic without either being hand-coded as related.
     """
-    required = opportunity.required_skills
+    required = scheme.required_skills
     if not required:
         # Nothing asked for cannot be unmet. Rare in practice.
         return 1.0, []
@@ -256,15 +256,15 @@ def skill_similarity(profile: ProfileInput, opportunity: Opportunity) -> tuple[f
     return round(min(1.0, earned / total_weight), 4), matched
 
 
-def experience_score(profile: ProfileInput, opportunity: Opportunity) -> float:
+def experience_score(profile: ProfileInput, scheme: Scheme) -> float:
     """Stated experience against the minimum asked for.
 
     Meeting the minimum is full marks -- exceeding it is not extra credit,
-    because the opportunity does not ask for more. Falling short scales down
+    because the scheme does not ask for more. Falling short scales down
     proportionally rather than disqualifying, so a person one year short still
     sees the opening.
     """
-    minimum = float(opportunity.minimum_experience or 0)
+    minimum = float(scheme.minimum_experience or 0)
     if minimum <= 0:
         return 1.0
     if profile.experience_years is None:
@@ -275,13 +275,13 @@ def experience_score(profile: ProfileInput, opportunity: Opportunity) -> float:
     return round(years / minimum, 4)
 
 
-def eligibility_score(profile: ProfileInput, opportunity: Opportunity) -> float:
+def eligibility_score(profile: ProfileInput, scheme: Scheme) -> float:
     """Fraction of the listed hard requirements the person demonstrably meets.
 
     Only certificates the person actually stated count. An unstated certificate
     is not assumed present -- that is the section 7 rule applied to scoring.
     """
-    required = [c for c in (opportunity.certifications_required or []) if c]
+    required = [c for c in (scheme.certifications_required or []) if c]
     if not required:
         return 1.0
 
@@ -302,7 +302,7 @@ def _district_of(place: str) -> str:
     return TOWN_DISTRICT.get(place, place)
 
 
-def location_score(profile: ProfileInput, opportunity: Opportunity) -> float:
+def location_score(profile: ProfileInput, scheme: Scheme) -> float:
     """Distance, in the only terms the data supports: place and district.
 
     Both sides go through `canonical_place` first, so the person's own words --
@@ -315,8 +315,8 @@ def location_score(profile: ProfileInput, opportunity: Opportunity) -> float:
         return LOCATION_UNKNOWN
 
     person_district = _district_of(canonical_place(profile.district) or person_place)
-    opp_place = canonical_place(opportunity.location)
-    opp_district = _district_of(canonical_place(opportunity.district) or opp_place)
+    opp_place = canonical_place(scheme.location)
+    opp_district = _district_of(canonical_place(scheme.district) or opp_place)
 
     if person_place and opp_place and person_place == opp_place:
         return LOCATION_SAME_PLACE
@@ -332,13 +332,13 @@ def location_score(profile: ProfileInput, opportunity: Opportunity) -> float:
 # ---------------------------------------------------------------------------
 
 
-def score_one(profile: ProfileInput, opportunity: Opportunity) -> ScoredMatch:
+def score_one(profile: ProfileInput, scheme: Scheme) -> ScoredMatch:
     settings = get_settings()
 
-    skill, matched = skill_similarity(profile, opportunity)
-    experience = experience_score(profile, opportunity)
-    eligibility = eligibility_score(profile, opportunity)
-    location = location_score(profile, opportunity)
+    skill, matched = skill_similarity(profile, scheme)
+    experience = experience_score(profile, scheme)
+    eligibility = eligibility_score(profile, scheme)
+    location = location_score(profile, scheme)
 
     overall = (
         skill * settings.weight_skill
@@ -348,19 +348,19 @@ def score_one(profile: ProfileInput, opportunity: Opportunity) -> ScoredMatch:
     )
 
     return ScoredMatch(
-        opportunity=opportunity,
+        scheme=scheme,
         skill_similarity_score=skill,
         experience_score=round(experience, 4),
         eligibility_score=round(eligibility, 4),
         location_score=round(location, 4),
         overall_score=round(min(1.0, max(0.0, overall)), 4),
         matched_skill_codes=matched,
-        grounding=_grounding(profile, opportunity, matched),
+        grounding=_grounding(profile, scheme, matched),
     )
 
 
 def _grounding(
-    profile: ProfileInput, opportunity: Opportunity, matched: list[str]
+    profile: ProfileInput, scheme: Scheme, matched: list[str]
 ) -> dict[str, object]:
     """The closed set of facts the explanation layer may use.
 
@@ -382,7 +382,7 @@ def _grounding(
             matched_labels.append({"en": skill.name})
     if not matched_labels:
         matched_labels = [
-            {"en": r.name} for r in opportunity.required_skills if r.code in matched
+            {"en": r.name} for r in scheme.required_skills if r.code in matched
         ]
 
     user_labels = [
@@ -393,7 +393,7 @@ def _grounding(
 
     missing_certs = [
         c
-        for c in (opportunity.certifications_required or [])
+        for c in (scheme.certifications_required or [])
         if not any(_norm(c) in _norm(h) or _norm(h) in _norm(c)
                    for h in profile.certifications)
     ]
@@ -407,28 +407,28 @@ def _grounding(
         "user_evidence": [s.evidence_phrase for s in profile.skills],
         "experience_years": profile.experience_years,
         "user_location": profile.location,
-        "minimum_experience": opportunity.minimum_experience,
+        "minimum_experience": scheme.minimum_experience,
         "missing_certifications": missing_certs,
-        "same_place": _norm(profile.location) == _norm(opportunity.location),
+        "same_place": _norm(profile.location) == _norm(scheme.location),
     }
 
 
 def rank(
     profile: ProfileInput,
-    catalogue: list[Opportunity],
+    catalogue: list[Scheme],
     *,
     limit: int | None = None,
 ) -> list[ScoredMatch]:
     """Score the catalogue and order it.
 
-    Ties break on opportunity id so the order is stable across runs -- an
+    Ties break on scheme id so the order is stable across runs -- an
     unstable ranking would make the persisted ``matches`` rows unreproducible
     and the audit trail worthless.
     """
     settings = get_settings()
     learn_town_districts(catalogue)
     scored = [score_one(profile, o) for o in catalogue]
-    scored.sort(key=lambda m: (-m.overall_score, m.opportunity.id))
+    scored.sort(key=lambda m: (-m.overall_score, m.scheme.id))
 
     for index, match in enumerate(scored, start=1):
         match.rank = index

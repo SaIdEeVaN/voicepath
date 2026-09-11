@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Ranked opportunity feed (PRD section 5).
+ * Ranked scheme feed (PRD section 5).
  *
  * Not a job-board card grid (section 2 rules that out). Each row is a full-
  * width statement: how well it fits, what it is, and why -- with the "why"
@@ -21,14 +21,14 @@ import { MatchRing } from "@/components/MatchRing";
 import { ApiError, api } from "@/lib/api";
 import { copyFor, typeLabel } from "@/lib/i18n";
 import { useSession } from "@/lib/session";
-import type { Language, MatchResult, OpportunitySummary } from "@/lib/types";
+import type { Language, MatchResult, SchemeSummary } from "@/lib/types";
 
-export default function OpportunitiesPage() {
+export default function SchemesPage() {
   const router = useRouter();
   const { language, sessionId, skills, matches, setMatches } = useSession();
   const copy = copyFor(language);
 
-  const [browse, setBrowse] = useState<OpportunitySummary[] | null>(null);
+  const [browse, setBrowse] = useState<SchemeSummary[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
@@ -49,7 +49,7 @@ export default function OpportunitiesPage() {
     if (!sessionId || skills.length === 0) {
       setLoading(true);
       api
-        .opportunities()
+        .schemes()
         .then((result) => !cancelled && setBrowse(result))
         .catch((cause: unknown) => {
           if (!cancelled) {
@@ -89,7 +89,7 @@ export default function OpportunitiesPage() {
   }, [hydrated, sessionId, skills.length, matches.length, language, setMatches]);
 
   const open = useCallback(
-    (id: number) => router.push(`/opportunities/${id}`),
+    (id: number) => router.push(`/schemes/${id}`),
     [router],
   );
 
@@ -129,7 +129,7 @@ export default function OpportunitiesPage() {
         {ranked
           ? matches.map((match, index) => (
               <motion.div
-                key={match.opportunity.id}
+                key={match.scheme.id}
                 initial={reduceMotion ? false : { opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{
@@ -142,16 +142,16 @@ export default function OpportunitiesPage() {
                 <MatchRow
                   match={match}
                   language={language}
-                  onOpen={() => open(match.opportunity.id)}
+                  onOpen={() => open(match.scheme.id)}
                 />
               </motion.div>
             ))
-          : (browse ?? []).map((opportunity) => (
+          : (browse ?? []).map((scheme) => (
               <BrowseRow
                 language={language}
-                key={opportunity.id}
-                opportunity={opportunity}
-                onOpen={() => open(opportunity.id)}
+                key={scheme.id}
+                scheme={scheme}
+                onOpen={() => open(scheme.id)}
               />
             ))}
 
@@ -165,7 +165,7 @@ export default function OpportunitiesPage() {
   );
 }
 
-function payLabel(o: OpportunitySummary): string {
+function payLabel(o: SchemeSummary): string {
   if (o.salary_min && o.salary_max) {
     return o.salary_min === o.salary_max
       ? `₹${o.salary_min.toLocaleString("en-IN")}`
@@ -185,7 +185,7 @@ function MatchRow({
   language: string;
   onOpen(): void;
 }) {
-  const o = match.opportunity;
+  const o = match.scheme;
   return (
     <button
       type="button"
@@ -250,11 +250,11 @@ function MatchRow({
 }
 
 function BrowseRow({
-  opportunity,
+  scheme,
   language,
   onOpen,
 }: {
-  opportunity: OpportunitySummary;
+  scheme: SchemeSummary;
   language: Language;
   onOpen(): void;
 }) {
@@ -270,20 +270,20 @@ function BrowseRow({
     >
       <div className="min-w-0 flex-1">
         <h2 className="font-display text-xl leading-tight tracking-[-0.025em]">
-          {opportunity.title}
+          {scheme.title}
         </h2>
         <p className="mt-1.5 text-[13.5px]" style={{ color: "var(--ink-55)" }}>
           {[
-            opportunity.organization,
-            opportunity.location,
-            typeLabel(opportunity.type, language),
+            scheme.organization,
+            scheme.location,
+            typeLabel(scheme.type, language),
           ].join(
             " · ",
           )}
         </p>
       </div>
       <span className="font-display whitespace-nowrap text-[17px] tracking-[-0.02em]">
-        {payLabel(opportunity)}
+        {payLabel(scheme)}
       </span>
     </button>
   );

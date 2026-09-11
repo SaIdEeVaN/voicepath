@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse
 
 from app.config import get_settings
 from app.models import schemas
-from app.routes import admin, assistant, opportunities, profile, sessions, speech
+from app.routes import admin, assistant, schemes, profile, sessions, speech
 from app.services import db, embeddings, llm, ner, stt, tts
 
 logger = logging.getLogger(__name__)
@@ -55,7 +55,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(
     title="VoicePath API",
     description=(
-        "Voice-first skill discovery and opportunity matching for PM-AJAY "
+        "Voice-first skill discovery and scheme matching for PM-AJAY "
         "beneficiaries. Extraction never invents; matching is deterministic; "
         "explanations describe a ranking they cannot change."
     ),
@@ -75,7 +75,7 @@ app.add_middleware(
 
 app.include_router(speech.router)
 app.include_router(profile.router)
-app.include_router(opportunities.router)
+app.include_router(schemes.router)
 app.include_router(assistant.router)
 app.include_router(sessions.router)
 app.include_router(admin.router)

@@ -19,12 +19,12 @@ import { ErrorNote } from "@/components/Notices";
 import { ApiError, api } from "@/lib/api";
 import { copyFor } from "@/lib/i18n";
 import { useSession } from "@/lib/session";
-import type { MatchResult, OpportunityDetail } from "@/lib/types";
+import type { MatchResult, SchemeDetail } from "@/lib/types";
 
-export function OpportunityView({
-  opportunity,
+export function SchemeView({
+  scheme,
 }: {
-  opportunity: OpportunityDetail;
+  scheme: SchemeDetail;
 }) {
   const router = useRouter();
   const { language, sessionId, matches } = useSession();
@@ -43,7 +43,7 @@ export function OpportunityView({
   useEffect(() => {
     if (!hydrated || !sessionId) return;
 
-    const known = matches.find((m) => m.opportunity.id === opportunity.id);
+    const known = matches.find((m) => m.scheme.id === scheme.id);
     if (known) {
       setMatch(known);
       return;
@@ -53,10 +53,10 @@ export function OpportunityView({
     // the ones that were computed and persisted for this session.
     let cancelled = false;
     api
-      .storedMatch(opportunity.id, sessionId)
+      .storedMatch(scheme.id, sessionId)
       .then((result) => !cancelled && setMatch(result))
       .catch((cause: unknown) => {
-        // A 404 just means this opportunity was outside the top results.
+        // A 404 just means this scheme was outside the top results.
         if (!cancelled && cause instanceof ApiError && cause.status !== 404) {
           setError(cause.message);
         }
@@ -65,7 +65,7 @@ export function OpportunityView({
     return () => {
       cancelled = true;
     };
-  }, [hydrated, sessionId, matches, opportunity.id]);
+  }, [hydrated, sessionId, matches, scheme.id]);
 
   const bars = match
     ? [
@@ -79,19 +79,19 @@ export function OpportunityView({
     : [];
 
   const pay =
-    opportunity.salary_min && opportunity.salary_max
-      ? opportunity.salary_min === opportunity.salary_max
-        ? `₹${opportunity.salary_min.toLocaleString("en-IN")}`
-        : `₹${opportunity.salary_min.toLocaleString("en-IN")}–${opportunity.salary_max.toLocaleString("en-IN")}`
-      : opportunity.salary_max
-        ? `up to ₹${opportunity.salary_max.toLocaleString("en-IN")}`
+    scheme.salary_min && scheme.salary_max
+      ? scheme.salary_min === scheme.salary_max
+        ? `₹${scheme.salary_min.toLocaleString("en-IN")}`
+        : `₹${scheme.salary_min.toLocaleString("en-IN")}–${scheme.salary_max.toLocaleString("en-IN")}`
+      : scheme.salary_max
+        ? `up to ₹${scheme.salary_max.toLocaleString("en-IN")}`
         : null;
 
   return (
     <section className="mx-auto w-full max-w-[1080px] flex-1 px-[7vw] py-[clamp(2rem,5vw,3.5rem)] pb-20">
       <button
         type="button"
-        onClick={() => router.push("/opportunities")}
+        onClick={() => router.push("/schemes")}
         className="mb-7 flex items-center gap-2 text-[13px] transition-colors"
         style={{ color: "var(--ink-45)" }}
         lang={language}
@@ -103,10 +103,10 @@ export function OpportunityView({
       <div className="grid items-start gap-11 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
         <div>
           <h1 className="vp-display text-[clamp(1.875rem,3.6vw,3rem)] leading-[1.04] tracking-[-0.035em]">
-            {opportunity.title}
+            {scheme.title}
           </h1>
           <p className="mt-3 text-[15px]" style={{ color: "var(--ink-62)" }}>
-            {[opportunity.organization, opportunity.location, opportunity.type].join(
+            {[scheme.organization, scheme.location, scheme.type].join(
               " · ",
             )}
           </p>
@@ -198,7 +198,7 @@ export function OpportunityView({
               </>
             ) : (
               <p className="text-[15px] leading-relaxed" style={{ color: "var(--ink-80)" }}>
-                {opportunity.description}
+                {scheme.description}
               </p>
             )}
 
@@ -210,33 +210,33 @@ export function OpportunityView({
               lang={language}
             >
               {copy.fromRecord}
-              {opportunity.source_reference && (
-                <span className="font-mono"> · {opportunity.source_reference}</span>
+              {scheme.source_reference && (
+                <span className="font-mono"> · {scheme.source_reference}</span>
               )}
             </p>
           </div>
 
-          {match && opportunity.description && (
+          {match && scheme.description && (
             <p
               className="mt-6 max-w-[46em] text-[15px] leading-relaxed"
               style={{ color: "var(--ink-70)" }}
             >
-              {opportunity.description}
+              {scheme.description}
             </p>
           )}
 
           <dl className="mt-6 flex flex-wrap gap-x-10 gap-y-3 text-sm">
             {pay && <Fact label="Pay" value={pay} />}
-            {opportunity.minimum_experience > 0 && (
+            {scheme.minimum_experience > 0 && (
               <Fact
                 label="Experience asked for"
-                value={`${opportunity.minimum_experience} years`}
+                value={`${scheme.minimum_experience} years`}
               />
             )}
-            {opportunity.certifications_required.length > 0 && (
+            {scheme.certifications_required.length > 0 && (
               <Fact
                 label="Certificates required"
-                value={opportunity.certifications_required.join(", ")}
+                value={scheme.certifications_required.join(", ")}
               />
             )}
           </dl>
@@ -270,10 +270,10 @@ export function OpportunityView({
             >
               <h3 className="vp-display text-[1.125rem]">{copy.applyHow}</h3>
               <p className="mt-3 text-[14px]" style={{ color: "var(--ink-62)" }}>
-                {opportunity.organization}
-                {opportunity.location ? ` · ${opportunity.location}` : ""}
+                {scheme.organization}
+                {scheme.location ? ` · ${scheme.location}` : ""}
               </p>
-              {opportunity.source_reference && (
+              {scheme.source_reference && (
                 <>
                   <p
                     className="mt-4 text-[13px] uppercase tracking-[0.08em]"
@@ -282,10 +282,26 @@ export function OpportunityView({
                     {copy.applyRefLabel}
                   </p>
                   <p className="font-mono mt-1.5 text-[15px] tracking-[0.02em]">
-                    {opportunity.source_reference}
+                    {scheme.source_reference}
                   </p>
                 </>
               )}
+              {/* The government's own page, when the record has one. A link
+                  the person can open beats a reference they have to quote --
+                  but only when it was published, never when it was guessed. */}
+              {scheme.official_url && (
+                <a
+                  href={scheme.official_url}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="mt-4 inline-block text-[13.5px] underline underline-offset-4"
+                  style={{ color: "var(--color-accent)" }}
+                  lang={language}
+                >
+                  {copy.officialPage} →
+                </a>
+              )}
+
               <p
                 className="mt-4 text-[13.5px] leading-relaxed"
                 style={{ color: "var(--ink-55)" }}
@@ -296,7 +312,7 @@ export function OpportunityView({
           )}
         </div>
 
-        <AskVoicePath opportunityId={opportunity.id} />
+        <AskVoicePath schemeId={scheme.id} />
       </div>
     </section>
   );
