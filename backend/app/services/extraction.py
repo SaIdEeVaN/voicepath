@@ -240,6 +240,29 @@ _WORD_NUMBERS = {
 
 _YEAR_WORDS = ["years", "year", "yrs", "साल", "वर्ष", "बरस", "வருஷ", "வருட", "ஆண்டு"]
 
+# A spelled-out number used as a duration: the number as its own word, then a
+# year word, with at most one word between them ("five long years").
+#
+# The adjacency is the whole point. This was a substring scan with a 22-
+# character window, which read "I have been repairing two-wheelers for six
+# years" as *two* years: "two" was found inside "two-wheelers" and paired with
+# the "years" that belonged to "six". A word boundary alone does not fix that,
+# because a hyphen is not a word character, so "two" is already a whole word
+# there. Requiring the year word to follow closely is what separates a number
+# naming a duration from one that is part of something else.
+#
+# Longest alternatives first, so "years" is preferred over "year".
+_SPELLED_YEARS = re.compile(
+    r"(?<!\w)("
+    + "|".join(sorted((re.escape(w) for w in _WORD_NUMBERS), key=len, reverse=True))
+    + r")(?!\w)"
+    r"(?:\W+\w+)?"
+    r"\W+(?:"
+    + "|".join(sorted((re.escape(w) for w in _YEAR_WORDS), key=len, reverse=True))
+    + r")",
+    re.IGNORECASE,
+)
+
 # Sentence-ish split that works across Latin, Devanagari and Tamil punctuation.
 _SENTENCE_SPLIT = re.compile(r"(?<=[.!?।])\s+|\n+")
 
@@ -295,13 +318,14 @@ def _find_years(transcript: str, normalised: str) -> float | None:
             if 0 < value <= 70:
                 return value
 
-    # Spelled-out numbers, only when a year word follows closely. Requiring the
-    # pairing avoids reading "two bikes" as two years.
-    for word, value in _WORD_NUMBERS.items():
-        idx = normalised.find(_normalise(word))
-        if idx == -1:
-            continue
-        window = normalised[idx : idx + len(word) + 22]
-        if any(_normalise(y) in window for y in _YEAR_WORDS):
+    # Spelled-out numbers, only where the number is its own word and a year
+    # word follows it closely. Both conditions are load-bearing; see
+    # _SPELLED_YEARS.
+    match = _SPELLED_YEARS.search(normalised)
+    if match:
+        value = _WORD_NUMBERS.get(match.group(1)) or _WORD_NUMBERS.get(
+            match.group(1).casefold()
+        )
+        if value is not None and 0 < value <= 70:
             return float(value)
     return None
