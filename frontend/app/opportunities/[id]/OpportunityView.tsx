@@ -69,10 +69,12 @@ export function OpportunityView({
 
   const bars = match
     ? [
-        { label: copy.barSkills, value: match.breakdown.skill_similarity_score },
-        { label: copy.barExperience, value: match.breakdown.experience_score },
-        { label: copy.barRequirements, value: match.breakdown.eligibility_score },
-        { label: copy.barDistance, value: match.breakdown.location_score },
+        // Weights mirror the server's WEIGHT_* settings. Shown so the total
+        // is a sum a person can check, rather than a number to be trusted.
+        { label: copy.barSkills, value: match.breakdown.skill_similarity_score, weight: 50 },
+        { label: copy.barExperience, value: match.breakdown.experience_score, weight: 25 },
+        { label: copy.barRequirements, value: match.breakdown.eligibility_score, weight: 15 },
+        { label: copy.barDistance, value: match.breakdown.location_score, weight: 10 },
       ]
     : [];
 
@@ -158,9 +160,24 @@ export function OpportunityView({
                       >
                         {Math.round(bar.value * 100)}
                       </span>
+                      <span
+                        className="font-mono w-11 flex-none text-right text-[11px]"
+                        style={{ color: "var(--ink-38)" }}
+                        title={copy.weightsLabel}
+                      >
+                        ×{bar.weight}%
+                      </span>
                     </li>
                   ))}
                 </ul>
+
+                <p
+                  className="font-mono mt-3 text-[11px] leading-relaxed"
+                  style={{ color: "var(--ink-38)" }}
+                  lang={language}
+                >
+                  {copy.weightsLabel}
+                </p>
 
                 <ul className="flex flex-col gap-2.5 pt-1">
                   {match.explanation_bullets.map((bullet, index) => (

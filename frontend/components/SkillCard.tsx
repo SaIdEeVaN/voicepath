@@ -13,6 +13,10 @@
 import { useState } from "react";
 
 import { copyFor, skillLabel } from "@/lib/i18n";
+
+// Mirrors NORMALIZATION_ACCEPT_THRESHOLD on the server. Shown, not enforced
+// here -- the decision was already made; this only says what the bar was.
+const ACCEPT_THRESHOLD = 0.82;
 import type { ExtractedSkill, Language } from "@/lib/types";
 
 interface SkillCardProps {
@@ -35,6 +39,8 @@ export function SkillCard({
   const [draft, setDraft] = useState(skill.raw_name);
 
   const uncertain = skill.needs_disambiguation;
+  const confidence =
+    typeof skill.match_confidence === "number" ? skill.match_confidence : null;
   const title = skillLabel(skill, language);
 
   const commit = () => {
@@ -95,6 +101,23 @@ export function SkillCard({
               ? `${skill.category ?? ""} · ${skill.normalized_code}`.trim()
               : skill.raw_name}
           </p>
+
+          {/* The number behind the match, and the bar it had to clear. A score
+              shown against its threshold is a claim someone can check; "the
+              system understood you" is not. Hidden when nothing matched --
+              there is no score to defend. */}
+          {skill.normalized_code && confidence !== null && (
+            <p
+              className="font-mono mt-1 text-[11px] tracking-[0.04em]"
+              style={{ color: uncertain ? "var(--color-caution-ink)" : "var(--ink-45)" }}
+            >
+              {confidence.toFixed(3)}
+              {" · "}
+              {uncertain ? copy.confidenceAsking : copy.confidenceAccepted}
+              {" · "}
+              {copy.confidenceThreshold} {ACCEPT_THRESHOLD.toFixed(2)}
+            </p>
+          )}
         </div>
 
         <div className="flex flex-none gap-1">

@@ -59,6 +59,10 @@ export interface Copy {
   noMatches: string;
   back: string;
   apply: string;
+  confidenceAccepted: string;
+  confidenceAsking: string;
+  confidenceThreshold: string;
+  weightsLabel: string;
   opportunityTypes: Record<string, string>;
   applyHow: string;
   applyRefLabel: string;
@@ -126,6 +130,10 @@ const en: Copy = {
   noMatches: "Nothing here fits your work yet. Tell me more about what you do.",
   back: "Back",
   apply: "I want this",
+  confidenceAccepted: "accepted",
+  confidenceAsking: "asking you",
+  confidenceThreshold: "needs",
+  weightsLabel: "Weights: skill 50% · experience 25% · eligibility 15% · place 10%",
   opportunityTypes: {
     "Full-time": "Full-time",
     "Part-time": "Part-time",
@@ -200,6 +208,10 @@ const ta: Copy = {
   noMatches: "உங்கள் வேலைக்கு இங்கு இன்னும் எதுவும் பொருந்தவில்லை. இன்னும் சொல்லுங்கள்.",
   back: "பின்னால்",
   apply: "இது வேண்டும்",
+  confidenceAccepted: "ஏற்கப்பட்டது",
+  confidenceAsking: "உங்களிடம் கேட்கிறோம்",
+  confidenceThreshold: "தேவை",
+  weightsLabel: "எடை: திறமை 50% · அனுபவம் 25% · தகுதி 15% · இடம் 10%",
   opportunityTypes: {
     "Full-time": "முழு நேரம்",
     "Part-time": "பகுதி நேரம்",
@@ -271,6 +283,10 @@ const hi: Copy = {
   noMatches: "अभी यहाँ आपके काम से कुछ नहीं मिलता। अपने काम के बारे में और बताइए।",
   back: "वापस",
   apply: "मुझे यह चाहिए",
+  confidenceAccepted: "स्वीकार",
+  confidenceAsking: "आपसे पूछ रहे हैं",
+  confidenceThreshold: "चाहिए",
+  weightsLabel: "भार: कौशल 50% · अनुभव 25% · पात्रता 15% · जगह 10%",
   opportunityTypes: {
     "Full-time": "पूरा समय",
     "Part-time": "आंशिक समय",
