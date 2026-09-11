@@ -119,17 +119,7 @@ export default function DisambiguatePage() {
             type="button"
             disabled={busy}
             onClick={() => void resolve(candidate.id)}
-            className="flex w-[270px] max-w-full flex-col gap-2.5 rounded-[14px] p-6 text-left transition-all hover:-translate-y-0.5 disabled:opacity-50"
-            style={{
-              background: "var(--color-surface)",
-              border: "1px solid var(--ink-09)",
-            }}
-            onMouseEnter={(event) => {
-              event.currentTarget.style.borderColor = "var(--color-accent)";
-            }}
-            onMouseLeave={(event) => {
-              event.currentTarget.style.borderColor = "var(--ink-09)";
-            }}
+            className="vp-row vp-row-accent flex w-[270px] max-w-full flex-col gap-2.5 rounded-[14px] p-6 text-left disabled:opacity-50"
           >
             <span className="font-display text-[22px] leading-tight tracking-[-0.02em]">
               {skillLabel(candidate, language)}

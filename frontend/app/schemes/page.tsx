@@ -186,17 +186,7 @@ function MatchRow({
     <button
       type="button"
       onClick={onOpen}
-      className="flex w-full items-start gap-7 rounded-[16px] p-7 text-left transition-all hover:-translate-y-0.5 max-[560px]:flex-col max-[560px]:gap-4 max-[560px]:p-5"
-      style={{
-        background: "var(--color-surface)",
-        border: "1px solid var(--ink-09)",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = "var(--ink-22)";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = "var(--ink-09)";
-      }}
+      className="vp-row flex w-full items-start gap-7 rounded-[16px] p-7 text-left max-[560px]:flex-col max-[560px]:gap-4 max-[560px]:p-5"
     >
       <MatchRing score={match.overall_score} />
 
@@ -260,11 +250,7 @@ function BrowseRow({
     <button
       type="button"
       onClick={onOpen}
-      className="flex items-center gap-7 rounded-[16px] p-6 text-left transition-all hover:-translate-y-0.5 max-[560px]:flex-col max-[560px]:items-start max-[560px]:gap-3 max-[560px]:p-5"
-      style={{
-        background: "var(--color-surface)",
-        border: "1px solid var(--ink-09)",
-      }}
+      className="vp-row flex items-center gap-7 rounded-[16px] p-6 text-left max-[560px]:flex-col max-[560px]:items-start max-[560px]:gap-3 max-[560px]:p-5"
     >
       <div className="min-w-0 flex-1">
         <h2 className="font-display text-xl leading-tight tracking-[-0.025em]">

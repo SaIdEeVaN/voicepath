@@ -4,9 +4,14 @@
  * Minimal chrome (PRD section 2: the large voice control is the primary
  * interaction, not a nav bar).
  *
- * So this carries only the wordmark and the language switch. There is no
- * navigation here -- the flow moves forward on its own, and every screen that
- * needs a way back provides its own.
+ * So this carries the wordmark, the language switch, and one link to admin.
+ * There is no other navigation -- the flow moves forward on its own, and every
+ * screen that needs a way back provides its own.
+ *
+ * Admin sits here because an operator should not have to scroll the landing
+ * page to reach their own tool. It stays visually quiet: the hero belongs to
+ * the person who came to speak, and the route is token-gated server-side, so
+ * this is a signpost rather than a door.
  */
 
 import Link from "next/link";
@@ -39,6 +44,14 @@ export function TopBar() {
       </Link>
 
       <div className="flex-1" />
+
+      <Link
+        href="/admin"
+        className="flex-none text-xs underline-offset-4 transition-colors hover:underline"
+        style={{ color: "var(--ink-45)" }}
+      >
+        Admin
+      </Link>
 
       <div
         className="flex flex-none gap-1 rounded-full p-[3px]"

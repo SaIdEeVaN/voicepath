@@ -10,7 +10,6 @@
  */
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { MicIcon } from "@/components/MicIcon";
@@ -64,20 +63,32 @@ export default function LandingPage() {
   return (
     <section className="grid flex-1 items-center gap-16 px-[7vw] py-[clamp(2.5rem,6vw,4.5rem)] lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
       <div>
-        <h1 className="vp-statement max-w-[13em]" lang={language}>
+        <h1
+          className="vp-statement vp-enter max-w-[13em]"
+          style={{ "--vp-delay": "60ms" } as React.CSSProperties}
+          lang={language}
+        >
           {copy.statement}
         </h1>
 
         {/* The same promise in the other two languages. Pressing one switches
             and starts, so a wrong default costs one tap, not a hunt. */}
+        {/* The same promise in three scripts is the most distinctive thing on
+            this page, so it arrives as its own beat rather than as a footnote
+            under the headline. */}
         <div className="mt-9 flex max-w-[520px] flex-col gap-0.5">
-          {others.map((entry) => (
+          {others.map((entry, index) => (
             <button
               key={entry.code}
               type="button"
               onClick={() => start(entry.code)}
-              className="flex items-baseline gap-3.5 border-t py-3 text-left transition-opacity hover:opacity-60"
-              style={{ borderColor: "var(--ink-09)" }}
+              className="vp-enter flex items-baseline gap-3.5 border-t py-3 text-left transition-opacity hover:opacity-60"
+              style={
+                {
+                  borderColor: "var(--ink-09)",
+                  "--vp-delay": `${320 + index * 90}ms`,
+                } as React.CSSProperties
+              }
             >
               <span
                 className="font-mono w-6 flex-none text-[10.5px] tracking-[0.08em]"
@@ -98,26 +109,55 @@ export default function LandingPage() {
       </div>
 
       <div className="flex flex-col items-center gap-7">
-        <button
-          type="button"
-          onClick={() => start(language)}
-          className="relative grid h-[196px] w-[196px] place-items-center rounded-full transition-transform hover:-translate-y-0.5"
-          style={{
-            background: "var(--color-accent)",
-            color: "var(--color-paper)",
-            boxShadow:
-              "0 18px 44px -20px color-mix(in srgb, var(--color-accent) 65%, transparent)",
-          }}
+        {/* The mic is where this product spends its boldness. Everything else
+            on the page stays quiet so that this reads as the thing to do. */}
+        <div
+          className="vp-enter relative grid place-items-center"
+          style={{ "--vp-delay": "180ms" } as React.CSSProperties}
         >
-          {/* The breath is the one ambient motion in the product: it says the
-              screen is ready to listen before anyone has spoken. */}
+          {/* A soft field behind it, so the button sits in something rather
+              than on a flat page. Not a gradient wash across the section --
+              it belongs to the mic and moves nowhere. */}
           <span
-            className="vp-breathe pointer-events-none absolute -inset-1.5 rounded-full border"
-            style={{ borderColor: "var(--color-accent)" }}
+            aria-hidden
+            className="pointer-events-none absolute h-[300px] w-[300px] rounded-full"
+            style={{
+              background:
+                "radial-gradient(circle, color-mix(in srgb, var(--color-accent) 13%, transparent) 0%, transparent 68%)",
+            }}
           />
-          <MicIcon size={52} />
-          <span className="sr-only">{copy.speakHint}</span>
-        </button>
+
+          <button
+            type="button"
+            onClick={() => start(language)}
+            className="vp-mic relative grid h-[196px] w-[196px] place-items-center rounded-full"
+            style={{
+              background: "var(--color-accent)",
+              color: "var(--color-paper)",
+              boxShadow:
+                "0 18px 44px -20px color-mix(in srgb, var(--color-accent) 65%, transparent)",
+            }}
+          >
+            {/* Two rings, half a cycle apart: sound leaving the mic rather
+                than a border that pulses. They quicken on hover and focus,
+                which is the product answering someone about to press it. */}
+            <span
+              aria-hidden
+              className="vp-listen pointer-events-none absolute -inset-1.5 rounded-full border"
+              style={{ borderColor: "var(--color-accent)" }}
+            />
+            <span
+              aria-hidden
+              className="vp-listen pointer-events-none absolute -inset-1.5 rounded-full border"
+              style={{
+                borderColor: "var(--color-accent)",
+                animationDelay: "1.8s",
+              }}
+            />
+            <MicIcon size={52} />
+            <span className="sr-only">{copy.speakHint}</span>
+          </button>
+        </div>
 
         <p
           className="max-w-[16em] text-center text-[17px] leading-snug"
@@ -175,18 +215,6 @@ export default function LandingPage() {
         </form>
 
         <PrivacyNote />
-
-        {/* Quiet on purpose. The hero belongs to the person who came here to
-            speak; an operator knows what they are looking for. The route is
-            token-gated server-side either way, so this is a signpost and not
-            a door. */}
-        <Link
-          href="/admin"
-          className="text-xs underline-offset-4 hover:underline"
-          style={{ color: "var(--ink-38)" }}
-        >
-          Admin dashboard
-        </Link>
       </div>
     </section>
   );

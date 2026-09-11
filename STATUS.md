@@ -3,7 +3,7 @@
 > **This file is the live todo list.** It is updated every time a task is completed.
 > Start at **To-do** — that is the working checklist. **Next up** carries the
 > detail behind the top items; everything below it is the record of the build.
-> Last updated: 2026-09-12 (/admin has its numbers; 247 tests passing)
+> Last updated: 2026-09-12 (motion layer on the public screens; admin in the navbar)
 
 **Project root:** `C:\Users\Sai Dixit\voicepath`
 **Sources:** `PRD_File_For_Project.md` (spec) · `VoicePath Mockups.html` (design canvas, unpacked)
@@ -79,6 +79,10 @@ twice is harmless. There is no cost to doing this in the safe order.
 - [ ] **`npm run lint` does not exist.** `package.json` still points at
       `next lint`, which Next 16 removed, and eslint is not a dependency. Either
       add eslint properly or drop the script so it stops lying.
+- [ ] **The motion layer has not been seen in a browser.** It compiles, `/`
+      still prerenders, and every rule degrades under `prefers-reduced-motion`
+      — but no screenshot was taken, because this environment has no browser.
+      Worth one look on a real phone before it is shown to anyone.
 
 ### Later — scale, breadth and loose ends
 
@@ -503,6 +507,61 @@ discards every response and the failure is indistinguishable from a dead server.
   eslint is not a dependency.
 - **Rate limiting is per-process.** Multiplies behind multiple instances; move
   the counter to Redis before scaling.
+
+---
+
+## Done on 2026-09-12 — the public screens have motion, and admin moved to the navbar
+
+Asked for directly: *"it looks bland and boring, can you add any animations?"*
+plus a specific request to move the admin link out of the landing page's footer
+and into the navbar beside the language toggle. Both done.
+
+**The palette and the type did not change.** The muted green chosen explicitly
+against a saturated "AI product" hue, amber rather than red for uncertainty,
+Anek so a Tamil headline carries an English one's weight — that is the one
+genuinely opinionated thing here, and swapping it for something livelier would
+have made the product *more* generic, not less. The blandness was never the
+colours; nothing on the page was alive.
+
+**The boldness is spent in one place: the microphone.** The most characteristic
+thing in this product's world is a voice becoming legible, and the mic was a
+green circle with a single pulsing border. It now has two rings half a cycle
+apart, so it reads as sound leaving the mic rather than a border that throbs;
+they quicken on hover and focus; the button takes a real press; and a soft
+radial field sits behind it so it rests in something rather than floating on
+flat cream.
+
+Everything else stays quiet, deliberately:
+
+- **One orchestrated entrance, on the landing only.** Statement, then mic, then
+  the other two languages, each naming its own delay where the element is
+  written. Fade-and-slide on every section of every screen is the generic tell
+  and was avoided.
+- **`MatchRing` fills from empty once, on arrival.** The ring is the only place
+  a score appears as a quantity rather than a numeral, and watching it stop
+  somewhere is what makes 62% and 97% feel different to someone who does not
+  read the digits.
+- **Interaction motion everywhere else** — rows lift and press, nothing moves
+  on its own.
+
+**The hover rewrite is an accessibility fix wearing a polish hat.** Six
+`onMouseEnter` handlers mutated `style.borderColor` and `style.color`, which
+meant a keyboard user got no feedback at all — JavaScript hover has no focus
+equivalent. They are now `.vp-row`, `.vp-row-accent` and `.vp-icon-button`,
+so `:focus-visible` comes free. This was already on the to-do list from the
+design review; it arrived with the motion because the same rules carry both.
+
+Caught in self-review before commit: the delayed second ring began at full
+opacity, so it would have sat on screen as a static circle for 1.8 seconds
+before its turn — a bug that reads as a design choice. The keyframe starts at
+zero now, with `backwards` fill so the delay holds an invisible frame.
+
+`prefers-reduced-motion` still neutralises all of it through the existing
+global rule; every entrance uses `both` fill, so nothing can be left invisible
+when the animation is collapsed.
+
+**Not verified in a browser.** It compiles, `/` prerenders, and the rules are
+sound, but this environment has no browser and no screenshot was taken.
 
 ---
 
