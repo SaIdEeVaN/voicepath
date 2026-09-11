@@ -3,7 +3,7 @@
 > **This file is the live todo list.** It is updated every time a task is completed.
 > Start at **To-do** — that is the working checklist. **Next up** carries the
 > detail behind the top items; everything below it is the record of the build.
-> Last updated: 2026-09-12 (db/007 applied to production; see **Deploy order**)
+> Last updated: 2026-09-12 (db/008 drops the opportunities views; advisor clean)
 
 **Project root:** `C:\Users\Sai Dixit\voicepath`
 **Sources:** `PRD_File_For_Project.md` (spec) · `VoicePath Mockups.html` (design canvas, unpacked)
@@ -234,6 +234,8 @@ db/                        Apply in numeric order
   005_documents.sql          scheme_documents, document_chunks, retrieval fn
   006_schemes_rename.sql     opportunities -> schemes, in place. No row lost
   007_match_language.sql     which language a stored explanation is in
+  008_drop_compatibility_views.sql
+                             retires the opportunities shims 006 left behind
 
 backend/
   Dockerfile                 For hosts that only take an image. Render uses the
@@ -502,6 +504,45 @@ discards every response and the failure is indistinguishable from a dead server.
   eslint is not a dependency.
 - **Rate limiting is per-process.** Multiplies behind multiple instances; move
   the counter to Redis before scaling.
+
+---
+
+## Fixed on 2026-09-12 — the Supabase advisor's two ERROR findings
+
+`security_definer_view` on `public.opportunities` and
+`public.opportunity_skills`. Both are the read-only shims `006` created during
+the rename, and `006` says in as many words to drop them once the new code
+shipped. It shipped; they stayed.
+
+The finding is real, not linter noise. **A Postgres view runs as its owner
+unless it is created `with (security_invoker = on)`.** These were not, and
+their owner is `postgres` — so every read through `opportunities` was
+evaluated with the owner's privileges and bypassed row level security on
+`schemes` entirely.
+
+Nothing was exposed by it. `schemes` and `scheme_skills` both carry a
+public-read policy, so the rows reachable through the view were rows anyone
+could already select. The danger was latent: the day either policy narrows,
+the view would have gone on serving what the policy had just withdrawn —
+silently, from a name no code references any more.
+
+`db/008` drops both views and the `opportunity_skill_vectors` shim. Dropping
+rather than recreating them with `security_invoker`, because they exist only
+to serve code that no longer runs. Verified first that no reference to
+`opportunit%` survives anywhere in `backend/`, `frontend/` or `db/` outside
+`006` itself.
+
+Audited the rest of the schema while there:
+
+- No views remain in `public`, so the finding cannot recur from another one.
+- RLS is enabled on all 12 tables.
+- Five project functions, all with `search_path=""` pinned. One,
+  `purge_expired_audio`, is `SECURITY DEFINER` — deliberately, since it must
+  delete audio regardless of caller — and being pinned it is not the
+  `function_search_path_mutable` hazard. Correct as written.
+
+Applied to production and smoke-tested: `/health` connected, 18 active
+schemes, `/api/schemes` 200.
 
 ---
 
