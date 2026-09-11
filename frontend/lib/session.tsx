@@ -37,6 +37,15 @@ interface StoredState {
   profile: ExtractedProfile | null;
   skills: ExtractedSkill[];
   matches: MatchResult[];
+  /**
+   * Which language `matches` were explained in.
+   *
+   * Explanations are prose the server writes, not copy the client renders,
+   * so they do not follow a language change on their own. Recording the
+   * language they arrived in is what lets a screen notice they are stale
+   * rather than showing the previous language under a switched interface.
+   */
+  matchesLanguage: Language | null;
   degraded: boolean;
   audioRetained: boolean;
 }
@@ -48,6 +57,7 @@ const EMPTY: StoredState = {
   profile: null,
   skills: [],
   matches: [],
+  matchesLanguage: null,
   degraded: false,
   audioRetained: false,
 };
@@ -66,7 +76,7 @@ interface SessionContextValue extends StoredState {
     degraded: boolean,
   ): void;
   setSkills(skills: ExtractedSkill[]): void;
-  setMatches(matches: MatchResult[]): void;
+  setMatches(matches: MatchResult[], language: Language): void;
   setAudioRetained(retained: boolean): void;
   reset(): void;
 }
@@ -167,12 +177,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         profile: null,
         skills: [],
         matches: [],
+        matchesLanguage: null,
       })),
     [],
   );
   const setUnderstanding = useCallback(
     (profile: ExtractedProfile, skills: ExtractedSkill[], degraded: boolean) =>
-      setState((s) => ({ ...s, profile, skills, degraded, matches: [] })),
+      setState((s) => ({
+        ...s,
+        profile,
+        skills,
+        degraded,
+        matches: [],
+        matchesLanguage: null,
+      })),
     [],
   );
   const setSkills = useCallback(
@@ -181,7 +199,8 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     [],
   );
   const setMatches = useCallback(
-    (matches: MatchResult[]) => setState((s) => ({ ...s, matches })),
+    (matches: MatchResult[], language: Language) =>
+      setState((s) => ({ ...s, matches, matchesLanguage: language })),
     [],
   );
   const setAudioRetained = useCallback(

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
@@ -62,14 +63,19 @@ async def match(payload: schemas.MatchRequest) -> schemas.MatchResponse:
         profile_input, catalogue, limit=payload.limit or settings.match_result_limit
     )
 
+    explained_in = (payload.language or language).split("-")[0]
+
     explanations: dict[int, explanation.Explanation] = {}
     if payload.explain:
-        explanations = await explanation.explain_many(
-            ranked, language=(payload.language or language)
-        )
+        explanations = await explanation.explain_many(ranked, language=explained_in)
 
     if payload.session_id is not None:
-        await repository.replace_matches(payload.session_id, ranked, explanations)
+        # The language goes in with the prose. Without it a later read
+        # cannot tell whether the stored sentences are the ones this
+        # reader can read.
+        await repository.replace_matches(
+            payload.session_id, ranked, explanations, language=explained_in
+        )
 
     # Report what actually wrote the explanations, not what is configured. The
     # LLM can be configured and still have failed on this request, and a
@@ -128,15 +134,28 @@ async def get_scheme(scheme_id: int) -> schemas.SchemeDetail:
 
 
 @router.get("/{scheme_id}/match/{session_id}", response_model=schemas.MatchResult)
-async def get_stored_match(scheme_id: int, session_id: str) -> schemas.MatchResult:
+async def get_stored_match(
+    scheme_id: int,
+    session_id: str,
+    language: str | None = Query(
+        None, description="Language to read the explanation in (ta, hi, en)."
+    ),
+) -> schemas.MatchResult:
     """The stored match for one session and one scheme.
 
     Reads the persisted row rather than re-scoring, so the detail screen shows
     exactly the numbers that were computed and audited, not a fresh computation
     that might differ if the catalogue moved underneath it.
-    """
-    from uuid import UUID
 
+    ``language`` rewrites the *sentences* only. A person who switches to
+    Tamil on this screen was previously left reading English reasons under a
+    Tamil interface, because the stored prose had no language recorded and
+    so could never be recognised as the wrong one.
+
+    The scores are not recomputed. They are the audited numbers, and an
+    explanation has never been allowed to move one -- re-explaining in
+    another language must not become the exception.
+    """
     try:
         parsed = UUID(session_id)
     except ValueError as exc:
@@ -157,6 +176,15 @@ async def get_stored_match(scheme_id: int, session_id: str) -> schemas.MatchResu
             detail="That scheme was not found.",
         )
 
+    text = stored.explanation_text
+    bullets = list(stored.explanation_bullets)
+
+    wanted = (language or "").split("-")[0]
+    if wanted and wanted != stored.explanation_language:
+        rewritten = await _reexplain(parsed, stored, found, language=wanted)
+        if rewritten is not None:
+            text, bullets = rewritten.summary, list(rewritten.bullets)
+
     return schemas.MatchResult(
         scheme=pipeline.scheme_to_summary(found),
         rank=stored.rank,
@@ -167,6 +195,51 @@ async def get_stored_match(scheme_id: int, session_id: str) -> schemas.MatchResu
             eligibility_score=stored.eligibility_score,
             location_score=stored.location_score,
         ),
-        explanation_text=stored.explanation_text,
-        explanation_bullets=stored.explanation_bullets,
+        explanation_text=text,
+        explanation_bullets=bullets,
     )
+
+
+async def _reexplain(
+    session_id: UUID,
+    stored: repository.MatchRow,
+    scheme: schemes.Scheme,
+    *,
+    language: str,
+) -> explanation.Explanation | None:
+    """Rewrite one stored match's sentences in another language.
+
+    The explanation layer needs a ``ScoredMatch`` -- specifically its
+    ``grounding``, the closed set of facts it is allowed to draw on. Grounding
+    is derived, not stored, so it is rebuilt here from the profile and the
+    scheme.
+
+    Rebuilding it also recomputes the scores, and those are discarded: the
+    stored ones are written back over the top before anything is explained. If
+    the catalogue moved since the match was persisted, the numbers a person
+    sees stay the numbers that were audited, and only the wording is new.
+
+    Returns None when the explanation cannot be produced, in which case the
+    caller keeps the stored prose. Text in the wrong language is a worse
+    outcome than no screen at all only if the screen still works -- so it does.
+    """
+    try:
+        profile_input, _ = await pipeline.load_profile_input(session_id)
+        if not profile_input.skills:
+            return None
+
+        rebuilt = matching.score_one(profile_input, scheme)
+        rebuilt.skill_similarity_score = stored.skill_similarity_score
+        rebuilt.experience_score = stored.experience_score
+        rebuilt.eligibility_score = stored.eligibility_score
+        rebuilt.location_score = stored.location_score
+        rebuilt.overall_score = stored.overall_score
+        rebuilt.rank = stored.rank
+
+        return await explanation.explain(rebuilt, language=language)
+    except Exception as exc:  # noqa: BLE001 - a re-read must not 500
+        logger.warning(
+            "Could not re-explain match %s/%s in %s (%s); serving stored text",
+            session_id, scheme.id, language, exc,
+        )
+        return None

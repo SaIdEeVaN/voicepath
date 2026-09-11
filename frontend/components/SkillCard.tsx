@@ -12,7 +12,7 @@
 
 import { useState } from "react";
 
-import { copyFor, skillLabel } from "@/lib/i18n";
+import { categoryLabel, copyFor, skillLabel } from "@/lib/i18n";
 
 // Mirrors NORMALIZATION_ACCEPT_THRESHOLD on the server. Shown, not enforced
 // here -- the decision was already made; this only says what the bar was.
@@ -98,7 +98,7 @@ export function SkillCard({
             style={{ color: "var(--ink-38)" }}
           >
             {skill.normalized_code
-              ? `${skill.category ?? ""} · ${skill.normalized_code}`.trim()
+              ? `${categoryLabel(skill.category, language)} · ${skill.normalized_code}`.trim()
               : skill.raw_name}
           </p>
 

@@ -81,6 +81,9 @@ class MatchRow:
     rank: int
     explanation_text: str | None = None
     explanation_bullets: list[str] = field(default_factory=list)
+    # Which language the prose above is in. None means unknown -- a row
+    # written before the column existed -- and reads as "rewrite it".
+    explanation_language: str | None = None
 
 
 @dataclass
@@ -400,8 +403,16 @@ async def replace_matches(
     session_id: UUID,
     matches: list[ScoredMatch],
     explanations: dict[int, Any] | None = None,
+    language: str | None = None,
 ) -> list[MatchRow]:
+    """Persist a ranking, recording which language it was explained in.
+
+    ``language`` is stored so a later read can tell whether the prose is
+    the one the reader wants, instead of serving whatever was written
+    first and hoping.
+    """
     explanations = explanations or {}
+    stored_language = (language or "").split("-")[0] or None
 
     def _explanation(scheme_id: int) -> tuple[str | None, list[str]]:
         found = explanations.get(scheme_id)
@@ -419,15 +430,17 @@ async def replace_matches(
                     "insert into matches "
                     "(session_id, scheme_id, skill_similarity_score, "
                     " experience_score, eligibility_score, location_score, "
-                    " overall_score, rank, explanation_text, explanation_bullets) "
-                    "values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) "
+                    " overall_score, rank, explanation_text, explanation_bullets, "
+                    " explanation_language) "
+                    "values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) "
                     "returning id, session_id, scheme_id, skill_similarity_score, "
                     "experience_score, eligibility_score, location_score, "
-                    "overall_score, rank, explanation_text, explanation_bullets",
+                    "overall_score, rank, explanation_text, explanation_bullets, "
+                    "explanation_language",
                     session_id, match.scheme.id, match.skill_similarity_score,
                     match.experience_score, match.eligibility_score,
                     match.location_score, match.overall_score, match.rank,
-                    summary, bullets,
+                    summary, bullets, stored_language,
                 )
                 rows.append(row)
         return [_match_from_row(r) for r in rows]
@@ -451,6 +464,7 @@ async def replace_matches(
                 rank=match.rank,
                 explanation_text=summary,
                 explanation_bullets=bullets,
+                explanation_language=stored_language,
             )
         )
     return entry.matches
@@ -469,6 +483,7 @@ def _match_from_row(row) -> MatchRow:
         rank=row["rank"],
         explanation_text=row["explanation_text"],
         explanation_bullets=list(row["explanation_bullets"] or []),
+        explanation_language=row["explanation_language"],
     )
 
 
@@ -477,7 +492,7 @@ async def get_matches(session_id: UUID) -> list[MatchRow]:
         rows = await db.fetch(
             "select id, session_id, scheme_id, skill_similarity_score, "
             "experience_score, eligibility_score, location_score, overall_score, "
-            "rank, explanation_text, explanation_bullets "
+            "rank, explanation_text, explanation_bullets, explanation_language "
             "from matches where session_id = $1 order by rank",
             session_id,
         )

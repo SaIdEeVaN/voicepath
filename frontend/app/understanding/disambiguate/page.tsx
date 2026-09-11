@@ -69,7 +69,7 @@ export default function DisambiguatePage() {
       const result = await api.normalize(sessionId, payload);
       setSkills(result.skills);
     } catch (cause) {
-      setError(cause instanceof ApiError ? cause.message : "Something went wrong.");
+      setError(cause instanceof ApiError ? cause.message : copy.somethingWentWrong);
     } finally {
       setBusy(false);
     }

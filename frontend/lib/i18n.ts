@@ -69,6 +69,11 @@ export interface Copy {
   confidenceThreshold: string;
   weightsLabel: string;
   schemeTypes: Record<string, string>;
+  /** Taxonomy categories. A skill card shows one next to its code. */
+  skillCategories: Record<string, string>;
+  /** Pay, when only one end of the range is known. */
+  payUpTo: string;
+  payFrom: string;
   applyHow: string;
   applyRefLabel: string;
   applyNote: string;
@@ -90,6 +95,14 @@ export interface Copy {
   thinking: string;
   loading: string;
   retry: string;
+  /**
+   * The last-resort failure sentence.
+   *
+   * Every screen had this hardcoded in English, so a Tamil speaker whose
+   * request failed was handed an English sentence at the one moment they
+   * were already confused.
+   */
+  somethingWentWrong: string;
   offlineNotice: string;
 }
 
@@ -152,6 +165,21 @@ const en: Copy = {
     Apprenticeship: "Apprenticeship",
     "Self-employment support": "Self-employment support",
   },
+  skillCategories: {
+    Agriculture: "Agriculture",
+    Commerce: "Commerce",
+    Construction: "Construction",
+    Electrical: "Electrical",
+    Electronics: "Electronics",
+    Hospitality: "Hospitality",
+    Mechanical: "Mechanical",
+    Metalwork: "Metalwork",
+    Service: "Service",
+    Textile: "Textile",
+    Transport: "Transport",
+  },
+  payUpTo: "up to ₹{amount}",
+  payFrom: "from ₹{amount}",
   applyHow: "How to ask for this work",
   applyRefLabel: "Say this number at the office",
   applyNote:
@@ -171,6 +199,7 @@ const en: Copy = {
   thinking: "Looking…",
   loading: "One moment",
   retry: "Try again",
+  somethingWentWrong: "Something went wrong.",
   offlineNotice:
     "Running without the speech and language services, so I am reading only what you name directly.",
 };
@@ -236,6 +265,21 @@ const ta: Copy = {
     Apprenticeship: "பயிற்சிப் பணி",
     "Self-employment support": "சொந்தத் தொழில் உதவி",
   },
+  skillCategories: {
+    Agriculture: "விவசாயம்",
+    Commerce: "வணிகம்",
+    Construction: "கட்டிடம்",
+    Electrical: "மின் வேலை",
+    Electronics: "மின்னணு",
+    Hospitality: "விருந்தோம்பல்",
+    Mechanical: "இயந்திரம்",
+    Metalwork: "உலோக வேலை",
+    Service: "சேவை",
+    Textile: "நெசவு",
+    Transport: "போக்குவரத்து",
+  },
+  payUpTo: "₹{amount} வரை",
+  payFrom: "₹{amount} முதல்",
   applyHow: "இந்த வேலையை எப்படிக் கேட்பது",
   applyRefLabel: "அலுவலகத்தில் இந்த எண்ணைச் சொல்லுங்கள்",
   applyNote:
@@ -255,6 +299,7 @@ const ta: Copy = {
   thinking: "பார்க்கிறேன்…",
   loading: "ஒரு நிமிடம்",
   retry: "மீண்டும் முயலுங்கள்",
+  somethingWentWrong: "ஏதோ தவறாகி விட்டது. மீண்டும் முயற்சி செய்யுங்கள்.",
   offlineNotice:
     "பேச்சு மற்றும் மொழி சேவைகள் இல்லாமல் இயங்குகிறது, நீங்கள் நேரடியாகச் சொன்னதை மட்டுமே படிக்கிறேன்.",
 };
@@ -317,6 +362,21 @@ const hi: Copy = {
     Apprenticeship: "शिक्षुता",
     "Self-employment support": "स्वरोज़गार सहायता",
   },
+  skillCategories: {
+    Agriculture: "खेती",
+    Commerce: "व्यापार",
+    Construction: "निर्माण",
+    Electrical: "बिजली का काम",
+    Electronics: "इलेक्ट्रॉनिक्स",
+    Hospitality: "आतिथ्य",
+    Mechanical: "मशीन का काम",
+    Metalwork: "धातु का काम",
+    Service: "सेवा",
+    Textile: "कपड़ा",
+    Transport: "परिवहन",
+  },
+  payUpTo: "₹{amount} तक",
+  payFrom: "₹{amount} से",
   applyHow: "यह काम कैसे माँगें",
   applyRefLabel: "दफ़्तर में यह नंबर बताइए",
   applyNote:
@@ -336,6 +396,7 @@ const hi: Copy = {
   thinking: "देख रहा हूँ…",
   loading: "एक पल",
   retry: "फिर कोशिश करें",
+  somethingWentWrong: "कुछ गड़बड़ हो गई। फिर कोशिश कीजिए।",
   offlineNotice:
     "भाषा और आवाज़ की सेवाओं के बिना चल रहा है, इसलिए सिर्फ़ वही पढ़ रहा हूँ जो आपने सीधे कहा।",
 };
@@ -386,4 +447,42 @@ export function localeFor(language: Language): string {
 /** Localised label for a scheme type. Unknown values pass through. */
 export function typeLabel(type: string, language: Language): string {
   return copyFor(language).schemeTypes[type] ?? type;
+}
+
+/**
+ * Localised label for a taxonomy category.
+ *
+ * Categories arrive from the database in English because that is what the
+ * taxonomy stores. Unknown values pass through rather than being hidden --
+ * a category nobody has translated yet is still information.
+ */
+export function categoryLabel(
+  category: string | null | undefined,
+  language: Language,
+): string {
+  if (!category) return "";
+  return copyFor(language).skillCategories[category] ?? category;
+}
+
+/**
+ * Monthly pay, written the way each language writes it.
+ *
+ * The open-ended forms used to be English string literals -- "up to ₹8,000"
+ * sat inside an otherwise Tamil row. The digits stay in the Indian
+ * grouping, which all three languages use.
+ */
+export function payLabel(
+  low: number | null | undefined,
+  high: number | null | undefined,
+  language: Language,
+): string {
+  const money = (value: number) => `₹${value.toLocaleString("en-IN")}`;
+  const copy = copyFor(language);
+
+  if (low && high) {
+    return low === high ? money(low) : `${money(low)}–${money(high)}`;
+  }
+  if (high) return copy.payUpTo.replace("{amount}", high.toLocaleString("en-IN"));
+  if (low) return copy.payFrom.replace("{amount}", low.toLocaleString("en-IN"));
+  return "—";
 }

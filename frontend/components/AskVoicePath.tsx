@@ -35,6 +35,16 @@ interface Exchange {
   fromData: boolean;
   /** Empty unless the answer came from the published guidelines. */
   citations: Citation[];
+  /**
+   * The language this exchange happened in.
+   *
+   * Past answers are not re-translated when the reader switches language:
+   * this is a record of a conversation, and silently rewriting what was
+   * already said is worse than leaving it. But the markup must still be
+   * honest -- tagging Tamil prose as `hi` picks the wrong font and makes a
+   * screen reader mispronounce it -- so each line carries its own tag.
+   */
+  askedIn: Language;
 }
 
 export function AskVoicePath({ schemeId }: { schemeId: number }) {
@@ -93,6 +103,7 @@ export function AskVoicePath({ schemeId }: { schemeId: number }) {
             sourceNote: result.source_note,
             fromData: result.answered_from_data,
             citations: result.citations ?? [],
+            askedIn: language as Language,
           },
         ]);
 
@@ -122,7 +133,7 @@ export function AskVoicePath({ schemeId }: { schemeId: number }) {
         })();
       } catch (cause) {
         setError(
-          cause instanceof ApiError ? cause.message : "Something went wrong.",
+          cause instanceof ApiError ? cause.message : copy.somethingWentWrong,
         );
         setThinking(false);
       }
@@ -181,14 +192,14 @@ export function AskVoicePath({ schemeId }: { schemeId: number }) {
             <p
               className="max-w-[88%] self-end rounded-[14px_14px_4px_14px] px-4 py-2.5 text-[14.5px] leading-snug"
               style={{ background: "var(--paper-12)" }}
-              lang={language}
+              lang={exchange.askedIn}
             >
               {exchange.question}
             </p>
             <p
               className="max-w-[92%] self-start rounded-[14px_14px_14px_4px] px-4 py-3 text-[14.5px] leading-relaxed"
               style={{ background: "var(--paper-05)" }}
-              lang={language}
+              lang={exchange.askedIn}
             >
               {exchange.answer}
             </p>
@@ -199,7 +210,7 @@ export function AskVoicePath({ schemeId }: { schemeId: number }) {
                   ? "var(--paper-40)"
                   : "var(--color-caution)",
               }}
-              lang={language}
+              lang={exchange.askedIn}
             >
               <span
                 className="h-0 w-0"
