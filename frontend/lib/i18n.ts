@@ -41,6 +41,8 @@ export interface Copy {
   save: string;
   nothingHeard: string;
   nothingHeardSub: string;
+  answeredQuestion: string;
+  askedNotTold: string;
   /* Disambiguation */
   whichOne: string;
   resay: string;
@@ -118,6 +120,8 @@ const en: Copy = {
   save: "Save",
   nothingHeard: "I did not catch any work you have done.",
   nothingHeardSub: "Tell me again, and say the kind of work in your own words.",
+  answeredQuestion: "You asked a question, so here is the answer.",
+  askedNotTold: "To find work for you, tell me what you have done instead.",
   whichOne: "Which one did you mean?",
   resay: "Say it again",
   skip: "Leave it out",
@@ -200,6 +204,8 @@ const ta: Copy = {
   save: "சேமி",
   nothingHeard: "நீங்கள் செய்த வேலை எதுவும் எனக்குப் புரியவில்லை.",
   nothingHeardSub: "மீண்டும் சொல்லுங்கள், எந்த வேலை என்பதை உங்கள் வார்த்தையில் சொல்லுங்கள்.",
+  answeredQuestion: "நீங்கள் ஒரு கேள்வி கேட்டீர்கள், பதில் இதோ.",
+  askedNotTold: "உங்களுக்கு வேலை தேட, நீங்கள் செய்த வேலையைச் சொல்லுங்கள்.",
   whichOne: "எதைச் சொன்னீர்கள்?",
   resay: "மீண்டும் சொல்லுங்கள்",
   skip: "இதை விட்டுவிடு",
@@ -279,6 +285,8 @@ const hi: Copy = {
   save: "सहेजें",
   nothingHeard: "आपने जो काम किया, वह मुझे समझ नहीं आया।",
   nothingHeardSub: "फिर से बताइए, और किस तरह का काम है वह अपने शब्दों में कहिए।",
+  answeredQuestion: "आपने सवाल पूछा, उसका जवाब यह है।",
+  askedNotTold: "आपके लिए काम ढूँढ़ने के लिए, आपने जो काम किया है वह बताइए।",
   whichOne: "आपका मतलब किससे था?",
   resay: "फिर से बोलिए",
   skip: "इसे छोड़ दीजिए",

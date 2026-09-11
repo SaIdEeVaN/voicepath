@@ -18,13 +18,14 @@ import { SkillCard } from "@/components/SkillCard";
 import { ApiError, api } from "@/lib/api";
 import { copyFor } from "@/lib/i18n";
 import { useSession } from "@/lib/session";
-import type { SkillEdit } from "@/lib/types";
+import type { AssistantQueryResponse, SkillEdit } from "@/lib/types";
 
 export default function UnderstandingPage() {
   const router = useRouter();
   const {
     language,
     sessionId,
+    transcript,
     skills,
     profile,
     setUnderstanding,
@@ -36,6 +37,7 @@ export default function UnderstandingPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [answer, setAnswer] = useState<AssistantQueryResponse | null>(null);
 
   useEffect(() => setHydrated(true), []);
 
@@ -72,6 +74,32 @@ export default function UnderstandingPage() {
       cancelled = true;
     };
   }, [hydrated, sessionId, profile, skills.length, router, setUnderstanding]);
+
+  /**
+   * Extraction finding nothing usually means the transcript was a question.
+   *
+   * "Tell me about Adarsh Gram" contains no skill, so the pipeline that looks
+   * for one correctly returns empty -- and then told the person we did not
+   * catch any work they had done, which is true and useless. The guidelines
+   * can answer it, so ask them before giving up.
+   */
+  useEffect(() => {
+    if (loading || skills.length > 0 || !transcript.trim() || answer) return;
+    let cancelled = false;
+    api
+      .ask({ sessionId, schemeId: null, question: transcript, language })
+      .then((result) => {
+        // Only when it is grounded in a document. An ungrounded answer here
+        // would be the model talking about a scheme it has not read.
+        if (!cancelled && (result.citations?.length ?? 0) > 0) setAnswer(result);
+      })
+      .catch(() => {
+        /* No answer is the same as no skills: the empty state stands. */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [loading, skills.length, transcript, sessionId, language, answer]);
 
   const push = useCallback(
     async (edits: SkillEdit[]) => {
@@ -181,7 +209,52 @@ export default function UnderstandingPage() {
         </button>
       )}
 
-      {!loading && skills.length === 0 ? (
+      {!loading && skills.length === 0 && answer ? (
+        <div className="flex flex-col gap-5">
+          <div>
+            <h2 className="vp-display text-[clamp(1.375rem,2.4vw,1.75rem)]" lang={language}>
+              {copy.answeredQuestion}
+            </h2>
+            <p
+              className="mt-3 max-w-[44em] text-[15.5px] leading-relaxed"
+              style={{ color: "var(--ink-70)" }}
+              lang={language}
+            >
+              {answer.answer_text}
+            </p>
+          </div>
+
+          <ul className="flex max-w-[44em] flex-col gap-1.5">
+            {(answer.citations ?? []).map((citation, index) => (
+              <li
+                key={`${citation.source}-${index}`}
+                className="rounded-lg px-3 py-2 text-[12px] leading-relaxed"
+                style={{ background: "var(--ink-04)", color: "var(--ink-55)" }}
+              >
+                <span className="font-mono text-[11px]" style={{ color: "var(--ink-45)" }}>
+                  {citation.document_title}
+                  {citation.heading ? ` · ${citation.heading}` : ""}
+                </span>
+                <span className="mt-1 block">&ldquo;{citation.excerpt}&rdquo;</span>
+              </li>
+            ))}
+          </ul>
+
+          <div className="flex flex-col items-start gap-3">
+            <p className="text-[14px]" style={{ color: "var(--ink-55)" }} lang={language}>
+              {copy.askedNotTold}
+            </p>
+            <button
+              type="button"
+              onClick={() => router.push("/speak")}
+              className="vp-pill vp-pill-primary"
+              lang={language}
+            >
+              {copy.resay}
+            </button>
+          </div>
+        </div>
+      ) : !loading && skills.length === 0 ? (
         <EmptyState
           title={copy.nothingHeard}
           body={copy.nothingHeardSub}
