@@ -151,13 +151,28 @@ def _is_prose(text: str) -> bool:
     question. Retrieval has no way to tell it is noise; the cheapest place to
     exclude it is here.
 
-    The test is the share of characters that are letters. Real sentences run
-    well above 70% in every script we handle; a table of figures falls far
-    below it.
+    Two tests, because they catch different things.
+
+    The share of characters that are letters rejects a table of figures: real
+    sentences run well above 70% in every script we handle.
+
+    Sentence length rejects a navigation menu, which the first test passes
+    easily -- "Screen Reader Access", "About Us", "Contact" are all letters.
+    What they are not is sentences. A page of links averages a few words per
+    line; prose runs much longer, in any of our three languages.
     """
     stripped = text.strip()
     if len(stripped) < 80:
         return False
+
+    lines = [line.strip() for line in stripped.split("\n") if line.strip()]
+    if lines:
+        words_per_line = sum(len(line.split()) for line in lines) / len(lines)
+        # Measured against ingested portal pages: menus sit at two to four
+        # words a line, the prose on the same pages at fifteen and up.
+        if words_per_line < 6:
+            return False
+
     letters = sum(1 for ch in stripped if ch.isalpha())
     return letters / len(stripped) >= 0.65
 
@@ -218,8 +233,19 @@ async def ingest(
     # Documents are embedded as passages, questions as queries. e5 is trained
     # with both prefixes and loses accuracy without them; embed_documents
     # applies the passage prefix for us.
+    #
+    # What is embedded carries the document's title and the chunk's heading;
+    # what is stored and quoted does not. A passage reading "Skill Verification
+    # followed by 5-7 days Basic Training. Stipend Rs 500 per day" is exactly
+    # the answer to "what training does PM Vishwakarma give" and contains none
+    # of those words, because the scheme is named in the page's opening rather
+    # than in every paragraph. Embedded bare it is unreachable by its own name.
     vectors = await asyncio.to_thread(
-        embeddings.embed_documents, [c.content for c in chunks]
+        embeddings.embed_documents,
+        [
+            " | ".join(part for part in (title, chunk.heading, chunk.content) if part)
+            for chunk in chunks
+        ],
     )
 
     settings = get_settings()

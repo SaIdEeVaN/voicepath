@@ -244,6 +244,54 @@ _NOT_A_PAGE = (
 )
 
 
+# Interface furniture. Every government portal carries it, it survives both
+# HTML and markdown cleaning, and it reads as prose to anything counting words.
+_CHROME = (
+    "screen reader access", "skip to main content", "font size",
+    "decrease font size", "increase font size", "default font size",
+    "clear browser cache", "refresh the page", "try another browser",
+    "javascript:void", "toggle navigation", "back to top",
+    "terms and conditions", "privacy policy", "site map", "sitemap",
+    "last updated on", "visitor counter", "hyperlink policy",
+)
+
+
+def clean_markdown(text: str) -> str:
+    """Strip markdown to readable prose.
+
+    The search provider returns markdown, not HTML, so the tag stripper below
+    never saw it: image syntax, link syntax and navigation lists went into the
+    corpus untouched and came back as citations reading "Clear Browser Cache"
+    and a table of calendar dates.
+    """
+    import re
+
+    # Images carry no prose, and their alt text is usually a logo filename.
+    text = re.sub(r"!\[[^\]]*\]\([^)]*\)", " ", text)
+    # Links keep their words and lose the address. An address is not content,
+    # and a passage full of them embeds to nothing useful.
+    text = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"", text)
+    text = re.sub(r"https?://\S+", " ", text)
+    # Heading and emphasis markers.
+    text = re.sub(r"(?m)^#{1,6}\s*", "", text)
+    text = re.sub(r"[*_]{1,3}(?=\S)", "", text)
+    # A row of pipes is a layout grid, not a sentence.
+    text = re.sub(r"(?m)^\s*\|.*\|\s*$", " ", text)
+    text = re.sub(r"(?m)^\s*[-:|\s]{6,}$", " ", text)
+
+    kept = []
+    for line in text.split(chr(10)):
+        stripped = line.strip(" 	*-•").strip()
+        if not stripped:
+            kept.append("")
+            continue
+        if any(phrase in stripped.lower() for phrase in _CHROME):
+            continue
+        kept.append(stripped)
+
+    return re.sub(r"\n{3,}", "\n\n", "\n".join(kept)).strip()
+
+
 def looks_rendered(text: str) -> bool:
     """Is this the page, or the shell a browser would have filled in?
 
@@ -317,7 +365,7 @@ async def search_and_ingest(query: str, *, limit: int = 3) -> list[dict]:
         # Prefer what the provider extracted: their crawler renders the page,
         # ours does not. Fetching ourselves is the fallback for a result that
         # arrived without it.
-        text = result.raw_content
+        text = clean_markdown(result.raw_content)
         if not looks_rendered(text):
             try:
                 text = await fetch_page(result.url)
