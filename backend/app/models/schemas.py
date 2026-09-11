@@ -205,6 +205,32 @@ class MatchResult(Base):
     skill_evidence: bool = False
 
 
+class AddSkillRequest(Base):
+    """Text someone typed on the understanding screen."""
+
+    session_id: UUID
+    text: str = Field(min_length=1, max_length=300)
+    language: str = "auto"
+
+
+class AddSkillResponse(Base):
+    """What that text turned out to be.
+
+    Three outcomes rather than two, because a question is neither work nor
+    nonsense. Refusing "who is eligible for PM-AJAY" for not being a trade
+    would be wrong, so it is handed back for the assistant to answer.
+    """
+
+    accepted: bool
+    kind: Literal["work", "question", "neither"]
+    # The full stored list when work was found, so the screen can replace what
+    # it holds rather than merge and risk duplicating.
+    skills: list[ExtractedSkill] = Field(default_factory=list)
+    # Present when the text was a question, in the person's own words.
+    question: str | None = None
+    provider: str = "offline"
+
+
 class MatchRequest(Base):
     session_id: UUID | None = None
     # Lets a caller match without a stored session (tests, admin previews).

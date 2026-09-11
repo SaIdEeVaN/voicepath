@@ -178,3 +178,12 @@ export interface HealthResponse {
   degraded: string[];
   database: Record<string, unknown>;
 }
+
+/** What typed text on the understanding screen turned out to be. */
+export interface AddSkillResponse {
+  accepted: boolean;
+  kind: "work" | "question" | "neither";
+  skills: ExtractedSkill[];
+  question: string | null;
+  provider: string;
+}

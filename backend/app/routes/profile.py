@@ -8,7 +8,14 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.models import schemas
-from app.services import extraction, normalization, pipeline, repository, taxonomy
+from app.services import (
+    extraction,
+    intent,
+    normalization,
+    pipeline,
+    repository,
+    taxonomy,
+)
 from app.services.ratelimit import default_limit
 
 logger = logging.getLogger(__name__)
@@ -179,6 +186,102 @@ async def normalize(payload: schemas.NormalizeRequest) -> schemas.NormalizeRespo
         session_id=None,
         skills=pipeline.normalized_to_schema(normalized),
         provider=normalization.provider_name(),
+    )
+
+
+@router.post(
+    "/skills",
+    response_model=schemas.AddSkillResponse,
+    dependencies=[Depends(default_limit)],
+)
+async def add_typed_skill(payload: schemas.AddSkillRequest) -> schemas.AddSkillResponse:
+    """Work someone typed rather than said, held to the same rules.
+
+    The landing page states the principle: typing "joins the pipeline at
+    exactly the point speech does: the transcript". The first version of the
+    understanding screen's text box did not. It sent the words straight to
+    normalization, which answers a different question -- *which taxonomy node
+    is this nearest?* -- and e5 answers that for anything at all. Measured,
+    "desire doue or ousmane dembele ?" scored 0.7528, "who is the prime
+    minister" 0.7568 and "asdfghjkl" 0.7795, all over the 0.60 candidate
+    threshold, so each became an uncertain skill card rather than nothing.
+
+    Classification decides first, which is the same step that routes a spoken
+    utterance, and it has three answers rather than two:
+
+    * **work** -- extracted exactly as from speech, so every skill still
+      carries evidence quoted from what the person wrote, and ``_validate``
+      still drops anything it cannot find there.
+    * **a question** -- not work, but not nonsense either. Handed back for the
+      assistant to answer rather than refused.
+    * **neither** -- refused, and nothing is stored.
+
+    Extraction is the arbiter for the work case rather than classification
+    alone: it reads the text and returns no skills for football players, which
+    is the judgement normalization cannot make.
+    """
+    text = (payload.text or "").strip()
+    if not text:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Nothing was typed.",
+        )
+
+    session = await repository.get_session(payload.session_id)
+    if session is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="That session was not found."
+        )
+
+    language = payload.language
+    if language == "auto" and session.language_detected:
+        language = session.language_detected
+
+    result = await extraction.extract(text, language=language)
+
+    if not result.skills:
+        # No work in it. A question is still worth answering, so ask what this
+        # was before refusing it outright.
+        classified = await intent.classify(text)
+        if classified.asks_question:
+            return schemas.AddSkillResponse(
+                accepted=False,
+                kind="question",
+                question=classified.question or text,
+                provider=classified.provider,
+            )
+        return schemas.AddSkillResponse(
+            accepted=False, kind="neither", provider=result.provider
+        )
+
+    profile = await repository.get_profile(payload.session_id)
+    if profile is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Nothing has been understood for this session yet.",
+        )
+
+    # Re-normalize the whole list. replace_skills replaces wholesale, so the
+    # stored skills have to be carried back in or adding one would drop the
+    # rest -- and they are re-normalized anyway, which is harmless and keeps
+    # one code path.
+    rows = await repository.get_skills(payload.session_id)
+    combined = [(r.raw_name, r.evidence_phrase) for r in rows]
+    combined += [(s.raw_name, s.evidence_phrase) for s in result.skills]
+
+    normalized = await normalization.normalize_many(combined)
+    stored = await repository.replace_skills(
+        profile.id, normalized, session_id=payload.session_id
+    )
+    lookup = await taxonomy.get_by_ids(
+        [s.normalized_skill_id for s in stored if s.normalized_skill_id]
+    )
+
+    return schemas.AddSkillResponse(
+        accepted=True,
+        kind="work",
+        skills=pipeline.skill_rows_to_schema(stored, lookup),
+        provider=result.provider,
     )
 
 
