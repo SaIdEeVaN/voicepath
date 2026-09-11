@@ -3,7 +3,7 @@
 > **This file is the live todo list.** It is updated every time a task is completed.
 > Start at **To-do** — that is the working checklist. **Next up** carries the
 > detail behind the top items; everything below it is the record of the build.
-> Last updated: 2026-09-12 (db/008 drops the opportunities views; advisor clean)
+> Last updated: 2026-09-12 (admin gate says when it is unconfigured; 238 tests)
 
 **Project root:** `C:\Users\Sai Dixit\voicepath`
 **Sources:** `PRD_File_For_Project.md` (spec) · `VoicePath Mockups.html` (design canvas, unpacked)
@@ -175,7 +175,7 @@ Four approaches, in order of effort:
 | 2. Backend core (config, db, providers) | ✅ Done |
 | 3. Backend pipeline (extract → normalize → match → explain) | ✅ Done |
 | 4. Backend routes + rate limiting | ✅ Done |
-| 5. Backend tests | ✅ Done — **231 passing**, 7 skipped |
+| 5. Backend tests | ✅ Done — **238 passing**, 7 skipped |
 | 6. Frontend scaffold + design tokens | ✅ Done |
 | 7. Frontend screens | ✅ Done — all 8 |
 | 8. Admin (Phase 2) | ✅ Done |
@@ -276,8 +276,8 @@ backend/
       fetch_voices.py        Piper voices for ta/hi/en (~190MB)
       ingest_documents.py    PDF/text -> chunks -> embeddings
       migrate.py
-  tests/                     238, fully offline -- no keys, network or database.
-                             231 pass; 7 skip without one (intent topic check)
+  tests/                     245, fully offline -- no keys, network or database.
+                             238 pass; 7 skip without one (intent topic check)
   data/scheme_docs/          Source PDFs, committed (~2.1MB): PM-AJAY
                              and PMAGY guidelines, TN Sigaram Thodu EOI.
                              Public documents, kept so retrieval is reproducible
@@ -343,7 +343,7 @@ frontend/
 - [x] `/api/admin/*` — server-side role check, sha256 tokens, bootstrap that self-disables
 - [x] Rate limiting on public routes · `GET /health` reporting every provider honestly
 
-### Phase 5 — Backend tests ✅ (231 passing, 7 skipped)
+### Phase 5 — Backend tests ✅ (238 passing, 7 skipped)
 - [x] `test_matching.py` — weights, determinism, each component, grounding
 - [x] `test_extraction.py` — evidence grounding in ta/hi/en, invention rejected
 - [x] `test_normalization.py` — alias matching across scripts, no silent upgrades
@@ -357,6 +357,7 @@ frontend/
 - [x] `test_official_url.py` — the assistant quotes the stored URL or says there is none
 - [x] `test_assistant_routing.py` — retrieval cannot reach matching
 - [x] `test_language_switching.py` — a stored match re-reads in any language, scores unmoved
+- [x] `test_admin_gate_messages.py` — unconfigured is 503; a wrong token never reveals how the deployment is set up
 
 ### Phase 6 — Frontend scaffold ✅
 - [x] Next 16.3.4, React 19, TS strict, Tailwind v4
@@ -378,7 +379,7 @@ frontend/
 - [x] `/admin/schemes`, `/admin/taxonomy`, `/admin/sessions` (read-only, no transcripts)
 
 ### Phase 9 — Verification ✅
-- [x] `pytest` — 231 passed, 7 skipped (the 7 need a database)
+- [x] `pytest` — 238 passed, 7 skipped (the 7 need a database)
 - [x] `npx tsc --noEmit` — clean
 - [x] `next build` — 12 routes
 - [x] Both servers running; RSC detail page pulling live backend data
@@ -504,6 +505,42 @@ discards every response and the failure is indistinguishable from a dead server.
   eslint is not a dependency.
 - **Rate limiting is per-process.** Multiplies behind multiple instances; move
   the counter to Redis before scaling.
+
+---
+
+## Fixed on 2026-09-12 — the admin gate now says when it cannot authorise anyone
+
+`"Not authorised."` answered three different situations, and one of them is not
+an authorisation failure:
+
+1. a wrong token, when real admins are provisioned
+2. a wrong token, when only a bootstrap token is configured
+3. no admin users *and* no bootstrap token — **the server cannot accept any
+   token from anyone**
+
+(3) is a configuration fault wearing an authorisation error's clothes, and it
+is expensive: an operator types correct-looking tokens into `/admin/schemes`
+and nothing on screen can tell them the server was never able to accept one.
+It answers **503** now, naming both `ADMIN_BOOTSTRAP_TOKEN` and `admin_users`,
+which matches how `_require_database` already reports "admin needs something
+this deployment has not been given".
+
+**(1) and (2) stay byte-identical to each other**, and a test asserts the
+refusal leaks none of `bootstrap`, `admin_users`, `provision` or `no admins`.
+Telling them apart would reveal whether admins have been provisioned, which is
+a fact about the deployment an unauthenticated caller has no business learning.
+The distinction added here is *configured vs not*, never *provisioned vs not*.
+
+Found on the way, and fixed with it: **the suite was reading the real
+bootstrap token out of `backend/.env`** — the same leak already fixed for
+`DATABASE_URL`, and for the same reason, since Settings reads the file as well
+as the environment. The admin gate was therefore tested one way on a machine
+with a `.env` and another way on CI. `conftest.py` pins an obviously-fake
+value, which is also what makes "wrong token" and "not configured" two
+reproducible states rather than an accident of the developer's filesystem.
+
+No frontend change: both `AdminTable` and `/admin/schemes` already render the
+response's `detail`, so the new sentence reaches the screen as written.
 
 ---
 

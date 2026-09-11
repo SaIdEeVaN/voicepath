@@ -37,6 +37,13 @@ os.environ.update(
 # as unset.
 os.environ["DATABASE_URL"] = ""
 os.environ["LLM_API_KEY"] = ""
+# Same reasoning, and the same trap: Settings reads `.env`, so without pinning
+# this the admin tests run against whatever bootstrap token the developer has
+# configured -- a real production credential on a machine that has one, and
+# nothing at all on CI. The gate would then be tested differently in the two
+# places. A fixed, obviously-fake value makes "wrong token" and "no token
+# configured" two distinct, reproducible states.
+os.environ["ADMIN_BOOTSTRAP_TOKEN"] = "test-bootstrap-token-not-a-real-one"
 
 from app.config import reload_settings  # noqa: E402
 from app.services import schemes, ratelimit, repository, taxonomy  # noqa: E402
