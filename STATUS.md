@@ -3,7 +3,7 @@
 > **This file is the live todo list.** It is updated every time a task is completed.
 > Start at **To-do** — that is the working checklist. **Next up** carries the
 > detail behind the top items; everything below it is the record of the build.
-> Last updated: 2026-09-12 (corpus named and reconciled: 21 docs, 1096 passages)
+> Last updated: 2026-09-12 (understanding takes typed skills; 273 tests passing)
 
 **Project root:** `C:\Users\Sai Dixit\voicepath`
 **Sources:** `PRD_File_For_Project.md` (spec) · `VoicePath Mockups.html` (design canvas, unpacked)
@@ -184,7 +184,7 @@ Four approaches, in order of effort:
 | 2. Backend core (config, db, providers) | ✅ Done |
 | 3. Backend pipeline (extract → normalize → match → explain) | ✅ Done |
 | 4. Backend routes + rate limiting | ✅ Done |
-| 5. Backend tests | ✅ Done — **268 passing**, 7 skipped |
+| 5. Backend tests | ✅ Done — **273 passing**, 7 skipped |
 | 6. Frontend scaffold + design tokens | ✅ Done |
 | 7. Frontend screens | ✅ Done — all 8 |
 | 8. Admin (Phase 2) | ✅ Done |
@@ -285,8 +285,8 @@ backend/
       fetch_voices.py        Piper voices for ta/hi/en (~190MB)
       ingest_documents.py    PDF/text -> chunks -> embeddings
       migrate.py
-  tests/                     275, fully offline -- no keys, network or database.
-                             268 pass; 7 skip without one (intent topic check)
+  tests/                     280, fully offline -- no keys, network or database.
+                             273 pass; 7 skip without one (intent topic check)
   data/scheme_docs/          Source PDFs, committed (~28MB): 20 central and
                              state scheme documents -- PM-AJAY, PMAGY, PM SETU,
                              PMGSY, NHDP (handicrafts and handloom), NLM, NULM,
@@ -357,7 +357,7 @@ frontend/
 - [x] `/api/admin/*` — server-side role check, sha256 tokens, bootstrap that self-disables
 - [x] Rate limiting on public routes · `GET /health` reporting every provider honestly
 
-### Phase 5 — Backend tests ✅ (268 passing, 7 skipped)
+### Phase 5 — Backend tests ✅ (273 passing, 7 skipped)
 - [x] `test_matching.py` — weights, determinism, each component, grounding
 - [x] `test_extraction.py` — evidence grounding in ta/hi/en, invention rejected
 - [x] `test_normalization.py` — alias matching across scripts, no silent upgrades
@@ -376,6 +376,7 @@ frontend/
 - [x] `test_matching_relevance.py` — a mismatch scores low, and a skill-less scheme cannot top the list
 - [x] `test_chunk_quality.py` — card-layout prose survives; contents pages and score tables do not
 - [x] `test_scheme_qa_refusal.py` — a failed model refuses instead of asserting a passage
+- [x] `test_typed_skill.py` — a typed skill is accepted, and still normalized like any other
 
 ### Phase 6 — Frontend scaffold ✅
 - [x] Next 16.3.4, React 19, TS strict, Tailwind v4
@@ -397,7 +398,7 @@ frontend/
 - [x] `/admin/schemes`, `/admin/taxonomy`, `/admin/sessions` (read-only, no transcripts)
 
 ### Phase 9 — Verification ✅
-- [x] `pytest` — 268 passed, 7 skipped (the 7 need a database)
+- [x] `pytest` — 273 passed, 7 skipped (the 7 need a database)
 - [x] `npx tsc --noEmit` — clean
 - [x] `next build` — 12 routes
 - [x] Both servers running; RSC detail page pulling live backend data
@@ -523,6 +524,41 @@ discards every response and the failure is indistinguishable from a dead server.
   eslint is not a dependency.
 - **Rate limiting is per-process.** Multiplies behind multiple instances; move
   the counter to Redis before scaling.
+
+---
+
+## Done on 2026-09-12 — the understanding screen takes typed skills
+
+Every route into this product ended at the microphone. `/understanding` offered
+*"say something more"* beside the cards and *"say it again"* when nothing was
+found, and both went to `/speak`. Someone in a noisy room, on a shared phone,
+or whose trade had just been misheard had nothing else to try — and being
+misheard is exactly the known weakness, since Whisper mishears English
+loanwords inside Tamil.
+
+A text field now sits in both places: under the cards when skills were found,
+and beneath the empty state when none were. The empty state is the one that
+matters most — speech has already failed for that person once, and offering
+only the microphone again is the least useful thing the screen can do.
+
+**The microphone keeps its place first**, here as on the landing page. Typing
+is the second way in, not a replacement and not a lesser one.
+
+**What the person types is the evidence.** Every card shows back the words that
+produced it, and for a typed skill those are the words they typed — not a quote
+lifted from the spoken transcript, which would attribute the wrong thing to
+them. This is the rule the landing page already follows, where typing "joins
+the pipeline at exactly the point speech does: the transcript".
+
+**Typing is a way in, not a way around.** A typed skill is normalized like any
+other: exact alias, then embedding, then the disambiguation screen when it is
+not clear enough. `tests/test_typed_skill.py` pins both halves — that a skill
+carrying no id is accepted and does not displace the ones already there, and
+that "asdfghjkl" typed in resolves to no taxonomy skill at all.
+
+No backend change was needed. `/api/profile/normalize` already took a full
+corrected list and already treated `id` as optional; the interface simply never
+used it.
 
 ---
 
