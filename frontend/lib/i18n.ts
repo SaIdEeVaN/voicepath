@@ -34,6 +34,17 @@ export interface Copy {
   weHeardSub: string;
   confirm: string;
   addMore: string;
+  /**
+   * Adding a skill by typing it, on the understanding screen.
+   *
+   * The mic stays first there, as on the landing page -- it asks least of
+   * someone who cannot comfortably type. But every way of adding a skill
+   * used to go back through the microphone, which leaves anyone in a noisy
+   * room, or whose speech was misheard twice, with nothing else to try.
+   */
+  addByTyping: string;
+  addSkillPlaceholder: string;
+  addSkillSubmit: string;
   youSaid: string;
   notSure: string;
   edit: string;
@@ -126,6 +137,9 @@ const en: Copy = {
     "Change anything that is wrong. Every line shows the words you actually said.",
   confirm: "This is right",
   addMore: "Say something more",
+  addByTyping: "Or type the work you do",
+  addSkillPlaceholder: "carpentry",
+  addSkillSubmit: "Add",
   youSaid: "YOU SAID",
   notSure: "I am not fully sure about this one",
   edit: "Edit",
@@ -226,6 +240,9 @@ const ta: Copy = {
     "தவறு இருந்தால் மாற்றுங்கள். ஒவ்வொரு வரியிலும் நீங்கள் சொன்ன வார்த்தைகள் இருக்கும்.",
   confirm: "இது சரி",
   addMore: "இன்னும் சொல்லுங்கள்",
+  addByTyping: "அல்லது நீங்கள் செய்யும் வேலையைத் தட்டச்சு செய்யுங்கள்",
+  addSkillPlaceholder: "தச்சு வேலை",
+  addSkillSubmit: "சேர்",
   youSaid: "நீங்கள் சொன்னது",
   notSure: "இதில் எனக்கு முழு உறுதி இல்லை",
   edit: "மாற்று",
@@ -323,6 +340,9 @@ const hi: Copy = {
   weHeardSub: "जो गलत है उसे बदल दीजिए। हर पंक्ति में आपके ही कहे शब्द दिख रहे हैं।",
   confirm: "यह सही है",
   addMore: "कुछ और बताइए",
+  addByTyping: "या जो काम आप करते हैं वह लिखिए",
+  addSkillPlaceholder: "बढ़ईगीरी",
+  addSkillSubmit: "जोड़ें",
   youSaid: "आपने कहा",
   notSure: "इस बारे में मुझे पूरा भरोसा नहीं है",
   edit: "बदलें",

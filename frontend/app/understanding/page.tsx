@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 
 import { DegradedNote, ErrorNote } from "@/components/Notices";
 import { MicIcon } from "@/components/MicIcon";
+import { AddSkillByTyping } from "@/components/AddSkillByTyping";
 import { SkillCard } from "@/components/SkillCard";
 import { ApiError, api } from "@/lib/api";
 import { copyFor } from "@/lib/i18n";
@@ -159,6 +160,24 @@ export default function UnderstandingPage() {
       chosen_skill_id: skill.user_confirmed ? skill.normalized_skill_id : null,
     }));
 
+  /**
+   * A skill the person typed rather than spoke.
+   *
+   * It joins the list as any other does, and goes through the same
+   * normalization: exact alias, then embedding, then the disambiguation screen
+   * if it is not clear enough. Nothing is accepted just because it was typed.
+   *
+   * The typed words are the evidence. Every card shows the words that produced
+   * it, and for this one that is what they wrote -- the same rule the landing
+   * page follows when someone types instead of speaking.
+   */
+  const addTyped = (text: string) => {
+    void push([
+      ...asEdits(),
+      { raw_name: text, evidence_phrase: text, chosen_skill_id: null },
+    ]);
+  };
+
   const rename = (index: number, name: string) => {
     const edits = asEdits();
     const target = edits[index];
@@ -295,12 +314,22 @@ export default function UnderstandingPage() {
       )}
 
       {!loading && skills.length === 0 && !answer ? (
-        <EmptyState
-          title={copy.nothingHeard}
-          body={copy.nothingHeardSub}
-          action={copy.resay}
-          onAction={() => router.push("/speak")}
-        />
+        <div className="flex flex-col items-center gap-7">
+          <EmptyState
+            title={copy.nothingHeard}
+            body={copy.nothingHeardSub}
+            action={copy.resay}
+            onAction={() => router.push("/speak")}
+          />
+          {/* Speech already failed to find anything for this person once.
+              Offering only the microphone again is the least useful thing the
+              screen can do. */}
+          <AddSkillByTyping
+            language={language}
+            busy={busy}
+            onAdd={addTyped}
+          />
+        </div>
       ) : skills.length === 0 ? null : (
 
         <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fill,minmax(310px,1fr))]">
@@ -327,6 +356,14 @@ export default function UnderstandingPage() {
               {copy.addMore}
             </span>
           </button>
+        </div>
+      )}
+
+      {/* Typing sits under the cards rather than among them: the mic keeps its
+          place as the first thing offered, and this is the second way. */}
+      {!loading && skills.length > 0 && (
+        <div className="mt-7 flex justify-center">
+          <AddSkillByTyping language={language} busy={busy} onAdd={addTyped} />
         </div>
       )}
     </section>
