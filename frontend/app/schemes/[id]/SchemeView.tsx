@@ -17,7 +17,7 @@ import { useRouter } from "next/navigation";
 import { AskVoicePath } from "@/components/AskVoicePath";
 import { ErrorNote } from "@/components/Notices";
 import { ApiError, api } from "@/lib/api";
-import { copyFor } from "@/lib/i18n";
+import { copyFor, payLabel, typeLabel } from "@/lib/i18n";
 import { useSession } from "@/lib/session";
 import type { MatchResult, SchemeDetail } from "@/lib/types";
 
@@ -27,7 +27,7 @@ export function SchemeView({
   scheme: SchemeDetail;
 }) {
   const router = useRouter();
-  const { language, sessionId, matches } = useSession();
+  const { language, sessionId, matches, matchesLanguage } = useSession();
   const copy = copyFor(language);
 
   const [match, setMatch] = useState<MatchResult | null>(null);
@@ -43,17 +43,25 @@ export function SchemeView({
   useEffect(() => {
     if (!hydrated || !sessionId) return;
 
-    const known = matches.find((m) => m.scheme.id === scheme.id);
+    // Only usable if it was explained in the language now being read. The
+    // context holds whatever /schemes last fetched, which is not necessarily
+    // this one -- switching language on this screen is exactly the case that
+    // used to leave English reasons under a Tamil interface.
+    const known =
+      matchesLanguage === language
+        ? matches.find((m) => m.scheme.id === scheme.id)
+        : undefined;
     if (known) {
       setMatch(known);
       return;
     }
 
     // Read the stored match rather than re-scoring, so the numbers shown are
-    // the ones that were computed and persisted for this session.
+    // the ones that were computed and persisted for this session. The language
+    // rewrites the sentences only; the scores come back untouched.
     let cancelled = false;
     api
-      .storedMatch(scheme.id, sessionId)
+      .storedMatch(scheme.id, sessionId, language)
       .then((result) => !cancelled && setMatch(result))
       .catch((cause: unknown) => {
         // A 404 just means this scheme was outside the top results.
@@ -65,7 +73,7 @@ export function SchemeView({
     return () => {
       cancelled = true;
     };
-  }, [hydrated, sessionId, matches, scheme.id]);
+  }, [hydrated, sessionId, matches, matchesLanguage, scheme.id, language]);
 
   const bars = match
     ? [
@@ -78,14 +86,12 @@ export function SchemeView({
       ]
     : [];
 
+  // "up to ₹8,000" was an English literal sitting inside an otherwise
+  // Tamil page. The shared helper writes it the way each language does.
   const pay =
-    scheme.salary_min && scheme.salary_max
-      ? scheme.salary_min === scheme.salary_max
-        ? `₹${scheme.salary_min.toLocaleString("en-IN")}`
-        : `₹${scheme.salary_min.toLocaleString("en-IN")}–${scheme.salary_max.toLocaleString("en-IN")}`
-      : scheme.salary_max
-        ? `up to ₹${scheme.salary_max.toLocaleString("en-IN")}`
-        : null;
+    scheme.salary_min || scheme.salary_max
+      ? payLabel(scheme.salary_min, scheme.salary_max, language)
+      : null;
 
   return (
     <section className="mx-auto w-full max-w-[1080px] flex-1 px-[7vw] py-[clamp(2rem,5vw,3.5rem)] pb-20">
@@ -106,9 +112,11 @@ export function SchemeView({
             {scheme.title}
           </h1>
           <p className="mt-3 text-[15px]" style={{ color: "var(--ink-62)" }}>
-            {[scheme.organization, scheme.location, scheme.type].join(
-              " · ",
-            )}
+            {[
+              scheme.organization,
+              scheme.location,
+              typeLabel(scheme.type, language),
+            ].join(" · ")}
           </p>
 
           <div

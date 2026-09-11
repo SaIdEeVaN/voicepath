@@ -59,7 +59,7 @@ export default function PassportPage() {
       const updated = await api.setAudioRetention(sessionId, next);
       setAudioRetained(updated.audio_retained);
     } catch (cause) {
-      setError(cause instanceof ApiError ? cause.message : "Something went wrong.");
+      setError(cause instanceof ApiError ? cause.message : copy.somethingWentWrong);
     } finally {
       setBusy(false);
     }

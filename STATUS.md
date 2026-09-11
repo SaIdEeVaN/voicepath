@@ -1,10 +1,83 @@
 # VoicePath — Build Status
 
 > **This file is the live todo list.** It is updated every time a task is completed.
-> Last updated: 2026-09-11 (RAG answering; see **Next up**)
+> Start at **To-do** — that is the working checklist. **Next up** carries the
+> detail behind the top items; everything below it is the record of the build.
+> Last updated: 2026-09-11 (language switching fixed; 231 tests passing)
 
 **Project root:** `C:\Users\Sai Dixit\voicepath`
 **Sources:** `PRD_File_For_Project.md` (spec) · `VoicePath Mockups.html` (design canvas, unpacked)
+
+---
+
+## To-do
+
+> **This checklist is the live task list, kept current from 2026-09-11 onward.**
+> Tick an item the moment it is done and move its detail into a `Fixed on …`
+> section below. Add new items here as they are found, rather than in prose.
+> Completed work is not deleted from the file — it moves down, so the history
+> of what was built stays readable.
+
+### Now — correctness, and the largest spec gaps
+
+- [ ] **Tamil speech recognition.** Whisper mishears English loanwords inside
+      Tamil: "வெல்டிங்" (welding) → "வெள்ளி" (silver), and extraction then
+      reported *silver work*, correctly grounded in a transcript that was itself
+      wrong. Try constrained decoding over the 44 taxonomy terms first, then a
+      phonetic fallback in normalisation; route Tamil to AI4Bharat
+      IndicWav2Vec only if neither lands. Detail under **Next up → 4**.
+- [ ] **Jobs and Training as their own entities.** `voice_condensed.md` §12–§13
+      describe three data models; everything is a `scheme` with a `type` column,
+      so the All/Jobs/Schemes/Training filter has nothing to filter on. Touches
+      `db/` (two tables + migration), `models/schemas.py`, `services/`,
+      `routes/`, the admin dashboard and `matching.py` — the per-type scoring
+      weights are the part to think about. Half a day or more.
+
+### Next — cheap wins that make the build look finished
+
+- [ ] **Admin overview metrics** (§18). Totals per opportunity type, active and
+      expired counts, total users, searches today, popular skills, locations and
+      searches. Every figure is already in the database: a handful of aggregate
+      queries behind one admin endpoint, plus a stat row on
+      `app/admin/page.tsx`. About 90 minutes.
+- [ ] **Filters on the scheme list** (§17): location, skill, experience, type.
+      `services/schemes.py` already filters by district, so the query shape
+      exists; mostly `app/schemes/page.tsx` plus query parameters on the list
+      route. Do it after Jobs/Training — the type filter is most of the point.
+- [ ] **Place names render in English inside non-English sentences.** Matching
+      resolves them correctly across scripts; only the display label is
+      untranslated. The last known language leak, now that the rest are
+      closed -- see *Fixed on 2026-09-11*.
+- [ ] **An error already on screen does not follow a language switch.**
+      Failures are stored as rendered strings, so the sentence shown keeps
+      the language it was written in. Storing the cause and deriving the
+      message at render time would fix it, across six files' error paths.
+      Narrow and transient, which is why it was left rather than bundled
+      into the language fix.
+- [ ] **`npm run lint` does not exist.** `package.json` still points at
+      `next lint`, which Next 16 removed, and eslint is not a dependency. Either
+      add eslint properly or drop the script so it stops lying.
+
+### Later — scale, breadth and loose ends
+
+- [ ] **NER is built but unused.** `services/ner.py` tags PER/ORG/LOC and
+      degrades to `[]` safely, but nothing calls it and `transformers` is not in
+      the deploy set, so `/health` reports it offline. Wire it into extraction
+      or delete it — a built-and-unused service is the worst of both.
+- [ ] **Audio retention is three-quarters wired.** Opt-in, check constraint and
+      purge function exist; nothing uploads a clip, so the passport's "Play" has
+      nothing to play.
+- [ ] **Only 16 schemes, seeded.** data.gov.in publishes district catalogues
+      under GODL-India, and the schema plus admin importer already fit.
+- [ ] **Retrieval still cannot reach matching.**
+      `tests/test_assistant_routing.py` asserts the separation by reading
+      `matching.py`'s source rather than its imports, which is weaker than it
+      looks. Tighten the assertion.
+- [ ] **Rate limiting is per-process.** It multiplies behind multiple
+      instances; move the counter to Redis before scaling past one.
+- [ ] **Confirm `TAVILY_API_KEY` is set in the deployed environment.** Without
+      it the web-search widening silently does not run and the corpus answers
+      only what it holds — which is correct behaviour, but not the intended one.
 
 ---
 
@@ -77,7 +150,7 @@ Four approaches, in order of effort:
 | 2. Backend core (config, db, providers) | ✅ Done |
 | 3. Backend pipeline (extract → normalize → match → explain) | ✅ Done |
 | 4. Backend routes + rate limiting | ✅ Done |
-| 5. Backend tests | ✅ Done — **178 passing** |
+| 5. Backend tests | ✅ Done — **231 passing**, 7 skipped |
 | 6. Frontend scaffold + design tokens | ✅ Done |
 | 7. Frontend screens | ✅ Done — all 8 |
 | 8. Admin (Phase 2) | ✅ Done |
@@ -134,6 +207,8 @@ db/                        Apply in numeric order
   003_seed.sql               44 skills, 16 Salem/Erode schemes. Idempotent
   004_policies.sql           RLS: catalogues public-read, personal data closed
   005_documents.sql          scheme_documents, document_chunks, retrieval fn
+  006_schemes_rename.sql     opportunities -> schemes, in place. No row lost
+  007_match_language.sql     which language a stored explanation is in
 
 backend/
   Dockerfile                 For hosts that only take an image. Render uses the
@@ -149,7 +224,7 @@ backend/
     models/schemas.py        Request and response shapes
     prompts/text.py          All four prompts, reviewable on their own
     routes/                  Thin -- speech, profile, schemes, sessions,
-                             assistant, admin
+                             assistant, query, admin
     services/
       stt.py                 Whisper: groq | local | offline
       tts.py                 Piper, in-process. Falls back to the browser
@@ -165,13 +240,17 @@ backend/
       ner.py                 IndicNER entity spans. Built, nothing calls it
       retrieval.py           Chunking and hybrid dense + keyword search
       scheme_qa.py           Answers that cite a passage, or refuse
+      intent.py              Work, question, or both -- decides the route
+      websearch.py           Official sources when the corpus falls short.
+                             Consults no model, so it cannot invent a URL
       db.py, repository.py, schemes.py, pipeline.py, ratelimit.py
     scripts/
       embed_taxonomy.py      Taxonomy vectors. --all to recompute
       fetch_voices.py        Piper voices for ta/hi/en (~190MB)
       ingest_documents.py    PDF/text -> chunks -> embeddings
       migrate.py
-  tests/                     178, fully offline -- no keys, network or database
+  tests/                     238, fully offline -- no keys, network or database.
+                             231 pass; 7 skip without one (intent topic check)
   data/scheme_docs/          Source PDFs, committed (~2.1MB): PM-AJAY
                              and PMAGY guidelines, TN Sigaram Thodu EOI.
                              Public documents, kept so retrieval is reproducible
@@ -237,7 +316,7 @@ frontend/
 - [x] `/api/admin/*` — server-side role check, sha256 tokens, bootstrap that self-disables
 - [x] Rate limiting on public routes · `GET /health` reporting every provider honestly
 
-### Phase 5 — Backend tests ✅ (178 passing)
+### Phase 5 — Backend tests ✅ (231 passing, 7 skipped)
 - [x] `test_matching.py` — weights, determinism, each component, grounding
 - [x] `test_extraction.py` — evidence grounding in ta/hi/en, invention rejected
 - [x] `test_normalization.py` — alias matching across scripts, no silent upgrades
@@ -246,6 +325,11 @@ frontend/
 - [x] `test_localization.py` — every skill has ta/hi labels; sentences stay in one language
 - [x] `test_catalogue_sync.py` — SQL and Python catalogues cannot drift
 - [x] `test_api.py` — full pipeline, privacy invariants, admin gate
+- [x] `test_intent.py` — work / question / both, in three languages, and noise claiming nothing
+- [x] `test_websearch.py` — domain trust by scheme *and* host; URLs are never constructed
+- [x] `test_official_url.py` — the assistant quotes the stored URL or says there is none
+- [x] `test_assistant_routing.py` — retrieval cannot reach matching
+- [x] `test_language_switching.py` — a stored match re-reads in any language, scores unmoved
 
 ### Phase 6 — Frontend scaffold ✅
 - [x] Next 16.3.4, React 19, TS strict, Tailwind v4
@@ -267,7 +351,7 @@ frontend/
 - [x] `/admin/schemes`, `/admin/taxonomy`, `/admin/sessions` (read-only, no transcripts)
 
 ### Phase 9 — Verification ✅
-- [x] `pytest` — 178 passed
+- [x] `pytest` — 231 passed, 7 skipped (the 7 need a database)
 - [x] `npx tsc --noEmit` — clean
 - [x] `next build` — 12 routes
 - [x] Both servers running; RSC detail page pulling live backend data
@@ -393,6 +477,63 @@ discards every response and the failure is indistinguishable from a dead server.
   eslint is not a dependency.
 - **Rate limiting is per-process.** Multiplies behind multiple instances; move
   the counter to Redis before scaling.
+
+---
+
+## Fixed on 2026-09-11 — language switching
+
+Switching language left parts of a screen in the previous one. Five separate
+leaks, two root causes, found by tracing every source of text on screen rather
+than by patching the first one that showed.
+
+**Root cause 1: server-written prose was cached and never re-requested.**
+Static copy re-renders from a table the instant `language` changes. Explanations
+and retrieval answers are *prose the server wrote in one language*, and
+`setLanguage` only swapped a field. Exactly one screen compensated -- `/schemes`
+kept an `explainedIn` ref -- so everywhere else kept the old language.
+
+- **The stored explanation could not change language at all.** `matches` had no
+  column recording which language its prose was in, so nothing could tell the
+  text was stale, and `GET /{id}/match/{session}` had no way to ask for another.
+  `db/007` adds `explanation_language`, nullable on purpose: rows written before
+  it exist in an unknown language, and a null correctly forces a rewrite rather
+  than asserting something the code would then trust.
+- **Re-explaining does not re-score.** `_reexplain` rebuilds the grounding the
+  explanation layer needs -- it is derived, not stored -- then writes the stored
+  scores back over the recomputed ones before explaining. If the catalogue moved
+  since the match was persisted, the numbers stay the audited ones and only the
+  wording is new. An explanation has never been allowed to move a score, and
+  translating one must not become the exception.
+- **`explainedIn` was a local ref, so only its own screen benefited.** The
+  language now lives beside the matches in session state as `matchesLanguage`,
+  which is what lets the detail screen notice the same staleness.
+- **The retrieval answer on `/understanding` was pinned by a boolean.**
+  `asked.current` said "already asked" and so fixed the answer in the language
+  it was first asked in. It holds the language now, and a change re-asks.
+- **Past answers in Ask VoicePath are deliberately *not* re-translated.** A
+  conversation is a record, and silently rewriting what was already said is
+  worse than leaving it. But each line now carries the language it was written
+  in, because tagging Tamil prose `hi` picks the wrong font and makes a screen
+  reader mispronounce it.
+
+**Root cause 2: strings that never entered the i18n layer.** These were not
+stale; they were permanently English whatever was chosen.
+
+- `"Something went wrong."` was hardcoded in **10 places**, across every
+  user-facing screen -- an English sentence handed to a Tamil speaker at the one
+  moment they were already confused.
+- `payLabel` wrote `"up to ₹8,000"` inside otherwise Tamil rows.
+- **`typeLabel` already existed, fully translated into Tamil and Hindi, and was
+  called from one place out of four.** The scheme type rendered raw everywhere
+  else. Partial adoption of a working helper, which is why the symptom looked
+  arbitrary.
+- Taxonomy categories rendered raw on skill cards; `categoryLabel` now covers
+  all eleven.
+
+`tests/test_language_switching.py` pins it: the same stored match read in Tamil
+and in Hindi comes back in Tamil script and Devanagari, with the scores, the
+breakdown and the rank byte-identical to the English read. It failed on the
+first two assertions before the fix.
 
 ---
 

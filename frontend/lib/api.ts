@@ -155,9 +155,16 @@ export const api = {
   scheme: (id: number) =>
     request<SchemeDetail>(`/api/schemes/${id}`),
 
-  storedMatch: (id: number, sessionId: string) =>
+  /**
+   * The stored match, with its reasons written in the language being read.
+   *
+   * The scores come back untouched -- they are the audited numbers. Only the
+   * sentences are rewritten, and only when the stored ones are in another
+   * language.
+   */
+  storedMatch: (id: number, sessionId: string, language: Language) =>
     request<import("./types").MatchResult>(
-      `/api/schemes/${id}/match/${sessionId}`,
+      `/api/schemes/${id}/match/${sessionId}?language=${language}`,
     ),
 
   /** What was this person doing -- describing work, asking, or both. */

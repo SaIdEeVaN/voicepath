@@ -55,7 +55,7 @@ export default function LandingPage() {
       router.push("/understanding");
     } catch (cause) {
       setError(
-        cause instanceof ApiError ? cause.message : "Something went wrong.",
+        cause instanceof ApiError ? cause.message : copy.somethingWentWrong,
       );
       setSending(false);
     }

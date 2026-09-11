@@ -18,7 +18,7 @@ import { SkillCard } from "@/components/SkillCard";
 import { ApiError, api } from "@/lib/api";
 import { copyFor } from "@/lib/i18n";
 import { useSession } from "@/lib/session";
-import type { AssistantQueryResponse, SkillEdit } from "@/lib/types";
+import type { AssistantQueryResponse, Language, SkillEdit } from "@/lib/types";
 
 export default function UnderstandingPage() {
   const router = useRouter();
@@ -43,7 +43,12 @@ export default function UnderstandingPage() {
   // cleanup, which set cancelled -- and the answer was thrown away when it
   // arrived. The guard against asking twice was what stopped it answering
   // once. A ref changes nothing React watches.
-  const asked = useRef(false);
+  //
+  // It holds the language it last asked in, rather than a bare boolean.
+  // The answer is prose the server wrote in one language; a boolean said
+  // "already asked" and so pinned it there forever, leaving the previous
+  // language's answer sitting under a switched interface.
+  const askedIn = useRef<Language | null>(null);
 
   useEffect(() => setHydrated(true), []);
 
@@ -69,7 +74,7 @@ export default function UnderstandingPage() {
       .catch((cause: unknown) => {
         if (cancelled) return;
         setError(
-          cause instanceof ApiError ? cause.message : "Something went wrong.",
+          cause instanceof ApiError ? cause.message : copy.somethingWentWrong,
         );
       })
       .finally(() => {
@@ -98,8 +103,8 @@ export default function UnderstandingPage() {
    * scheme for welding", which is the true answer.
    */
   useEffect(() => {
-    if (!hydrated || !transcript.trim() || asked.current) return;
-    asked.current = true;
+    if (!hydrated || !transcript.trim() || askedIn.current === language) return;
+    askedIn.current = language;
 
     let cancelled = false;
     api
@@ -135,13 +140,15 @@ export default function UnderstandingPage() {
         setSkills(result.skills);
       } catch (cause) {
         setError(
-          cause instanceof ApiError ? cause.message : "Something went wrong.",
+          cause instanceof ApiError ? cause.message : copy.somethingWentWrong,
         );
       } finally {
         setBusy(false);
       }
     },
-    [sessionId, setSkills],
+    // copy is in here so a failure after a language switch is reported in
+    // the language now on screen, not the one the callback was built in.
+    [sessionId, setSkills, copy.somethingWentWrong],
   );
 
   const asEdits = (): SkillEdit[] =>

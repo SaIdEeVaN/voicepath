@@ -80,7 +80,7 @@ export default function SpeakPage() {
       } catch (cause) {
         setPhase("error");
         setError(
-          cause instanceof ApiError ? cause.message : "Something went wrong.",
+          cause instanceof ApiError ? cause.message : copy.somethingWentWrong,
         );
       }
     },
@@ -168,7 +168,7 @@ export default function SpeakPage() {
         }
         setPhase("error");
         setError(
-          cause instanceof ApiError ? cause.message : "Something went wrong.",
+          cause instanceof ApiError ? cause.message : copy.somethingWentWrong,
         );
       }
       return;

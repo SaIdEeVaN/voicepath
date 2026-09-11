@@ -12,20 +12,21 @@
  * than a wall telling them to go back and record something.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 
 import { DegradedNote, ErrorNote } from "@/components/Notices";
 import { MatchRing } from "@/components/MatchRing";
 import { ApiError, api } from "@/lib/api";
-import { copyFor, typeLabel } from "@/lib/i18n";
+import { copyFor, payLabel, typeLabel } from "@/lib/i18n";
 import { useSession } from "@/lib/session";
 import type { Language, MatchResult, SchemeSummary } from "@/lib/types";
 
 export default function SchemesPage() {
   const router = useRouter();
-  const { language, sessionId, skills, matches, setMatches } = useSession();
+  const { language, sessionId, skills, matches, matchesLanguage, setMatches } =
+    useSession();
   const copy = copyFor(language);
 
   const [browse, setBrowse] = useState<SchemeSummary[] | null>(null);
@@ -35,11 +36,6 @@ export default function SchemesPage() {
   const reduceMotion = useReducedMotion();
 
   useEffect(() => setHydrated(true), []);
-
-  // Which language the matches on screen were explained in. Explanations are
-  // generated per request, so switching language has to re-ask the server --
-  // a re-render cannot translate a sentence that was written days ago.
-  const explainedIn = useRef<string | null>(null);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -54,7 +50,7 @@ export default function SchemesPage() {
         .catch((cause: unknown) => {
           if (!cancelled) {
             setError(
-              cause instanceof ApiError ? cause.message : "Something went wrong.",
+              cause instanceof ApiError ? cause.message : copy.somethingWentWrong,
             );
           }
         })
@@ -64,20 +60,23 @@ export default function SchemesPage() {
       };
     }
 
-    if (matches.length > 0 && explainedIn.current === language) return;
+    // Explanations are prose the server wrote, so switching language has to
+    // re-ask it -- a re-render cannot translate a sentence written earlier.
+    // The language now lives beside the matches in session state, so every
+    // screen reading them can tell whether they are the right ones.
+    if (matches.length > 0 && matchesLanguage === language) return;
 
     setLoading(true);
     api
       .match(sessionId, language)
       .then((result) => {
         if (cancelled) return;
-        explainedIn.current = language;
-        setMatches(result.matches);
+        setMatches(result.matches, language);
       })
       .catch((cause: unknown) => {
         if (!cancelled) {
           setError(
-            cause instanceof ApiError ? cause.message : "Something went wrong.",
+            cause instanceof ApiError ? cause.message : copy.somethingWentWrong,
           );
         }
       })
@@ -86,7 +85,15 @@ export default function SchemesPage() {
     return () => {
       cancelled = true;
     };
-  }, [hydrated, sessionId, skills.length, matches.length, language, setMatches]);
+  }, [
+    hydrated,
+    sessionId,
+    skills.length,
+    matches.length,
+    matchesLanguage,
+    language,
+    setMatches,
+  ]);
 
   const open = useCallback(
     (id: number) => router.push(`/schemes/${id}`),
@@ -165,24 +172,13 @@ export default function SchemesPage() {
   );
 }
 
-function payLabel(o: SchemeSummary): string {
-  if (o.salary_min && o.salary_max) {
-    return o.salary_min === o.salary_max
-      ? `₹${o.salary_min.toLocaleString("en-IN")}`
-      : `₹${o.salary_min.toLocaleString("en-IN")}–${o.salary_max.toLocaleString("en-IN")}`;
-  }
-  if (o.salary_max) return `up to ₹${o.salary_max.toLocaleString("en-IN")}`;
-  if (o.salary_min) return `from ₹${o.salary_min.toLocaleString("en-IN")}`;
-  return "—";
-}
-
 function MatchRow({
   match,
   language,
   onOpen,
 }: {
   match: MatchResult;
-  language: string;
+  language: Language;
   onOpen(): void;
 }) {
   const o = match.scheme;
@@ -210,7 +206,9 @@ function MatchRow({
             {o.title}
           </h2>
           <p className="mt-1.5 text-[13.5px]" style={{ color: "var(--ink-55)" }}>
-            {[o.organization, o.location, o.type].join(" · ")}
+            {[o.organization, o.location, typeLabel(o.type, language)].join(
+              " · ",
+            )}
           </p>
         </div>
 
@@ -236,13 +234,13 @@ function MatchRow({
 
       <div className="flex flex-none flex-col items-end gap-2 text-right max-[560px]:w-full max-[560px]:flex-row max-[560px]:items-center max-[560px]:justify-between max-[560px]:text-left">
         <span className="font-display whitespace-nowrap text-[19px] tracking-[-0.02em]">
-          {payLabel(o)}
+          {payLabel(o.salary_min, o.salary_max, language)}
         </span>
         <span
           className="font-mono whitespace-nowrap rounded px-2 py-1 text-[11px] tracking-[0.06em]"
           style={{ background: "var(--ink-04)", color: "var(--ink-45)" }}
         >
-          {o.type}
+          {typeLabel(o.type, language)}
         </span>
       </div>
     </button>
@@ -283,7 +281,7 @@ function BrowseRow({
         </p>
       </div>
       <span className="font-display whitespace-nowrap text-[17px] tracking-[-0.02em]">
-        {payLabel(scheme)}
+        {payLabel(scheme.salary_min, scheme.salary_max, language)}
       </span>
     </button>
   );
