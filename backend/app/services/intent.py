@@ -89,6 +89,46 @@ def _heuristic(text: str) -> QueryIntent:
     )
 
 
+# Longer than this and a phrase with no question word is prose, not a search.
+_TOPIC_MAX_WORDS = 6
+
+
+async def _offline(text: str) -> QueryIntent:
+    """The heuristic, plus one question the corpus can answer.
+
+    Question words and work phrasing carry most of it. What they miss is the
+    way people actually use a search box: a bare name. "PM-AJAY" asks nothing
+    grammatically and is plainly a request to be told about PM-AJAY.
+
+    Telling that from noise is not something string matching can do -- but the
+    documents can. A scheme name appears in them literally; "asdfghjkl" does
+    not. Any term matching is enough here: "pm ajay skill development" is a
+    search even if no single passage carries all four words.
+
+    Only asked when the cheap signals found nothing, and only for something
+    short enough to be a search term.
+    """
+    guess = _heuristic(text)
+    if not guess.is_empty or len(text.split()) > _TOPIC_MAX_WORDS:
+        return guess
+
+    try:
+        from app.services import retrieval
+
+        if await retrieval.is_ready():
+            if await retrieval.mentions(text):
+                return QueryIntent(
+                    describes_work=False,
+                    asks_question=True,
+                    question=text,
+                    provider="offline",
+                )
+    except Exception as exc:  # noqa: BLE001 - a corpus check is not worth failing over
+        logger.warning("Topic check unavailable (%s); treating as neither", exc)
+
+    return guess
+
+
 async def classify(text: str) -> QueryIntent:
     """Decide what to do with an utterance.
 
@@ -101,7 +141,7 @@ async def classify(text: str) -> QueryIntent:
         return QueryIntent(False, False, None, "offline")
 
     if not llm.is_available():
-        return _heuristic(clean)
+        return await _offline(clean)
 
     try:
         payload = await llm.complete_json(
@@ -112,10 +152,10 @@ async def classify(text: str) -> QueryIntent:
         )
     except (llm.LLMUnavailable, llm.LLMResponseError) as exc:
         logger.warning("Intent classification unavailable (%s); using heuristics", exc)
-        return _heuristic(clean)
+        return await _offline(clean)
 
     if not isinstance(payload, dict):
-        return _heuristic(clean)
+        return await _offline(clean)
 
     describes = bool(payload.get("describes_work"))
     asks = bool(payload.get("asks_question"))
@@ -134,7 +174,7 @@ async def classify(text: str) -> QueryIntent:
     if not describes and not asks:
         # The model found neither. The heuristic is cheap and sometimes sees a
         # marker the model talked itself out of, so give it the last word.
-        fallback = _heuristic(clean)
+        fallback = await _offline(clean)
         if not fallback.is_empty:
             return fallback
 

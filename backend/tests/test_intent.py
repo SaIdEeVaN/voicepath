@@ -90,3 +90,39 @@ class TestBoth:
         result = classify("I do welding, is there a scheme for that?")
         assert result.describes_work is True
         assert result.asks_question is True
+
+
+class TestBareTopics:
+    """A search box gets search terms, not sentences.
+
+    "PM-AJAY" asks nothing grammatically and is plainly a request to be told
+    about PM-AJAY. Reading it as neither is how someone who typed a scheme name
+    gets told nothing was found -- which is what happened before this existed.
+
+    These need the corpus to distinguish a real name from noise, so they are
+    skipped without a database rather than asserted against one that is not
+    there.
+    """
+
+    @pytest.fixture(autouse=True)
+    def _needs_corpus(self):
+        from app.services import db, retrieval
+
+        if not db.is_available():
+            pytest.skip("no database; the topic check has nothing to ask")
+        if not asyncio.run(retrieval.is_ready()):
+            pytest.skip("no documents ingested")
+
+    @pytest.mark.parametrize("text", ["pm ajay", "adarsh gram", "pm ajay skill development"])
+    def test_a_scheme_name_is_a_request(self, text):
+        assert classify(text).asks_question is True
+
+    @pytest.mark.parametrize("text", ["hello", "hi there", "ok thanks", "asdfghjkl"])
+    def test_a_greeting_is_not(self, text):
+        """The half that matters.
+
+        Every one of these scores above the similarity bar against this corpus
+        -- "asdfghjkl" reaches 0.79 -- so nothing downstream would stop a
+        confident answer about a document it shares no word with.
+        """
+        assert classify(text).asks_question is False

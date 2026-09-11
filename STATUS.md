@@ -398,6 +398,19 @@ discards every response and the failure is indistinguishable from a dead server.
 
 ## Fixed on 2026-09-11
 
+- **A scheme name typed on its own now finds the scheme.** "pm ajay",
+  "adarsh gram", "pm ajay skill development" were classified as neither work nor
+  a question and fell through to "I did not catch any work you have done". People
+  type search terms, not sentences; a bare name is a request to be told about it.
+- **Similarity cannot tell a search term from noise, and never could.** e5 packs
+  everything into a narrow band: "asdfghjkl" scores **0.794** against this corpus,
+  above the 0.74 bar, while a legitimate Tamil question scores **0.769**. Raising
+  the threshold would have cut the Tamil question and kept the gibberish. What
+  separates them is whether the words appear in the documents at all —
+  `retrieval.mentions()` asks exactly that, over content words only, since the
+  corpus is indexed with the `simple` config and "there" in "hi there" otherwise
+  matches a document that says "there" constantly.
+
 - **Query understanding decides the route** (spec section 6). `POST
   /api/query/understand` reads one utterance and says whether it describes work,
   asks a question, or both. Before this the route was inferred from extraction

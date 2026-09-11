@@ -58,6 +58,11 @@ class Retrieved:
     heading: str | None
     content: str
     similarity: float
+    # True when full-text search matched, i.e. the words are literally in the
+    # document. Dense similarity cannot carry this: e5 packs everything into a
+    # narrow band, so "asdfghjkl" scores 0.79 against a corpus it shares no
+    # word with. Whether a term actually appears is the honest signal.
+    matched_keyword: bool = False
 
 
 # Roughly 500 tokens. Measured in characters because the tokenizer lives behind
@@ -285,6 +290,7 @@ async def search(question: str, *, limit: int = 5) -> list[Retrieved]:
     # be added; their rankings can be. A chunk found by both paths rises.
     scores: dict[int, float] = {}
     rows: dict[int, dict] = {}
+    literal: set[int] = {row["chunk_id"] for row in keyword}
     for ranking in (dense, keyword):
         for position, row in enumerate(ranking):
             chunk_id = row["chunk_id"]
@@ -302,9 +308,61 @@ async def search(question: str, *, limit: int = 5) -> list[Retrieved]:
             # Present only on the dense path; keyword-only hits report 0.0
             # rather than a number from a different scale.
             similarity=float(rows[cid].get("similarity") or 0.0),
+            matched_keyword=cid in literal,
         )
         for cid in best
     ]
+
+
+# The chunks are indexed with the `simple` config, which keeps stop words --
+# so "there" in "hi there" matches a corpus that says "there" constantly. These
+# carry no topic and must not make a greeting look like a search. Only English
+# function words: a Tamil or Hindi term is content by the time it reaches here.
+_NOT_A_TOPIC = frozenset(
+    """
+    a an the this that these those there here it its is are was were be been am
+    to of in on at by for with from and or but if then than so as
+    i you he she we they me my your our their his her
+    hi hey hello thanks thank ok okay yes no please test
+    """.split()
+)
+
+
+async def mentions(text: str) -> bool:
+    """Does the corpus contain any of these words?
+
+    Separate from ``search`` on purpose. Search ANDs its terms, which is right
+    for finding a passage -- "pm ajay skill development" should not match a
+    chunk that merely says "development". This asks a weaker question for a
+    different job: is any of this a word the documents actually use, or is it
+    noise? "PM-AJAY" is; "asdfghjkl" is not.
+    """
+    clean = (text or "").strip()
+    if not clean or not db.is_available():
+        return False
+    # OR across terms. websearch_to_tsquery is forgiving about punctuation --
+    # "PM-AJAY" survives as a query rather than becoming a phrase operator.
+    terms = [
+        word
+        for word in (w.strip(".,!?;:\"'()").lower() for w in clean.split())
+        # Two characters or fewer is an initialism at best, and on its own it
+        # matches too much. "PM" alone proves nothing; "AJAY" does.
+        if len(word) > 2 and word not in _NOT_A_TOPIC
+    ]
+    if not terms:
+        return False
+
+    return bool(
+        await db.fetchval(
+            """
+            select exists (
+              select 1 from document_chunks
+              where tsv @@ websearch_to_tsquery('simple', $1)
+            )
+            """,
+            " OR ".join(terms),
+        )
+    )
 
 
 async def is_ready() -> bool:

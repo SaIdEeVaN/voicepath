@@ -253,7 +253,9 @@ There are only two things, and a sentence may be both:
 
 DESCRIBING WORK -- they are telling you what they do or have done. "I repair two-wheelers", "எனக்கு வெல்டிங் தெரியும்", "मैं सिलाई का काम करता हूँ". This is what lets the system find work for them.
 
-ASKING A QUESTION -- they want to know something about a scheme, a rule, a process. "Who is eligible for PM-AJAY?", "ஆதர்ஷ் கிராமம் என்றால் என்ன?", "क्या मुझे सर्टिफिकेट चाहिए?".
+ASKING A QUESTION -- they want to know about something: a scheme, a rule, a process. "Who is eligible for PM-AJAY?", "ஆதர்ஷ் கிராமம் என்றால் என்ன?", "क्या मुझे सर्टिफिकेट चाहिए?".
+
+A question does not have to be shaped like one. People type into a search box the way they search: a bare name or topic is a request to be told about it. "PM-AJAY", "adarsh gram", "skill training scheme" are all asking, and marking them as neither is how someone typing a scheme name gets told nothing was found. A greeting, an acknowledgement or a fragment of noise is not -- "hello", "ok thanks", "asdfghjkl" name no topic and ask nothing.
 
 Both at once is common and is the case to get right: "I do welding, is there a scheme for that?" is describing work AND asking a question. Mark both true, and put only the question part in `question`.
 
