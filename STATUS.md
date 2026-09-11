@@ -3,7 +3,7 @@
 > **This file is the live todo list.** It is updated every time a task is completed.
 > Start at **To-do** — that is the working checklist. **Next up** carries the
 > detail behind the top items; everything below it is the record of the build.
-> Last updated: 2026-09-12 (db/007 applied to production; see **Deploy order**)
+> Last updated: 2026-09-12 (/admin has its numbers; 247 tests passing)
 
 **Project root:** `C:\Users\Sai Dixit\voicepath`
 **Sources:** `PRD_File_For_Project.md` (spec) · `VoicePath Mockups.html` (design canvas, unpacked)
@@ -60,11 +60,8 @@ twice is harmless. There is no cost to doing this in the safe order.
 
 ### Next — cheap wins that make the build look finished
 
-- [ ] **Admin overview metrics** (§18). Totals per opportunity type, active and
-      expired counts, total users, searches today, popular skills, locations and
-      searches. Every figure is already in the database: a handful of aggregate
-      queries behind one admin endpoint, plus a stat row on
-      `app/admin/page.tsx`. About 90 minutes.
+- [x] **Admin overview metrics** (§18) — done 2026-09-12. `GET
+      /api/admin/overview` behind a stat row on `app/admin/page.tsx`.
 - [ ] **Filters on the scheme list** (§17): location, skill, experience, type.
       `services/schemes.py` already filters by district, so the query shape
       exists; mostly `app/schemes/page.tsx` plus query parameters on the list
@@ -175,7 +172,7 @@ Four approaches, in order of effort:
 | 2. Backend core (config, db, providers) | ✅ Done |
 | 3. Backend pipeline (extract → normalize → match → explain) | ✅ Done |
 | 4. Backend routes + rate limiting | ✅ Done |
-| 5. Backend tests | ✅ Done — **231 passing**, 7 skipped |
+| 5. Backend tests | ✅ Done — **247 passing**, 7 skipped |
 | 6. Frontend scaffold + design tokens | ✅ Done |
 | 7. Frontend screens | ✅ Done — all 8 |
 | 8. Admin (Phase 2) | ✅ Done |
@@ -234,6 +231,8 @@ db/                        Apply in numeric order
   005_documents.sql          scheme_documents, document_chunks, retrieval fn
   006_schemes_rename.sql     opportunities -> schemes, in place. No row lost
   007_match_language.sql     which language a stored explanation is in
+  008_drop_compatibility_views.sql
+                             retires the opportunities shims 006 left behind
 
 backend/
   Dockerfile                 For hosts that only take an image. Render uses the
@@ -274,8 +273,8 @@ backend/
       fetch_voices.py        Piper voices for ta/hi/en (~190MB)
       ingest_documents.py    PDF/text -> chunks -> embeddings
       migrate.py
-  tests/                     238, fully offline -- no keys, network or database.
-                             231 pass; 7 skip without one (intent topic check)
+  tests/                     254, fully offline -- no keys, network or database.
+                             247 pass; 7 skip without one (intent topic check)
   data/scheme_docs/          Source PDFs, committed (~2.1MB): PM-AJAY
                              and PMAGY guidelines, TN Sigaram Thodu EOI.
                              Public documents, kept so retrieval is reproducible
@@ -341,7 +340,7 @@ frontend/
 - [x] `/api/admin/*` — server-side role check, sha256 tokens, bootstrap that self-disables
 - [x] Rate limiting on public routes · `GET /health` reporting every provider honestly
 
-### Phase 5 — Backend tests ✅ (231 passing, 7 skipped)
+### Phase 5 — Backend tests ✅ (247 passing, 7 skipped)
 - [x] `test_matching.py` — weights, determinism, each component, grounding
 - [x] `test_extraction.py` — evidence grounding in ta/hi/en, invention rejected
 - [x] `test_normalization.py` — alias matching across scripts, no silent upgrades
@@ -355,6 +354,8 @@ frontend/
 - [x] `test_official_url.py` — the assistant quotes the stored URL or says there is none
 - [x] `test_assistant_routing.py` — retrieval cannot reach matching
 - [x] `test_language_switching.py` — a stored match re-reads in any language, scores unmoved
+- [x] `test_admin_gate_messages.py` — unconfigured is 503; a wrong token never reveals how the deployment is set up
+- [x] `test_admin_overview.py` — the figures add up, and carry no transcript or question text
 
 ### Phase 6 — Frontend scaffold ✅
 - [x] Next 16.3.4, React 19, TS strict, Tailwind v4
@@ -376,7 +377,7 @@ frontend/
 - [x] `/admin/schemes`, `/admin/taxonomy`, `/admin/sessions` (read-only, no transcripts)
 
 ### Phase 9 — Verification ✅
-- [x] `pytest` — 231 passed, 7 skipped (the 7 need a database)
+- [x] `pytest` — 247 passed, 7 skipped (the 7 need a database)
 - [x] `npx tsc --noEmit` — clean
 - [x] `next build` — 12 routes
 - [x] Both servers running; RSC detail page pulling live backend data
@@ -502,6 +503,116 @@ discards every response and the failure is indistinguishable from a dead server.
   eslint is not a dependency.
 - **Rate limiting is per-process.** Multiplies behind multiple instances; move
   the counter to Redis before scaling.
+
+---
+
+## Done on 2026-09-12 — /admin has its numbers
+
+§18, and the cheapest item on the list. `/admin` was three navigation cards, so
+the question an operator actually arrives with — *is anything happening?* — had
+no answer on the page. Every figure was already in the database; nothing was
+counting them.
+
+`GET /api/admin/overview` returns the catalogue (total, active, deactivated,
+and a breakdown by type), activity (sessions and questions, each with a today
+count, plus a language split), the corpus (documents and indexed passages), and
+what is common (top skills and places). A stat row and four small breakdowns
+render it, in admin's deliberately plain style rather than the beneficiary
+surface's.
+
+Two things it will not do:
+
+- **It reports no transcript and no question text.** `/admin/sessions` already
+  refuses to show what people said about their own lives, and an aggregate is
+  not a loophole for that. Skills are counted by their **taxonomy name**, never
+  by `raw_name` — a raw name is the person's own words — so a skill that never
+  normalized is left out rather than reported in someone's own phrasing. A test
+  asserts the fixture transcript's words cannot appear in the response.
+- **The popular lists are bounded at ten.** An unbounded "popular" list is a
+  dump of the table wearing a summary's name, and on a busy deployment it is
+  also a slow query.
+
+It works without a database, from the in-memory store, because the admin
+surface is reachable in offline mode and a dashboard that 503s there is worse
+than one showing zeros honestly. That also meant the SQL path was **not**
+covered by the suite, which runs offline — so it was executed directly against
+the production schema before this was called done: 18 schemes, 58 sessions, 121
+passages, totals reconciling.
+
+---
+
+## Fixed on 2026-09-12 — the admin gate now says when it cannot authorise anyone
+
+`"Not authorised."` answered three different situations, and one of them is not
+an authorisation failure:
+
+1. a wrong token, when real admins are provisioned
+2. a wrong token, when only a bootstrap token is configured
+3. no admin users *and* no bootstrap token — **the server cannot accept any
+   token from anyone**
+
+(3) is a configuration fault wearing an authorisation error's clothes, and it
+is expensive: an operator types correct-looking tokens into `/admin/schemes`
+and nothing on screen can tell them the server was never able to accept one.
+It answers **503** now, naming both `ADMIN_BOOTSTRAP_TOKEN` and `admin_users`,
+which matches how `_require_database` already reports "admin needs something
+this deployment has not been given".
+
+**(1) and (2) stay byte-identical to each other**, and a test asserts the
+refusal leaks none of `bootstrap`, `admin_users`, `provision` or `no admins`.
+Telling them apart would reveal whether admins have been provisioned, which is
+a fact about the deployment an unauthenticated caller has no business learning.
+The distinction added here is *configured vs not*, never *provisioned vs not*.
+
+Found on the way, and fixed with it: **the suite was reading the real
+bootstrap token out of `backend/.env`** — the same leak already fixed for
+`DATABASE_URL`, and for the same reason, since Settings reads the file as well
+as the environment. The admin gate was therefore tested one way on a machine
+with a `.env` and another way on CI. `conftest.py` pins an obviously-fake
+value, which is also what makes "wrong token" and "not configured" two
+reproducible states rather than an accident of the developer's filesystem.
+
+No frontend change: both `AdminTable` and `/admin/schemes` already render the
+response's `detail`, so the new sentence reaches the screen as written.
+
+---
+
+## Fixed on 2026-09-12 — the Supabase advisor's two ERROR findings
+
+`security_definer_view` on `public.opportunities` and
+`public.opportunity_skills`. Both are the read-only shims `006` created during
+the rename, and `006` says in as many words to drop them once the new code
+shipped. It shipped; they stayed.
+
+The finding is real, not linter noise. **A Postgres view runs as its owner
+unless it is created `with (security_invoker = on)`.** These were not, and
+their owner is `postgres` — so every read through `opportunities` was
+evaluated with the owner's privileges and bypassed row level security on
+`schemes` entirely.
+
+Nothing was exposed by it. `schemes` and `scheme_skills` both carry a
+public-read policy, so the rows reachable through the view were rows anyone
+could already select. The danger was latent: the day either policy narrows,
+the view would have gone on serving what the policy had just withdrawn —
+silently, from a name no code references any more.
+
+`db/008` drops both views and the `opportunity_skill_vectors` shim. Dropping
+rather than recreating them with `security_invoker`, because they exist only
+to serve code that no longer runs. Verified first that no reference to
+`opportunit%` survives anywhere in `backend/`, `frontend/` or `db/` outside
+`006` itself.
+
+Audited the rest of the schema while there:
+
+- No views remain in `public`, so the finding cannot recur from another one.
+- RLS is enabled on all 12 tables.
+- Five project functions, all with `search_path=""` pinned. One,
+  `purge_expired_audio`, is `SECURITY DEFINER` — deliberately, since it must
+  delete audio regardless of caller — and being pinned it is not the
+  `function_search_path_mutable` hazard. Correct as written.
+
+Applied to production and smoke-tested: `/health` connected, 18 active
+schemes, `/api/schemes` 200.
 
 ---
 

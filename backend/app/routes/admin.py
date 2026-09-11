@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field
 
 from app.config import get_settings
 from app.models import schemas
-from app.services import db, schemes, pipeline, taxonomy
+from app.services import db, repository, schemes, pipeline, taxonomy
 
 logger = logging.getLogger(__name__)
 
@@ -43,12 +43,23 @@ def _hash_token(token: str) -> str:
 async def require_admin(
     authorization: Annotated[str | None, Header()] = None,
 ) -> AdminIdentity:
-    """Resolve the caller to an admin identity, or refuse.
+    """Resolve the caller to an admin identity, or say why not.
 
     Order matters: the database is the source of truth, and the bootstrap
     token is honoured only when no admin rows exist. Otherwise a leaked
     bootstrap value would stay a permanent backdoor after real admins are
     provisioned.
+
+    Three ways this ends, and the third is the one worth separating:
+
+    * **401** -- no bearer token was sent. The caller's own omission.
+    * **403** -- a token was sent and is not accepted. Identical whether real
+      admins are provisioned or only a bootstrap token is configured, because
+      telling those apart would leak how the deployment is set up.
+    * **503** -- no admin users exist *and* no bootstrap token is set. The
+      server cannot accept any token from anyone. This used to answer 403 as
+      well, which reads as "you got it wrong" and sends an operator hunting
+      for a typo in a value that was never going to work.
     """
     settings = get_settings()
 
@@ -92,8 +103,28 @@ async def require_admin(
         ):
             return AdminIdentity(email="bootstrap@local", role="owner")
 
+        # A bootstrap token exists and this was not it. The same answer a
+        # provisioned deployment gives a wrong token, deliberately: which of
+        # the two a server is running is not a fact an unauthenticated caller
+        # may probe for.
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Not authorised."
+        )
+
+    # Nothing can authorise anyone: no active admin row matched, none exists,
+    # and no bootstrap token is set. That is a configuration fault, not a
+    # refusal -- no value the caller types will ever be accepted, and
+    # answering 403 invites them to keep trying. 503 matches how
+    # _require_database already reports "admin needs something this deployment
+    # has not been given".
     raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN, detail="Not authorised."
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail=(
+            "Admin access is not configured on this server. No admin users "
+            "exist and ADMIN_BOOTSTRAP_TOKEN is not set, so no token can be "
+            "accepted. Set it in the backend environment, or add a row to "
+            "admin_users."
+        ),
     )
 
 
@@ -253,6 +284,31 @@ async def deactivate_scheme(
     if result.endswith("0"):
         raise HTTPException(status_code=404, detail="Not found.")
     schemes.reset_memory_cache()
+
+
+# ---------------------------------------------------------------------------
+# Overview (PRD section 18)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/overview")
+async def overview(
+    _: Annotated[AdminIdentity, Depends(require_admin)],
+) -> dict:
+    """Totals for the dashboard: catalogue, activity, corpus, and what is common.
+
+    Read-only and gated like everything else here -- an aggregate is still a
+    view of what people have been doing. It carries no transcript and no
+    question text: `/admin/sessions` already refuses to show what people said
+    about their own lives, and a summary is not a loophole for that. Popular
+    *skills* are taxonomy names rather than the words someone used, which is
+    the same rule applied one level up.
+
+    No `_require_database()`. The figures come from whichever store is live,
+    because a dashboard that 503s in offline mode is worse than one showing
+    zeros honestly.
+    """
+    return await repository.overview()
 
 
 # ---------------------------------------------------------------------------
