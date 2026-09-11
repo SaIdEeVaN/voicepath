@@ -239,6 +239,10 @@ class AssistantQueryResponse(Base):
     provider: str
     # True when the answer had to be "the data does not say".
     answered_from_data: bool = True
+    # Present only when the answer came from a scheme document. Each entry
+    # names the document and the passage, so the claim can be checked against
+    # the government's own text rather than taken on the system's word.
+    citations: list[dict] = Field(default_factory=list)
 
 
 class AssistantQueryLog(Base):

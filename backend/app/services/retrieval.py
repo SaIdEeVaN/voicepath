@@ -308,10 +308,16 @@ async def search(question: str, *, limit: int = 5) -> list[Retrieved]:
 
 
 async def is_ready() -> bool:
-    """True when there is a corpus to retrieve from."""
+    """True when there is a corpus to retrieve from.
+
+    `exists` rather than `count`: this is checked on every question that might
+    be about the scheme, and it only ever needs to know whether the corpus is
+    empty, not how large it is.
+    """
     if not db.is_available():
         return False
-    count = await db.fetchval(
-        "select count(*) from document_chunks where embedding is not null"
+    return bool(
+        await db.fetchval(
+            "select exists (select 1 from document_chunks where embedding is not null)"
+        )
     )
-    return bool(count)

@@ -15,11 +15,11 @@ from __future__ import annotations
 
 import logging
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from app.prompts import ASSISTANT_SYSTEM, ASSISTANT_USER_TEMPLATE
-from app.services import llm
+from app.services import llm, retrieval, scheme_qa
 from app.services.schemes import Scheme
 
 logger = logging.getLogger(__name__)
@@ -33,6 +33,9 @@ class Answer:
     source_note: str
     provider: str
     answered_from_data: bool = True
+    # Populated only when the answer came from the scheme guidelines. A row
+    # answer cites nothing because its source is the listing already on screen.
+    citations: list[dict] = field(default_factory=list)
 
 
 @dataclass
@@ -72,6 +75,7 @@ COPY: dict[str, dict[str, str]] = {
         "unknown": "I do not have that in the record for this one. I will not guess at it.",
         "official_page": "The government page for this is {url}",
         "official_page_none": "The record has no government page for this one. Ask at the district Social Welfare Office.",
+        "source_guidelines": "from the scheme guidelines",
         "source_listing": "from the listing",
         "source_you": "from what you told me",
         "source_privacy": "from this session's setting",
@@ -97,6 +101,7 @@ COPY: dict[str, dict[str, str]] = {
         "unknown": "इसके रिकॉर्ड में यह नहीं है। मैं अंदाज़ा नहीं लगाऊँगा।",
         "official_page": "इसका सरकारी पेज यह है: {url}",
         "official_page_none": "इस रिकॉर्ड में कोई सरकारी पेज नहीं है। ज़िला समाज कल्याण कार्यालय में पूछिए।",
+        "source_guidelines": "योजना के दिशानिर्देशों से",
         "source_listing": "सूची से",
         "source_you": "आपने जो बताया उससे",
         "source_privacy": "इस सेशन की सेटिंग से",
@@ -122,6 +127,7 @@ COPY: dict[str, dict[str, str]] = {
         "unknown": "இதன் பதிவில் அது இல்லை. நான் ஊகிக்க மாட்டேன்.",
         "official_page": "இதன் அரசு பக்கம்: {url}",
         "official_page_none": "இந்தப் பதிவில் அரசு பக்கம் இல்லை. மாவட்ட சமூக நலத் துறை அலுவலகத்தில் கேளுங்கள்.",
+        "source_guidelines": "திட்ட வழிகாட்டுதலிலிருந்து",
         "source_listing": "வேலை பட்டியலிலிருந்து",
         "source_you": "நீங்கள் சொன்னதிலிருந்து",
         "source_privacy": "இந்த அமர்வின் அமைப்பிலிருந்து",
@@ -184,6 +190,36 @@ def detect_intent(question: str) -> str | None:
 async def answer(
     question: str, context: QueryContext, *, language: str = "en"
 ) -> Answer:
+    """Answer from the listing, or from the scheme's published guidelines.
+
+    The split is by what the question is about. A recognised intent -- pay,
+    certificates, distance -- is about the row in front of the person, and the
+    row is the whole of the answer. Anything else is usually about the scheme:
+    who qualifies, what documents are needed, how to apply. No single row holds
+    that, and it is exactly what the guidelines corpus is for.
+
+    Retrieval only ever returns an answer it can cite, so falling through to
+    the listing path when it refuses is not a downgrade -- it is the honest
+    ordering. Nothing here can reach matching: a retrieved document cannot
+    move anyone up a ranking.
+    """
+    if detect_intent(question) is None:
+        try:
+            if await retrieval.is_ready():
+                found = await scheme_qa.ask(question, language=language)
+                if found.grounded:
+                    return Answer(
+                        answer_text=found.answer,
+                        source_note=_c(language, "source_guidelines"),
+                        provider=found.provider,
+                        answered_from_data=True,
+                        citations=found.citations,
+                    )
+        except Exception as exc:  # noqa: BLE001 - retrieval is an enhancement
+            # A corpus that cannot be reached must not take the assistant with
+            # it. The listing path below still answers what it can.
+            logger.warning("Scheme retrieval unavailable (%s); using the listing", exc)
+
     if llm.is_available():
         try:
             return await _answer_with_llm(question, context, language=language)

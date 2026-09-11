@@ -26,13 +26,15 @@ import {
 } from "@/lib/browser-speech";
 import { copyFor } from "@/lib/i18n";
 import { useSession } from "@/lib/session";
-import type { Language } from "@/lib/types";
+import type { Citation, Language } from "@/lib/types";
 
 interface Exchange {
   question: string;
   answer: string;
   sourceNote: string;
   fromData: boolean;
+  /** Empty unless the answer came from the published guidelines. */
+  citations: Citation[];
 }
 
 export function AskVoicePath({ schemeId }: { schemeId: number }) {
@@ -90,6 +92,7 @@ export function AskVoicePath({ schemeId }: { schemeId: number }) {
             answer: result.answer_text,
             sourceNote: result.source_note,
             fromData: result.answered_from_data,
+            citations: result.citations ?? [],
           },
         ]);
 
@@ -208,6 +211,29 @@ export function AskVoicePath({ schemeId }: { schemeId: number }) {
               />
               {exchange.sourceNote}
             </p>
+
+            {/* What the answer was drawn from. The point of retrieval here is
+                not that the machine sounds authoritative -- it is that the
+                person can go and read the paragraph themselves. A claim about
+                eligibility with no traceable source is the thing this is
+                built to avoid. */}
+            {exchange.citations.length > 0 && (
+              <ul className="mt-2 flex flex-col gap-1.5">
+                {exchange.citations.map((citation, index) => (
+                  <li
+                    key={`${citation.source}-${index}`}
+                    className="rounded-lg px-3 py-2 text-[12px] leading-relaxed"
+                    style={{ background: "var(--ink-04)", color: "var(--ink-55)" }}
+                  >
+                    <span className="font-mono text-[11px]" style={{ color: "var(--ink-45)" }}>
+                      {citation.document_title}
+                      {citation.heading ? ` · ${citation.heading}` : ""}
+                    </span>
+                    <span className="mt-1 block">&ldquo;{citation.excerpt}&rdquo;</span>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
         ))}
 

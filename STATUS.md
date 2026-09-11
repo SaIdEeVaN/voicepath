@@ -1,10 +1,70 @@
 # VoicePath — Build Status
 
 > **This file is the live todo list.** It is updated every time a task is completed.
-> Last updated: 2026-09-11 (schemes rename; RAG merged)
+> Last updated: 2026-09-11 (RAG answering; see **Next up**)
 
 **Project root:** `C:\Users\Sai Dixit\voicepath`
 **Sources:** `PRD_File_For_Project.md` (spec) · `VoicePath Mockups.html` (design canvas, unpacked)
+
+---
+
+## Next up
+
+Four things, ordered by what they give back for the work. Enough detail here to
+pick any of them up cold, in a new session or on a different machine.
+
+### 1. Jobs and Training as their own entities
+
+`voice_condensed.md` §12 and §13 describe jobs, schemes and training as three
+data models. Everything is currently a `scheme` with a `type` column, which is
+why the All/Jobs/Schemes/Training filter in §17 has nothing to filter on.
+
+Touches: `db/` (two new tables + migration), `models/schemas.py`,
+`services/`, `routes/`, the admin dashboard, and `matching.py` — the scoring
+weights differ per type, which is the part to think about rather than type out.
+
+Half a day or more. The largest remaining gap between the spec and the build.
+
+### 2. Admin overview metrics
+
+§18 asks for totals per opportunity type, active and expired counts, total
+users, searches today, and popular skills, locations and searches. `/admin` is
+currently navigation cards with no numbers.
+
+Every figure already exists in the database. This is a handful of aggregate
+queries behind one new admin endpoint, plus a stat row on `app/admin/page.tsx`.
+Nothing here is hard; it is the cheapest way to make the dashboard look like one.
+
+About 90 minutes.
+
+### 3. Filters on the scheme list
+
+§17: location, skill, experience, type. `services/schemes.py` already filters by
+district, so the query shape exists; this is mostly `app/schemes/page.tsx` plus
+query parameters on the list route.
+
+Half a day. Worth doing after (1), since the type filter is most of the point.
+
+### 4. Tamil speech recognition
+
+The known correctness problem, and the one a jury is most likely to find.
+Whisper mishears English loanwords inside Tamil — "வெல்டிங்" (welding) came back
+as "வெள்ளி" (silver) and the pipeline reported *silver work*, correctly grounded
+in a transcript that was itself wrong.
+
+Four approaches, in order of effort:
+
+1. Route Tamil to AI4Bharat IndicWav2Vec (Apache 2.0, not gated) and leave
+   Hindi and English on Whisper. `services/stt.py` already dispatches by
+   provider, so this is a third branch.
+2. Constrained decoding over the 44 taxonomy terms. We know the vocabulary that
+   matters; biasing the decoder toward it makes the right word likelier without
+   changing models at all.
+3. Phonetic fallback in normalisation — "வெள்ளி" and "வெல்டிங்" are close in a
+   transliteration, and edit distance would catch what cosine similarity does not.
+4. Fine-tune on Common Voice Tamil (CC0).
+
+(2) and (3) need no new model and are the better first attempt.
 
 ---
 
@@ -58,7 +118,7 @@ restart.
 
 ## Layout
 
-As on `main`. Files marked **(rag)** exist only on the `rag` branch.
+As on `main`.
 
 ```
 HACKATHON_PLAN.md          Seven-part jury narrative, running order, pre-flight
@@ -73,7 +133,7 @@ db/                        Apply in numeric order
                              purge_expired_audio
   003_seed.sql               44 skills, 16 Salem/Erode schemes. Idempotent
   004_policies.sql           RLS: catalogues public-read, personal data closed
-  005_documents.sql          (rag) scheme_documents, document_chunks, retrieval fn
+  005_documents.sql          scheme_documents, document_chunks, retrieval fn
 
 backend/
   Dockerfile                 For hosts that only take an image. Render uses the
@@ -103,16 +163,16 @@ backend/
       assistant.py           Q&A over one scheme's stored fields only
       taxonomy.py            Vector search, alias index, localized labels
       ner.py                 IndicNER entity spans. Built, nothing calls it
-      retrieval.py           (rag) Chunking and hybrid dense + keyword search
-      scheme_qa.py           (rag) Answers that cite a passage, or refuse
+      retrieval.py           Chunking and hybrid dense + keyword search
+      scheme_qa.py           Answers that cite a passage, or refuse
       db.py, repository.py, schemes.py, pipeline.py, ratelimit.py
     scripts/
       embed_taxonomy.py      Taxonomy vectors. --all to recompute
       fetch_voices.py        Piper voices for ta/hi/en (~190MB)
-      ingest_documents.py    (rag) PDF/text -> chunks -> embeddings
+      ingest_documents.py    PDF/text -> chunks -> embeddings
       migrate.py
   tests/                     178, fully offline -- no keys, network or database
-  data/scheme_docs/          (rag) Source PDFs, committed (~2.1MB): PM-AJAY
+  data/scheme_docs/          Source PDFs, committed (~2.1MB): PM-AJAY
                              and PMAGY guidelines, TN Sigaram Thodu EOI.
                              Public documents, kept so retrieval is reproducible
 
@@ -314,9 +374,11 @@ discards every response and the failure is indistinguishable from a dead server.
   Same at `medium` and `large-v3`, local and hosted, so it is the model family.
   Hindi and English are unaffected. IndicWav2Vec (Apache 2.0, not gated) is the
   Tamil-specific alternative.
-- **RAG is built but unmerged.** `rag` branch: 148 chunks from three real scheme
-  PDFs, hybrid dense + keyword retrieval, answers that cite a passage or refuse.
-  Service layer only — no route, no UI. Deliberately never touches matching.
+- **RAG answers scheme questions, and nothing else.** 148 chunks from three real
+  government PDFs. A question with no recognised listing intent goes to the
+  guidelines; anything about the row in front of the person does not. Retrieval
+  still cannot reach matching, and `tests/test_assistant_routing.py` asserts it
+  by reading `matching.py`'s source rather than its imports.
 - **NER is built but unused.** `services/ner.py` tags PER/ORG/LOC and degrades to
   `[]` safely; nothing calls it, and `transformers` is not in the deploy set, so
   `/health` reports it offline.
@@ -335,6 +397,20 @@ discards every response and the failure is indistinguishable from a dead server.
 ---
 
 ## Fixed on 2026-09-11
+
+- **Wired retrieval into the assistant.** It was merged and unused. A question
+  with no recognised intent — "who is eligible?", "what documents do I need?" —
+  now goes to the published guidelines and comes back with the document and
+  section it was drawn from, shown under the answer. A question about the
+  listing still answers from the row, because pay and distance are facts about
+  one record and a policy paraphrase would be worse. Verified across the split:
+  "how much does it pay?" cites nothing, "who is eligible for the Adarsh Gram
+  component?" cites `Guidelines.pdf`, and the Tamil equivalent answers in Tamil
+  from the same English source.
+- **Retrieval failing cannot take the assistant with it.** A corpus that will
+  not load is a missing enhancement; the listing path still answers what it can.
+- **`is_ready()` counts nothing.** It runs on every unmatched question and only
+  ever needed to know whether the corpus is empty, so it is an `exists` check.
 
 - **Renamed the core entity from `opportunities` to `schemes`.** 540 references
   across 38 files, plus the tables, routes and frontend directories. `db/006`

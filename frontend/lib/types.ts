@@ -130,12 +130,22 @@ export interface MatchResponse {
   degraded: boolean;
 }
 
+export interface Citation {
+  source: string;
+  document_title: string;
+  heading: string | null;
+  excerpt: string;
+  similarity: number;
+}
+
 export interface AssistantQueryResponse {
   question_text: string;
   answer_text: string;
   source_note: string;
   provider: string;
   answered_from_data: boolean;
+  /** Present only when the answer came from a scheme document. */
+  citations?: Citation[];
 }
 
 export interface SessionSummary {
