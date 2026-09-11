@@ -204,16 +204,9 @@ function IconButton({
       onClick={onClick}
       title={label}
       aria-label={label}
-      className="grid h-[30px] w-[30px] place-items-center rounded-lg transition-colors"
-      style={{ background: "var(--ink-04)", color: "var(--ink-45)" }}
-      onMouseEnter={(event) => {
-        event.currentTarget.style.color = danger
-          ? "var(--color-danger)"
-          : "var(--color-ink)";
-      }}
-      onMouseLeave={(event) => {
-        event.currentTarget.style.color = "var(--ink-45)";
-      }}
+      className={`vp-icon-button grid h-[30px] w-[30px] place-items-center rounded-lg${
+        danger ? " vp-icon-button-danger" : ""
+      }`}
     >
       <svg
         viewBox="0 0 24 24"

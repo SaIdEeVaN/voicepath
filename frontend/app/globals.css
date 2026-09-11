@@ -200,6 +200,63 @@
   .vp-pill-quiet:hover {
     background: var(--ink-12);
   }
+
+  /* An interactive surface: a scheme row, a skill card, a candidate.
+     
+     This was six `onMouseEnter` handlers mutating `style.borderColor`, which
+     meant a keyboard user got no feedback at all -- JavaScript hover has no
+     focus equivalent. As CSS it costs nothing, and `:focus-visible` comes
+     free, which is the actual reason to do it. */
+  .vp-row {
+    background: var(--color-surface);
+    border: 1px solid var(--ink-09);
+    transition:
+      border-color 0.18s ease,
+      transform 0.18s ease,
+      box-shadow 0.18s ease;
+  }
+
+  .vp-row:hover,
+  .vp-row:focus-visible {
+    border-color: var(--ink-22);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 26px -18px rgb(var(--ink-rgb) / 0.45);
+  }
+
+  /* Pressing is the product. It should feel like pressing. */
+  .vp-row:active {
+    transform: translateY(0);
+    transition-duration: 0.06s;
+  }
+
+  /* Where the row is a choice being offered rather than a thing to open --
+     the disambiguation candidates -- the accent says which one is under the
+     cursor. Same rule, louder, because picking one is the whole screen. */
+  .vp-row-accent:hover,
+  .vp-row-accent:focus-visible {
+    border-color: var(--color-accent);
+  }
+
+  /* A small icon control: rename, remove. Was two JS handlers swapping the
+     colour, which left the keyboard with nothing. */
+  .vp-icon-button {
+    background: var(--ink-04);
+    color: var(--ink-45);
+    transition:
+      color 0.16s ease,
+      background 0.16s ease;
+  }
+
+  .vp-icon-button:hover,
+  .vp-icon-button:focus-visible {
+    background: var(--ink-09);
+    color: var(--color-ink);
+  }
+
+  .vp-icon-button-danger:hover,
+  .vp-icon-button-danger:focus-visible {
+    color: var(--color-danger);
+  }
 }
 
 /* ---------------------------------------------------------------------------
@@ -210,6 +267,56 @@
    the person can see which message is new. Everything else is a response to
    something they did.
 --------------------------------------------------------------------------- */
+
+/* A registered angle, so the match ring can animate its fill. An unregistered
+   custom property interpolates as a string and the ring would jump. Browsers
+   without @property get the final angle immediately, which is the old
+   behaviour rather than a broken one. */
+@property --vp-deg {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+/* The listening field.
+
+   Two rings rather than one, half a cycle apart, so the mic reads as sound
+   leaving it rather than a border that pulses. The second is the whole
+   difference between "this element is animated" and "this thing is
+   listening". */
+@keyframes vp-listen {
+  0% {
+    transform: scale(1);
+    /* Starts invisible, not visible. The second ring is delayed half a cycle,
+       and with a non-zero opacity at 0% it would sit on screen as a static
+       circle until its turn came -- a bug that looks like a design choice. */
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.42;
+  }
+  70% {
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.55);
+    opacity: 0;
+  }
+}
+
+/* The one orchestrated moment in the product's first screen. Each element
+   names its own delay, so the order is written where the elements are rather
+   than in a timeline nobody can find. */
+@keyframes vp-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
 
 @keyframes vp-breathe {
   0%,
@@ -255,6 +362,34 @@
 
 .vp-caret {
   animation: vp-caret 1s step-end infinite;
+}
+
+.vp-listen {
+  /* `backwards`, so a delayed ring holds the 0% frame -- invisible -- rather
+     than its own static styles while it waits. */
+  animation: vp-listen 3.6s cubic-bezier(0.22, 1, 0.36, 1) infinite backwards;
+}
+
+/* Quicker when someone is about to press it: motion answering an action,
+   which is the only kind this product adds without being asked. */
+.vp-mic:hover .vp-listen,
+.vp-mic:focus-visible .vp-listen {
+  animation-duration: 2.2s;
+}
+
+.vp-mic {
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.vp-mic:active {
+  transform: scale(0.97);
+  transition-duration: 0.07s;
+}
+
+/* Opt in per element, with the element naming its own place in the order. */
+.vp-enter {
+  animation: vp-enter 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--vp-delay, 0ms);
 }
 
 @media (prefers-reduced-motion: reduce) {
