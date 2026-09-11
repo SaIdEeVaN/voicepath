@@ -130,6 +130,14 @@ export interface MatchResponse {
   degraded: boolean;
 }
 
+export interface QueryUnderstandResponse {
+  describes_work: boolean;
+  asks_question: boolean;
+  /** Their words, never a rephrasing. Null when they asked nothing. */
+  question: string | null;
+  provider: string;
+}
+
 export interface Citation {
   source: string;
   document_title: string;

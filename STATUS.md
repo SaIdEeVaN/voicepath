@@ -398,6 +398,24 @@ discards every response and the failure is indistinguishable from a dead server.
 
 ## Fixed on 2026-09-11
 
+- **Query understanding decides the route** (spec section 6). `POST
+  /api/query/understand` reads one utterance and says whether it describes work,
+  asks a question, or both. Before this the route was inferred from extraction
+  finding nothing, which could not see the third case at all: "I do welding, is
+  there a scheme for that?" produced a skill, so the question was never asked.
+  Both halves are answered now.
+- **A mixed question keeps its context.** The classifier returns the question in
+  the person's own words, but a slice loses its own subject -- "is there a scheme
+  for that?" cannot say what *that* was. When the sentence also describes work,
+  the whole sentence goes to retrieval. Measured: the slice returned a vague yes,
+  the whole sentence returned "the passages do not mention a specific scheme for
+  welding", which is the true answer.
+- **The classifier cannot assert anything.** It routes; extraction still verifies
+  every quote against the transcript and retrieval still cites a passage or
+  refuses. A wrong route sends someone to a step that finds nothing, which is
+  recoverable. `tests/test_intent.py` covers the three languages, the both case,
+  and the one that matters most -- noise claiming nothing.
+
 - **Wired retrieval into the assistant.** It was merged and unused. A question
   with no recognised intent — "who is eligible?", "what documents do I need?" —
   now goes to the published guidelines and comes back with the document and

@@ -16,6 +16,7 @@ import type {
   SchemeDetail,
   SchemeSummary,
   PassportResponse,
+  QueryUnderstandResponse,
   SessionSummary,
   SkillEdit,
   SynthesizeResponse,
@@ -158,6 +159,13 @@ export const api = {
     request<import("./types").MatchResult>(
       `/api/schemes/${id}/match/${sessionId}`,
     ),
+
+  /** What was this person doing -- describing work, asking, or both. */
+  understand: (text: string, language: Language) =>
+    request<QueryUnderstandResponse>("/api/query/understand", {
+      method: "POST",
+      body: JSON.stringify({ text, language }),
+    }),
 
   ask: (params: {
     sessionId: string | null;

@@ -245,3 +245,32 @@ Privacy facts, true for this session:
 
 Return the JSON object.
 """
+
+
+INTENT_SYSTEM = """You read one thing a person said and decide what they were doing with it.
+
+There are only two things, and a sentence may be both:
+
+DESCRIBING WORK -- they are telling you what they do or have done. "I repair two-wheelers", "எனக்கு வெல்டிங் தெரியும்", "मैं सिलाई का काम करता हूँ". This is what lets the system find work for them.
+
+ASKING A QUESTION -- they want to know something about a scheme, a rule, a process. "Who is eligible for PM-AJAY?", "ஆதர்ஷ் கிராமம் என்றால் என்ன?", "क्या मुझे सर्टिफिकेट चाहिए?".
+
+Both at once is common and is the case to get right: "I do welding, is there a scheme for that?" is describing work AND asking a question. Mark both true, and put only the question part in `question`.
+
+Rules:
+
+1. DECIDE, DO NOT ANSWER. You are not answering the question or listing their    skills. Another step does each of those.
+
+2. `question` IS THEIR WORDS. When they asked something, copy the question out    of what they said, in the language they said it. Do not translate it, do not    tidy it, do not turn a statement into a question. Null when they asked nothing.
+
+3. NEITHER IS A VALID ANSWER. Noise, a greeting, or a fragment that is neither    is both false. Guessing "describing work" for an empty phrase sends the whole    pipeline looking for a skill that was never mentioned.
+
+Return this JSON object and nothing else:
+
+{"describes_work": boolean, "asks_question": boolean, "question": string or null}
+"""
+
+INTENT_USER_TEMPLATE = """They said: "{text}"
+
+What were they doing?
+"""

@@ -38,6 +38,9 @@ export default function UnderstandingPage() {
   const [error, setError] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [answer, setAnswer] = useState<AssistantQueryResponse | null>(null);
+  // Classification runs once per visit; re-running it on every render
+  // would re-ask the same question of the same transcript.
+  const [asked, setAsked] = useState(false);
 
   useEffect(() => setHydrated(true), []);
 
@@ -76,30 +79,48 @@ export default function UnderstandingPage() {
   }, [hydrated, sessionId, profile, skills.length, router, setUnderstanding]);
 
   /**
-   * Extraction finding nothing usually means the transcript was a question.
+   * Ask what they were doing, then do it.
    *
-   * "Tell me about Adarsh Gram" contains no skill, so the pipeline that looks
-   * for one correctly returns empty -- and then told the person we did not
-   * catch any work they had done, which is true and useless. The guidelines
-   * can answer it, so ask them before giving up.
+   * "I repair two-wheelers" is work to extract. "Tell me about Adarsh Gram" is
+   * a question for the guidelines. "I do welding, is there a scheme for that?"
+   * is both, and it is the case worth getting right -- reading it as one or
+   * the other silently drops half of what they said.
+   *
+   * What goes to retrieval depends on which it was. A question on its own
+   * searches as asked. A question attached to a description searches with the
+   * whole sentence, because the slice loses its own subject -- "is there a
+   * scheme for that?" cannot say what "that" was, and the answer drifts to
+   * whatever the documents mention most. Measured: the slice returned a vague
+   * yes, the whole sentence returned "the passages do not mention a specific
+   * scheme for welding", which is the true answer.
    */
   useEffect(() => {
-    if (loading || skills.length > 0 || !transcript.trim() || answer) return;
+    if (!hydrated || !transcript.trim() || asked) return;
+    setAsked(true);
+
     let cancelled = false;
     api
-      .ask({ sessionId, schemeId: null, question: transcript, language })
-      .then((result) => {
-        // Only when it is grounded in a document. An ungrounded answer here
-        // would be the model talking about a scheme it has not read.
-        if (!cancelled && (result.citations?.length ?? 0) > 0) setAnswer(result);
+      .understand(transcript, language)
+      .then((intent) => {
+        if (cancelled || !intent.asks_question || !intent.question) return;
+        const question = intent.describes_work ? transcript : intent.question;
+        return api
+          .ask({ sessionId, schemeId: null, question, language })
+          .then((result) => {
+            // Shown only when a document backs it. An uncited answer would be
+            // the model talking about a scheme it has not read.
+            if (!cancelled && (result.citations?.length ?? 0) > 0) setAnswer(result);
+          });
       })
       .catch(() => {
-        /* No answer is the same as no skills: the empty state stands. */
+        /* Classification is a router, not a guarantee. If it cannot run, the
+           extraction path below still does what it always did. */
       });
+
     return () => {
       cancelled = true;
     };
-  }, [loading, skills.length, transcript, sessionId, language, answer]);
+  }, [hydrated, transcript, sessionId, language, asked]);
 
   const push = useCallback(
     async (edits: SkillEdit[]) => {
@@ -209,8 +230,11 @@ export default function UnderstandingPage() {
         </button>
       )}
 
-      {!loading && skills.length === 0 && answer ? (
-        <div className="flex flex-col gap-5">
+      {/* Shown whenever a document answered them, skills or not. Someone who
+          said "I do welding, is there a scheme for that?" gets both: the
+          answer to what they asked, and the skills from what they told us. */}
+      {answer && (
+        <div className="mb-10 flex flex-col gap-5">
           <div>
             <h2 className="vp-display text-[clamp(1.375rem,2.4vw,1.75rem)]" lang={language}>
               {copy.answeredQuestion}
@@ -240,28 +264,35 @@ export default function UnderstandingPage() {
             ))}
           </ul>
 
-          <div className="flex flex-col items-start gap-3">
-            <p className="text-[14px]" style={{ color: "var(--ink-55)" }} lang={language}>
-              {copy.askedNotTold}
-            </p>
-            <button
-              type="button"
-              onClick={() => router.push("/speak")}
-              className="vp-pill vp-pill-primary"
-              lang={language}
-            >
-              {copy.resay}
-            </button>
-          </div>
+          {/* Only when they asked without telling us anything. Someone who did
+              both has skills below and does not need to be sent back. */}
+          {!loading && skills.length === 0 && (
+            <div className="flex flex-col items-start gap-3">
+              <p className="text-[14px]" style={{ color: "var(--ink-55)" }} lang={language}>
+                {copy.askedNotTold}
+              </p>
+              <button
+                type="button"
+                onClick={() => router.push("/speak")}
+                className="vp-pill vp-pill-primary"
+                lang={language}
+              >
+                {copy.resay}
+              </button>
+            </div>
+          )}
         </div>
-      ) : !loading && skills.length === 0 ? (
+      )}
+
+      {!loading && skills.length === 0 && !answer ? (
         <EmptyState
           title={copy.nothingHeard}
           body={copy.nothingHeardSub}
           action={copy.resay}
           onAction={() => router.push("/speak")}
         />
-      ) : (
+      ) : skills.length === 0 ? null : (
+
         <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fill,minmax(310px,1fr))]">
           {skills.map((skill, index) => (
             <SkillCard

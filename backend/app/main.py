@@ -15,7 +15,7 @@ from fastapi.responses import JSONResponse
 
 from app.config import get_settings
 from app.models import schemas
-from app.routes import admin, assistant, schemes, profile, sessions, speech
+from app.routes import admin, assistant, profile, query, schemes, sessions, speech
 from app.services import db, embeddings, llm, ner, stt, tts
 
 logger = logging.getLogger(__name__)
@@ -75,6 +75,7 @@ app.add_middleware(
 
 app.include_router(speech.router)
 app.include_router(profile.router)
+app.include_router(query.router)
 app.include_router(schemes.router)
 app.include_router(assistant.router)
 app.include_router(sessions.router)

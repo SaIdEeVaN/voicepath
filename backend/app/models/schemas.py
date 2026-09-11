@@ -232,6 +232,26 @@ class AssistantQueryRequest(Base):
     language: Language = "en"
 
 
+class QueryUnderstandRequest(Base):
+    text: str
+    language: str = "en"
+
+
+class QueryUnderstandResponse(Base):
+    """What the person was doing, so the caller knows which step to run.
+
+    Both flags can be true. "I do welding, is there a scheme for that?" needs
+    skills extracted and the question answered, and treating it as one or the
+    other drops half of what they said.
+    """
+
+    describes_work: bool
+    asks_question: bool
+    # Their words, never a rephrasing. Null when they asked nothing.
+    question: str | None = None
+    provider: str
+
+
 class AssistantQueryResponse(Base):
     question_text: str
     answer_text: str
