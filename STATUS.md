@@ -554,14 +554,16 @@ against the directory in both directions: **no document stored under a name
 that is not on disk, and no PDF on disk that is not in the corpus.** 21
 documents and 1096 passages, unchanged in content.
 
-### Still ambiguous, and left alone
+### The two NHDP schemes, disambiguated
 
-`nhdp.pdf` is the National **Handicrafts** Development Programme; `Final
-Revised  Guidelines NHDP 12.04.2023.pdf` is the National **Handloom**
-Development Programme. Different schemes, one acronym, and the second carries a
-double space in its filename. An artisan asking about handicrafts can be shown
-a handloom citation with no way to tell them apart. Renaming them was not asked
-for, so it was not done.
+`nhdp.pdf` was the National **Handicrafts** Development Programme and `Final
+Revised  Guidelines NHDP 12.04.2023.pdf` the National **Handloom** Development
+Programme -- different schemes sharing an acronym, with a double space in the
+second filename. An artisan asking about handicrafts could be shown a handloom
+citation with no way to tell them apart. They are now
+`NHDP_Handicrafts_Guidelines_2021-26.pdf` (110 passages) and
+`NHDP_Handloom_Revised_Guidelines_2023.pdf` (139), and the corpus reconciles
+against the directory in both directions.
 
 ---
 
