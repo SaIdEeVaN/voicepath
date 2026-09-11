@@ -79,12 +79,16 @@ export function AdminTable<T>({
 
   return (
     <div
-      className="overflow-hidden rounded-[14px]"
+      className="overflow-x-auto rounded-[14px]"
       style={{
         border: "1px solid var(--ink-12)",
         background: "var(--color-surface)",
       }}
     >
+      {/* A minimum width the columns can actually hold, so narrow screens
+          scroll the table rather than crushing six columns into 310px. The
+          wrapper scrolls; the page itself never does. */}
+      <div className="min-w-[760px]">
       <div
         className="font-mono grid gap-5 px-6 py-3.5 text-[10.5px] tracking-[0.08em]"
         style={{
@@ -134,6 +138,7 @@ export function AdminTable<T>({
           ))}
         </div>
       ))}
+      </div>
     </div>
   );
 }

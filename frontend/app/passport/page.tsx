@@ -118,7 +118,7 @@ export default function PassportPage() {
                 className="flex flex-wrap items-center gap-5 rounded-xl px-4.5 py-4"
                 style={{ background: "var(--ink-03)", padding: "1rem 1.125rem" }}
               >
-                <div className="min-w-[190px] flex-none">
+                <div className="min-w-0 basis-[190px] flex-none max-[560px]:basis-full">
                   <p
                     className="font-display text-[18px] tracking-[-0.015em]"
                     lang={language}
@@ -134,7 +134,7 @@ export default function PassportPage() {
                 </div>
 
                 <blockquote
-                  className="min-w-[220px] flex-1 text-sm leading-snug"
+                  className="min-w-0 flex-1 basis-[220px] text-sm leading-snug"
                   style={{ color: "var(--ink-62)" }}
                   lang={language}
                 >
@@ -177,7 +177,7 @@ export default function PassportPage() {
             </button>
 
             <p
-              className="min-w-[260px] flex-1 text-sm leading-relaxed"
+              className="min-w-0 flex-1 basis-[260px] text-sm leading-relaxed"
               style={{ color: "var(--ink-70)" }}
               lang={language}
             >

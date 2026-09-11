@@ -190,7 +190,7 @@ function MatchRow({
     <button
       type="button"
       onClick={onOpen}
-      className="flex w-full items-start gap-7 rounded-[16px] p-7 text-left transition-all hover:-translate-y-0.5"
+      className="flex w-full items-start gap-7 rounded-[16px] p-7 text-left transition-all hover:-translate-y-0.5 max-[560px]:flex-col max-[560px]:gap-4 max-[560px]:p-5"
       style={{
         background: "var(--color-surface)",
         border: "1px solid var(--ink-09)",
@@ -234,7 +234,7 @@ function MatchRow({
         </ul>
       </div>
 
-      <div className="flex flex-none flex-col items-end gap-2 text-right">
+      <div className="flex flex-none flex-col items-end gap-2 text-right max-[560px]:w-full max-[560px]:flex-row max-[560px]:items-center max-[560px]:justify-between max-[560px]:text-left">
         <span className="font-display whitespace-nowrap text-[19px] tracking-[-0.02em]">
           {payLabel(o)}
         </span>
@@ -262,7 +262,7 @@ function BrowseRow({
     <button
       type="button"
       onClick={onOpen}
-      className="flex items-center gap-7 rounded-[16px] p-6 text-left transition-all hover:-translate-y-0.5"
+      className="flex items-center gap-7 rounded-[16px] p-6 text-left transition-all hover:-translate-y-0.5 max-[560px]:flex-col max-[560px]:items-start max-[560px]:gap-3 max-[560px]:p-5"
       style={{
         background: "var(--color-surface)",
         border: "1px solid var(--ink-09)",

@@ -134,9 +134,12 @@ export function SchemeView({
 
                 <ul className="flex flex-col gap-3.5">
                   {bars.map((bar) => (
-                    <li key={bar.label} className="flex items-center gap-4">
+                    <li
+                      key={bar.label}
+                      className="flex items-center gap-4 max-[480px]:flex-wrap max-[480px]:gap-y-1.5"
+                    >
                       <span
-                        className="w-[150px] flex-none text-[13.5px] leading-snug"
+                        className="w-[150px] flex-none text-[13.5px] leading-snug max-[480px]:w-full"
                         style={{ color: "var(--ink-70)" }}
                         lang={language}
                       >

@@ -88,6 +88,19 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+    /* A page that scrolls sideways on a phone is a layout bug showing through.
+       `clip` rather than `hidden`: hidden makes the body a scroll container and
+       breaks the sticky header. This is a backstop -- anything wide enough to
+       need it (a table, a diagram) should scroll inside its own container. */
+    overflow-x: clip;
+  }
+
+  /* Long unbroken strings -- a URL, a scheme reference -- are the usual cause
+     of a row that will not shrink. Let them break rather than push the layout. */
+  a,
+  blockquote,
+  p {
+    overflow-wrap: break-word;
   }
 
   button {

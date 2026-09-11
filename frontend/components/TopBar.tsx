@@ -25,7 +25,7 @@ export function TopBar() {
 
   return (
     <header
-      className="sticky top-0 z-20 flex items-center gap-6 border-b px-6 py-2.5 backdrop-blur"
+      className="sticky top-0 z-20 flex items-center gap-6 border-b px-6 py-2.5 backdrop-blur max-[420px]:gap-3 max-[420px]:px-4"
       style={{
         borderColor: "var(--ink-09)",
         background: "rgb(var(--paper-rgb) / 0.86)",
