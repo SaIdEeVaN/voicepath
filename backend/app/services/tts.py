@@ -117,6 +117,41 @@ def _load_voice(language: str):
         return voice
 
 
+async def warm(languages: list[str]) -> list[str]:
+    """Load voices before anyone asks for one. Returns what is now resident.
+
+    The first synthesis in a language reads a 63 MB ONNX graph, and on a free
+    tier that happens again after every idle sleep. The person waiting for it
+    has already read the answer -- the text arrives on its own request, and the
+    audio follows on a second one -- so the load lands squarely in the gap
+    between seeing a reply and hearing it.
+
+    Warming does not reduce the steady-state memory; it only moves the read to
+    a moment when nobody is waiting. A container that never receives a speech
+    request now holds a voice it would not otherwise have loaded, which is the
+    cost, and on a 512 MB tier it is worth knowing about.
+
+    Never raises. A missing voice file, or piper not installed at all, is
+    already a supported configuration -- synthesis falls back to the browser --
+    and it must not be able to stop the application starting.
+    """
+    settings = get_settings()
+    if settings.tts_provider != "local":
+        return []
+
+    loaded: list[str] = []
+    for language in languages:
+        short = _short(language)
+        try:
+            await asyncio.to_thread(_load_voice, short)
+            loaded.append(short)
+        except TTSUnavailable as exc:
+            logger.info("Not warming %s: %s", short, exc)
+        except Exception as exc:  # noqa: BLE001 - warming is best effort
+            logger.warning("Could not warm the %s voice (%s)", short, exc)
+    return loaded
+
+
 def _synthesize_sync(text: str, language: str) -> str:
     """Blocking synthesis to base64 WAV. Called through a thread."""
     voice = _load_voice(language)
