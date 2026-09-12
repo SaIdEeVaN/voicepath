@@ -3,7 +3,7 @@
 > **This file is the live todo list.** It is updated every time a task is completed.
 > Start at **To-do** — that is the working checklist. **Next up** carries the
 > detail behind the top items; everything below it is the record of the build.
-> Last updated: 2026-09-12 (navigation, and an About page)
+> Last updated: 2026-09-12 (a backdrop, and the navbar centred)
 
 **Project root:** `C:\Users\Sai Dixit\voicepath`
 **Sources:** `PRD_File_For_Project.md` (spec) · `VoicePath Mockups.html` (design canvas, unpacked)
@@ -318,7 +318,8 @@ frontend/
     about/                   What this is, what it will not do
     passport/                Skill Passport, audio-retention toggle
     admin/                   Schemes, taxonomy, sessions (no transcripts)
-  components/                SkillCard, Waveform, MatchRing, AskVoicePath, ...
+  components/                SkillCard, Waveform, MatchRing, AskVoicePath,
+                             PageBackdrop, AdminOverview, ...
   lib/
     api.ts                   Typed client. Errors carry the backend's own words
     session.tsx              Session state; health with retry and backoff
@@ -537,6 +538,49 @@ discards every response and the failure is indistinguishable from a dead server.
   eslint is not a dependency.
 - **Rate limiting is per-process.** Multiplies behind multiple instances; move
   the counter to Redis before scaling.
+
+---
+
+## Done on 2026-09-12 — a backdrop, and the navbar centred
+
+**The navbar links are centred and larger.** A three-column grid with equal
+outer columns holds them in the middle of the *header* rather than the middle
+of whatever space is left over — so they do not shift when the language switch
+changes width between scripts, which it does between Latin and Tamil. Links
+went 13px to 15px, the language buttons 12px to 13px with more padding, and the
+wordmark 15px to 16px.
+
+On a phone the grid collapses to two rows: wordmark and language switch on the
+first, links centred underneath. Fitting all of it on one line at 360px would
+mean type too small to tap accurately.
+
+**A backdrop behind every page.** The screens are one column of content on a
+flat cream field, which on a wide monitor reads as empty rather than calm.
+
+Both marks are the product's own vocabulary rather than decoration borrowed
+from elsewhere: **concentric rings are what the microphone does when it is
+listening**, and **the waveform is what a voice looks like on the speak
+screen**. Someone who has used it once will recognise both.
+
+Kept almost invisible — the accent at four to nine per cent. The microphone is
+where this product spends its boldness, and a backdrop that competed with it
+would cost more than the flatness does. The rule written into the component: if
+you notice these before you notice the mic, they are wrong.
+
+Responsive in both directions. The rings scale with the viewport and crop
+against its corner, because a complete circle reads as an object on the page
+while a cropped one reads as the page having an edge. The waveform is hidden
+below `md`: on a phone the content already reaches both edges, so it would only
+be clutter behind the text.
+
+Static SVG, no script and no animation. The target device is a cheap Android
+phone, and ambient motion behind every screen is exactly what makes one feel
+slow. `fixed`, so it does not repaint on scroll.
+
+One trap avoided: the backdrop sits at `z-0` with the content at `z-10`, not at
+a negative index. A negative `z-index` paints behind the parent's background,
+and this body's background propagates to the canvas, which would have made it
+depend on painting rules nobody should have to reason about.
 
 ---
 

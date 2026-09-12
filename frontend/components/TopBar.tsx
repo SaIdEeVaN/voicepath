@@ -12,8 +12,14 @@
  * reads as a logo and only some people know it is also a button. Admin is a
  * signpost, not a door -- the route is token-gated server-side either way.
  *
- * It wraps rather than overflows. On a 360px phone the wordmark, three links
- * and the language switch do not fit on one line, and a header that scrolls
+ * The links sit in the middle of the bar, held there by a three-column grid
+ * with equal outer columns -- so the centre is the centre of the header rather
+ * than of whatever space is left over, and it does not shift when the language
+ * switch changes width between scripts.
+ *
+ * On a phone that grid collapses to two rows: wordmark and language switch on
+ * the first, links centred underneath. Fitting all of it on one line at 360px
+ * would mean type too small to tap accurately, and a header that scrolls
  * sideways is worse than one that takes two lines.
  */
 
@@ -34,7 +40,7 @@ export function TopBar() {
 
   return (
     <header
-      className="sticky top-0 z-20 flex flex-wrap items-center gap-x-5 gap-y-2 border-b px-6 py-2.5 backdrop-blur max-[460px]:gap-x-3.5 max-[460px]:px-4"
+      className="sticky top-0 z-20 grid grid-cols-[1fr_auto_1fr] items-center gap-x-4 gap-y-2.5 border-b px-6 py-3 backdrop-blur max-[560px]:grid-cols-[auto_1fr] max-[560px]:px-4"
       style={{
         borderColor: "var(--ink-09)",
         background: "rgb(var(--paper-rgb) / 0.86)",
@@ -42,12 +48,13 @@ export function TopBar() {
     >
       <Link
         href="/"
-        className="font-display flex-none text-[15px] font-semibold tracking-[-0.02em]"
+        className="font-display justify-self-start text-[16px] font-semibold tracking-[-0.02em]"
       >
         voicepath
       </Link>
 
-      <nav className="flex flex-1 items-center gap-5 max-[460px]:gap-3.5">
+      {/* Second row on a phone, spanning both columns there. */}
+      <nav className="flex items-center justify-center gap-7 max-[560px]:order-3 max-[560px]:col-span-2 max-[560px]:gap-8">
         {[
           { href: "/", label: copy.navHome },
           { href: "/about", label: copy.navAbout },
@@ -59,7 +66,7 @@ export function TopBar() {
               key={item.href}
               href={item.href}
               aria-current={active ? "page" : undefined}
-              className="flex-none text-[13px] underline-offset-4 transition-colors hover:underline max-[460px]:text-xs"
+              className="flex-none py-0.5 text-[15px] underline-offset-4 transition-colors hover:underline"
               style={{ color: active ? "var(--color-ink)" : "var(--ink-45)" }}
               lang={language}
             >
@@ -70,7 +77,7 @@ export function TopBar() {
       </nav>
 
       <div
-        className="flex flex-none gap-1 rounded-full p-[3px]"
+        className="flex flex-none justify-self-end gap-1 rounded-full p-[3px]"
         style={{ background: "var(--ink-04)" }}
         role="group"
         aria-label="Language"
@@ -84,7 +91,7 @@ export function TopBar() {
               onClick={() => setLanguage(entry.code as Language)}
               aria-pressed={active}
               lang={entry.code}
-              className="rounded-full px-3 py-1 text-xs font-medium transition-colors"
+              className="rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors"
               style={{
                 background: active ? "var(--color-surface)" : "transparent",
                 color: active ? "var(--color-ink)" : "var(--ink-55)",

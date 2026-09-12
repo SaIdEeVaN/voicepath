@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 
 import { TopBar } from "@/components/TopBar";
+import { PageBackdrop } from "@/components/PageBackdrop";
 import { SessionProvider } from "@/lib/session";
 
 import "./globals.css";
@@ -39,7 +40,11 @@ export default function RootLayout({ children }: { children: ReactNode }) {
       </head>
       <body>
         <SessionProvider>
-          <div className="flex min-h-dvh flex-col">
+          {/* Behind everything, on every screen including admin -- a plainer
+              page is still a page, and the marks are quiet enough that the
+              line between the two surfaces stays where it was. */}
+          <PageBackdrop />
+          <div className="relative z-10 flex min-h-dvh flex-col">
             <TopBar />
             <main className="flex flex-1 flex-col">{children}</main>
           </div>
