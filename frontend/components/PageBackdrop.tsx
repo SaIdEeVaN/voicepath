@@ -74,7 +74,11 @@ export function PageBackdrop() {
         />
       </svg>
 
-      {/* Margin rules down both gutters.
+      {/* A margin rule down the right gutter.
+      
+          The left one is gone: `FlowRail` puts the four steps of the journey
+          there instead, which is content rather than decoration and is what
+          that space was actually wanted for.
       
           The sides were the emptiest part of a wide screen: the content is a
           centred column, so above about 1024px there is real space either
@@ -87,12 +91,10 @@ export function PageBackdrop() {
           Hidden below `lg`. Measured, the gutter is 72px at 1024 and 90px at
           1280, which is room for a rule 28px from the edge; below that the
           content reaches the edge and there is no gutter to decorate. */}
-      {(["left", "right"] as const).map((side) => (
+      {(["right"] as const).map((side) => (
         <svg
           key={side}
-          className={`absolute inset-y-[12vh] hidden w-6 lg:block ${
-            side === "left" ? "left-7" : "right-7"
-          }`}
+          className="absolute inset-y-[12vh] right-7 hidden w-6 lg:block"
           viewBox="0 0 24 600"
           preserveAspectRatio="none"
           fill="none"
