@@ -53,7 +53,7 @@ export function FlowRail() {
     >
       <ol className="flex flex-col">
         {flow.steps.map((step, index) => (
-          <li key={step.href} className="flex flex-col">
+          <li key={step.label} className="flex flex-col">
             <div className="flex items-start gap-3.5">
               <Dot step={step} />
               <StepLabel step={step} language={language} big />
@@ -115,7 +115,7 @@ export function FlowBar() {
     >
       <ol className="mx-auto flex w-full max-w-[1180px] items-center gap-2 overflow-x-auto">
         {flow.steps.map((step, index) => (
-          <li key={step.href} className="flex flex-none items-center gap-2">
+          <li key={step.label} className="flex flex-none items-center gap-2">
             <Dot step={step} inline />
             <StepLabel step={step} language={language} />
             {step.isCurrent && (
@@ -196,7 +196,7 @@ function StepLabel({
     </span>
   );
 
-  return step.canGo ? (
+  return step.canGo && step.href ? (
     <Link
       href={step.href}
       className="pointer-events-auto underline-offset-4 hover:underline"
