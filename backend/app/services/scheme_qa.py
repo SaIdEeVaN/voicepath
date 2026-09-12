@@ -246,9 +246,14 @@ def _cite(passage: retrieval.Retrieved) -> dict:
     # A source that is a URL is shown as one. It came from the search API and
     # is passed through unchanged -- never assembled, never repaired.
     source = passage.source
+    # A recorded URL first; otherwise a source that is itself a URL, which is
+    # how a web-fetched page arrives. Never anything assembled from the two.
+    url = passage.source_url
+    if not url and source.startswith(("http://", "https://")):
+        url = source
     return {
         "source": source,
-        "source_url": source if source.startswith(("http://", "https://")) else None,
+        "source_url": url,
         "document_title": passage.document_title,
         "heading": passage.heading,
         # Enough to recognise the passage, not so much that the answer is buried.

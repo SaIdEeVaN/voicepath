@@ -63,6 +63,11 @@ class Retrieved:
     # narrow band, so "asdfghjkl" scores 0.79 against a corpus it shares no
     # word with. Whether a term actually appears is the honest signal.
     matched_keyword: bool = False
+    # The government's own page for this document, when one has been recorded
+    # in `data/scheme_docs/sources.json`. Defaulted rather than required: most
+    # documents have no URL, that is the honest state, and nothing is ever
+    # constructed to fill the gap.
+    source_url: str | None = None
 
 
 # Roughly 500 tokens. Measured in characters because the tokenizer lives behind
@@ -360,11 +365,14 @@ async def search(question: str, *, limit: int = 5) -> list[Retrieved]:
         db.fetch(
             """
             select c.id as chunk_id, d.title as document_title, d.source,
-                   c.heading, c.content,
+                   d.source_url, c.heading, c.content,
                    ts_rank(c.tsv, plainto_tsquery('simple', $1)) as rank
             from document_chunks c
             join scheme_documents d on d.id = c.document_id
-            where c.tsv @@ plainto_tsquery('simple', $1)
+            -- Same gate as the vector path. A source awaiting verification, or
+            -- rejected outright, must not be reachable by either route.
+            where d.status = 'active'
+              and c.tsv @@ plainto_tsquery('simple', $1)
             order by rank desc
             limit $2
             """,
@@ -390,6 +398,7 @@ async def search(question: str, *, limit: int = 5) -> list[Retrieved]:
             chunk_id=cid,
             document_title=rows[cid]["document_title"],
             source=rows[cid]["source"],
+            source_url=rows[cid].get("source_url"),
             heading=rows[cid].get("heading"),
             content=rows[cid]["content"],
             # Present only on the dense path; keyword-only hits report 0.0
