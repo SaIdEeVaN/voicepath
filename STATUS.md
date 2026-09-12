@@ -3,7 +3,7 @@
 > **This file is the live todo list.** It is updated every time a task is completed.
 > Start at **To-do** — that is the working checklist. **Next up** carries the
 > detail behind the top items; everything below it is the record of the build.
-> Last updated: 2026-09-12 (the stepper is bigger, and exists at every width)
+> Last updated: 2026-09-12 (the stepper matches the flow the buttons take)
 
 **Project root:** `C:\Users\Sai Dixit\voicepath`
 **Sources:** `PRD_File_For_Project.md` (spec) · `VoicePath Mockups.html` (design canvas, unpacked)
@@ -546,6 +546,44 @@ discards every response and the failure is indistinguishable from a dead server.
   eslint is not a dependency.
 - **Rate limiting is per-process.** Multiplies behind multiple instances; move
   the counter to Redis before scaling.
+
+---
+
+## Fixed on 2026-09-12 — the stepper described a flow the app does not have
+
+It listed *Speak → What I heard → What fits → Your passport*. The buttons go
+somewhere else entirely:
+
+```
+/understanding  confirm  -> /passport
+/passport       matches  -> /schemes
+/schemes        open one -> /schemes/[id]
+```
+
+So the passport comes **before** the list, not after it. The stepper had the
+last two the wrong way round, which is worse than having no stepper: it is a
+confident wrong answer to *where am I*.
+
+The order is now what the buttons actually do, and the journey that was always
+there is written out in full:
+
+**Speak → What I heard → Your passport → What fits → The one you pick**
+
+The fifth step was folded into the fourth before. A scheme's own page is where
+the whole journey was going, and it is not the same thing as the list it was
+chosen from.
+
+**It has no path of its own**, which the code now says plainly: a detail page
+needs an id, so it is somewhere you arrive from the list rather than somewhere
+you can be sent. It is shown as a step and is never a link.
+
+Route resolution is checked across every screen — including that
+`/understanding/disambiguate` belongs to *what I heard* rather than being a step
+of its own, and that `/schemes/20` resolves to the last step rather than the
+list, which needs testing precisely because it also starts with `/schemes`.
+
+A note left in `lib/flow.ts` for whoever changes a navigation button next: this
+list has to move with it.
 
 ---
 
