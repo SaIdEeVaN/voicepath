@@ -3,7 +3,7 @@
 > **This file is the live todo list.** It is updated every time a task is completed.
 > Start at **To-do** — that is the working checklist. **Next up** carries the
 > detail behind the top items; everything below it is the record of the build.
-> Last updated: 2026-09-12 (speech voices load at startup; 313 tests)
+> Last updated: 2026-09-12 (Ask takes typing; the side gutters are used)
 
 **Project root:** `C:\Users\Sai Dixit\voicepath`
 **Sources:** `PRD_File_For_Project.md` (spec) · `VoicePath Mockups.html` (design canvas, unpacked)
@@ -538,6 +538,48 @@ discards every response and the failure is indistinguishable from a dead server.
   eslint is not a dependency.
 - **Rate limiting is per-process.** Multiplies behind multiple instances; move
   the counter to Redis before scaling.
+
+---
+
+## Done on 2026-09-12 — Ask takes typing, and the gutters are used
+
+### The Ask panel had no way to type in most browsers
+
+Reported against `/schemes/20`: the panel offers a microphone and nothing else.
+
+It was **either/or** — `canListen ? <mic> : <text field>`. The text field
+existed but only appeared when the browser *could not* listen, so in Chrome
+there was no way to type at all. A noisy room, a quiet room, a shared phone, or
+simply preferring to write all hit the same dead end.
+
+One field now, with the microphone inside it, which is the pattern people
+already know from every chat box. Both routes reach the same handler, so the
+answer is identical either way.
+
+**Speaking still sends as soon as the sentence ends.** The words appear in the
+field as they are recognised, so a mishearing is visible and can be corrected
+and asked again — but asking is not made to wait for a second tap. This product
+is used by people who may not read the button they would have to find, and
+adding a confirmation step after speech would cost them more than it gains.
+That is the one acceptance criterion not met in full, and it is deliberate.
+
+The separate preview bubble is gone: with the field always visible, two copies
+of the same in-progress sentence, one editable, is confusing about which is
+real.
+
+### The sides were the emptiest part of a wide screen
+
+The content is a centred column, so above about 1024px there is real space at
+either edge doing nothing.
+
+Margin rules run down both gutters now: a hairline that fades at both ends, so
+it reads as the page having margins rather than as a line drawn on it, with
+amplitude ticks along it — the waveform from the speak screen, stood on its
+end, at rest.
+
+Measured before drawing anything there. The gutter is 72px at 1024 and 90px at
+1280, which is room for a rule 28px from the edge; below `lg` the content
+reaches the edge and there is no gutter to decorate, so they are hidden.
 
 ---
 
