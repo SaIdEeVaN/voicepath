@@ -43,6 +43,8 @@ export interface Copy {
    */
   flowSteps: string[];
   flowHere: string;
+  /** Link on a citation, to the government's own page. */
+  readOnGovPage: string;
   /**
    * The About page.
    *
@@ -191,6 +193,7 @@ const en: Copy = {
   navAbout: "About",
   flowSteps: ["Speak", "What I heard", "What fits", "Your passport"],
   flowHere: "you are here",
+  readOnGovPage: "Read this on the government page",
   aboutPageTitle: "About VoicePath",
   aboutPageLede:
     "A way to find government work, training and schemes by saying what you have done — out loud, in your own language, without filling a form.",
@@ -350,6 +353,7 @@ const ta: Copy = {
   navAbout: "பற்றி",
   flowSteps: ["பேசுங்கள்", "நான் கேட்டது", "பொருந்துவது", "உங்கள் பாஸ்போர்ட்"],
   flowHere: "நீங்கள் இங்கே",
+  readOnGovPage: "அரசு பக்கத்தில் படியுங்கள்",
   aboutPageTitle: "VoicePath பற்றி",
   aboutPageLede:
     "நீங்கள் செய்த வேலையைச் சொன்னால் போதும் — உங்கள் மொழியில், படிவம் நிரப்பாமல் — அரசு வேலை, பயிற்சி, திட்டங்களைக் கண்டுபிடிக்க ஒரு வழி.",
@@ -511,6 +515,7 @@ const hi: Copy = {
   navAbout: "परिचय",
   flowSteps: ["बोलिए", "जो मैंने सुना", "जो मेल खाता है", "आपका पासपोर्ट"],
   flowHere: "आप यहाँ हैं",
+  readOnGovPage: "सरकारी पन्ने पर पढ़िए",
   aboutPageTitle: "VoicePath के बारे में",
   aboutPageLede:
     "जो काम आपने किया है वह बोलकर सरकारी काम, प्रशिक्षण और योजनाएँ ढूँढ़ने का एक तरीक़ा — अपनी भाषा में, बिना कोई फ़ॉर्म भरे।",

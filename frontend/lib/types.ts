@@ -141,6 +141,14 @@ export interface QueryUnderstandResponse {
 
 export interface Citation {
   source: string;
+  /**
+   * The government's own page for this document, when one has been recorded.
+   *
+   * Often null, and that is the honest state: no URL is ever constructed to
+   * fill the gap, so a document nobody has recorded a page for cites its name
+   * alone.
+   */
+  source_url: string | null;
   document_title: string;
   heading: string | null;
   excerpt: string;

@@ -367,6 +367,18 @@ export default function UnderstandingPage() {
                   {citation.heading ? ` · ${citation.heading}` : ""}
                 </span>
                 <span className="mt-1 block">&ldquo;{citation.excerpt}&rdquo;</span>
+                {citation.source_url && (
+                  <a
+                    href={citation.source_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-1.5 inline-block underline underline-offset-4"
+                    style={{ color: "var(--color-accent-deep)" }}
+                    lang={language}
+                  >
+                    {copy.readOnGovPage} ↗
+                  </a>
+                )}
               </li>
             ))}
           </ul>

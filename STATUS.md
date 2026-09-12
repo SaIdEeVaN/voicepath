@@ -3,7 +3,7 @@
 > **This file is the live todo list.** It is updated every time a task is completed.
 > Start at **To-do** — that is the working checklist. **Next up** carries the
 > detail behind the top items; everything below it is the record of the build.
-> Last updated: 2026-09-12 (the left gutter carries the flow, not decoration)
+> Last updated: 2026-09-12 (citations can carry a URL; the verification gate is real)
 
 **Project root:** `C:\Users\Sai Dixit\voicepath`
 **Sources:** `PRD_File_For_Project.md` (spec) · `VoicePath Mockups.html` (design canvas, unpacked)
@@ -44,6 +44,11 @@ twice is harmless. There is no cost to doing this in the safe order.
       depends on — would have turned a silent outage into a red banner.
 
 ### Now — correctness, and the largest spec gaps
+
+- [ ] **No scheme document has a URL recorded yet.** `sources.json` lists all
+      twenty PDFs with empty values, so citations still name the document
+      alone. Paste the address each was downloaded from and re-run the ingest.
+      Nothing invents one, so an empty entry is safe, just not useful.
 
 - [ ] **Experience cannot be corrected, only seen.** `/understanding` shows it
       now, but changing it means re-recording: there is no endpoint that edits
@@ -194,7 +199,7 @@ Four approaches, in order of effort:
 | 2. Backend core (config, db, providers) | ✅ Done |
 | 3. Backend pipeline (extract → normalize → match → explain) | ✅ Done |
 | 4. Backend routes + rate limiting | ✅ Done |
-| 5. Backend tests | ✅ Done — **313 passing**, 7 skipped |
+| 5. Backend tests | ✅ Done — **325 passing**, 7 skipped |
 | 6. Frontend scaffold + design tokens | ✅ Done |
 | 7. Frontend screens | ✅ Done — all 8 |
 | 8. Admin (Phase 2) | ✅ Done |
@@ -254,6 +259,9 @@ db/                        Apply in numeric order
   006_schemes_rename.sql     opportunities -> schemes, in place. No row lost
   007_match_language.sql     which language a stored explanation is in
   008_drop_compatibility_views.sql
+  009_document_source_url.sql
+                             a document's URL through retrieval, and the
+                             verification gate actually enforced
                              retires the opportunities shims 006 left behind
 
 backend/
@@ -295,8 +303,8 @@ backend/
       fetch_voices.py        Piper voices for ta/hi/en (~190MB)
       ingest_documents.py    PDF/text -> chunks -> embeddings
       migrate.py
-  tests/                     320, fully offline -- no keys, network or database.
-                             313 pass; 7 skip without one (intent topic check)
+  tests/                     332, fully offline -- no keys, network or database.
+                             325 pass; 7 skip without one (intent topic check)
   data/scheme_docs/          Source PDFs, committed (~28MB): 20 central and
                              state scheme documents -- PM-AJAY, PMAGY, PM SETU,
                              PMGSY, NHDP (handicrafts and handloom), NLM, NULM,
@@ -369,7 +377,7 @@ frontend/
 - [x] `/api/admin/*` — server-side role check, sha256 tokens, bootstrap that self-disables
 - [x] Rate limiting on public routes · `GET /health` reporting every provider honestly
 
-### Phase 5 — Backend tests ✅ (313 passing, 7 skipped)
+### Phase 5 — Backend tests ✅ (325 passing, 7 skipped)
 - [x] `test_matching.py` — weights, determinism, each component, grounding
 - [x] `test_extraction.py` — evidence grounding in ta/hi/en, invention rejected
 - [x] `test_normalization.py` — alias matching across scripts, no silent upgrades
@@ -412,7 +420,7 @@ frontend/
 - [x] `/admin/schemes`, `/admin/taxonomy`, `/admin/sessions` (read-only, no transcripts)
 
 ### Phase 9 — Verification ✅
-- [x] `pytest` — 313 passed, 7 skipped (the 7 need a database)
+- [x] `pytest` — 325 passed, 7 skipped (the 7 need a database)
 - [x] `npx tsc --noEmit` — clean
 - [x] `next build` — 12 routes
 - [x] Both servers running; RSC detail page pulling live backend data
@@ -538,6 +546,50 @@ discards every response and the failure is indistinguishable from a dead server.
   eslint is not a dependency.
 - **Rate limiting is per-process.** Multiplies behind multiple instances; move
   the counter to Redis before scaling.
+
+---
+
+## Fixed on 2026-09-12 — a citation can carry a URL, and the verification gate is real
+
+### Citations named a file nobody could look up
+
+An answer drawn from a guideline cited `NLMGuidelinesJan2025.pdf`. The point of
+a citation here is that a person can go and read the rule themselves, or take it
+to an office — a filename does not do that.
+
+`scheme_documents.source_url` had existed since `005`, but **only web-fetched
+pages ever had one**: the ingest script never passed a URL for a local PDF, and
+`match_document_chunks` did not return the column, so nothing downstream could
+have used it. `db/009` returns it; the ingest script reads
+`data/scheme_docs/sources.json`; the citation prefers it; both screens render it
+as a link to the government's own page.
+
+**The URLs are typed in by hand and never derived.** `websearch.py` consults no
+model at all precisely so that it cannot invent an address, and a guessed
+government URL looks exactly as official as a real one. `sources.json` ships
+listing all twenty PDFs with empty values — an entry left empty is correct and
+safe, and the citation falls back to naming the document, as before. A relative
+path or a bare domain is rejected rather than repaired.
+
+### A gate that was recorded and never enforced
+
+Found while doing the above: **`scheme_documents.status` was written and never
+read.**
+
+A page fetched from outside the `.gov.in` family is stored
+`pending_verification` so that an admin must approve it before the system
+asserts anything from it. That is the entire point of the tiering in
+`websearch.py`, `/api/admin/sources` exists to action it, and it is written up
+in this file as the reason searching the web cannot quietly widen what the
+system claims.
+
+Neither retrieval path filtered on it. **A pending page was retrievable and
+citable the moment it was stored, and rejecting one did not withdraw it.** Both
+paths filter on `status = 'active'` now.
+
+Nothing was actually exposed: every document in the corpus is active, so the
+change removes nothing today. The gate simply starts working the first time a
+non-government page arrives — which is exactly when it was always supposed to.
 
 ---
 
