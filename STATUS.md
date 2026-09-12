@@ -3,7 +3,7 @@
 > **This file is the live todo list.** It is updated every time a task is completed.
 > Start at **To-do** — that is the working checklist. **Next up** carries the
 > detail behind the top items; everything below it is the record of the build.
-> Last updated: 2026-09-12 (a backdrop, and the navbar centred)
+> Last updated: 2026-09-12 (the About page reads across, not down)
 
 **Project root:** `C:\Users\Sai Dixit\voicepath`
 **Sources:** `PRD_File_For_Project.md` (spec) · `VoicePath Mockups.html` (design canvas, unpacked)
@@ -538,6 +538,35 @@ discards every response and the failure is indistinguishable from a dead server.
   eslint is not a dependency.
 - **Rate limiting is per-process.** Multiplies behind multiple instances; move
   the counter to Redis before scaling.
+
+---
+
+## Done on 2026-09-12 — the About page reads across, not down
+
+It was a 760px column of five stacked sections: correct, and very tall on a
+monitor.
+
+The title and the opening line sit **side by side** now rather than stacked,
+which is where most of the height was going, and the five sections run in
+**two columns** below them. The container widened from 760px to 1080px, matching
+the schemes page.
+
+**Two columns, and not before 1024px.** The width was measured rather than
+guessed, because column count is the one layout decision that can quietly ruin
+prose:
+
+| viewport | column | characters a line |
+|---|---|---|
+| 1440px | 512px | ~68 |
+| 1280px | 512px | ~68 |
+| 1024px | 412px | ~55 |
+| 768px | 302px | **~40** |
+
+Comfortable reading runs from about 45 to 80 characters. Splitting at `md`,
+which is the obvious choice and where this started, puts 768px at forty — the
+width where reading turns into a newspaper column. So it splits at `lg` and
+stays a single column below, and a third column was never an option because it
+would put every width under forty.
 
 ---
 
