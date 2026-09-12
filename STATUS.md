@@ -3,7 +3,7 @@
 > **This file is the live todo list.** It is updated every time a task is completed.
 > Start at **To-do** — that is the working checklist. **Next up** carries the
 > detail behind the top items; everything below it is the record of the build.
-> Last updated: 2026-09-12 (Ask takes typing; the side gutters are used)
+> Last updated: 2026-09-12 (the left gutter carries the flow, not decoration)
 
 **Project root:** `C:\Users\Sai Dixit\voicepath`
 **Sources:** `PRD_File_For_Project.md` (spec) · `VoicePath Mockups.html` (design canvas, unpacked)
@@ -319,7 +319,7 @@ frontend/
     passport/                Skill Passport, audio-retention toggle
     admin/                   Schemes, taxonomy, sessions (no transcripts)
   components/                SkillCard, Waveform, MatchRing, AskVoicePath,
-                             PageBackdrop, AdminOverview, ...
+                             PageBackdrop, FlowRail, AdminOverview, ...
   lib/
     api.ts                   Typed client. Errors carry the backend's own words
     session.tsx              Session state; health with retry and backoff
@@ -538,6 +538,48 @@ discards every response and the failure is indistinguishable from a dead server.
   eslint is not a dependency.
 - **Rate limiting is per-process.** Multiplies behind multiple instances; move
   the counter to Redis before scaling.
+
+---
+
+## Done on 2026-09-12 — the left gutter carries the flow
+
+Three attempts at the empty sides had all been *decoration* — rings, a
+waveform, margin rules. The note back was blunt and correct: put something
+there, not another faint line.
+
+So the left gutter now carries **where you are**. The product is four screens
+with no breadcrumb between them — speak, what I heard, what fits, your passport
+— and the person using it may not read the headings. On a phone that survives,
+because each screen fills the view. On a monitor it was a centred column with
+nothing either side.
+
+The current step is marked, the ones behind it are links so you can go back and
+change something, and a step you have not reached is not a link — offering it
+would send someone to a screen with nothing on it. It appears only on the flow;
+the landing page, About and admin are not steps in anything, and a progress
+rail beside them would be claiming otherwise.
+
+### It only appears at 1536px, and that is measured
+
+| viewport | container | gutter | rail needs | |
+|---|---|---|---|---|
+| 1280px | 1101px | 90px | 178px | overlaps the text |
+| 1440px | 1180px | 130px | 178px | overlaps the text |
+| 1536px | 1180px | 178px | 178px | fits |
+| 1920px | 1180px | 370px | 178px | fits |
+
+A rail with readable text in it needs about 178px, and below 1536 the gutter is
+narrower than that, so it would sit on top of the words. **An empty margin is
+better than a rail over the text.** It is anchored to the content column rather
+than the viewport, so the gap beside the words stays constant as the window
+grows.
+
+The decorative rule that was in the left gutter is gone; the right one stays,
+from `lg` up, so the mid widths are not bare.
+
+**Between 1280 and 1440 the sides are still margins.** There is no honest way
+to put text in 90px. If those widths should feel fuller, the answer is a wider
+content column, not more gutter content — and that is a different change.
 
 ---
 

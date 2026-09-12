@@ -36,6 +36,14 @@ export interface Copy {
   navHome: string;
   navAbout: string;
   /**
+   * The four steps of the journey, shown down the left of a wide screen.
+   *
+   * People lose track of where they are in this flow -- it is four screens
+   * with no breadcrumb, and the person using it may not read the headings.
+   */
+  flowSteps: string[];
+  flowHere: string;
+  /**
    * The About page.
    *
    * Only what is true of the product. No claims about who built it, because
@@ -181,6 +189,8 @@ const en: Copy = {
     "VoicePath does not apply for anything on your behalf. It tells you what exists, and what to say when you go.",
   navHome: "Home",
   navAbout: "About",
+  flowSteps: ["Speak", "What I heard", "What fits", "Your passport"],
+  flowHere: "you are here",
   aboutPageTitle: "About VoicePath",
   aboutPageLede:
     "A way to find government work, training and schemes by saying what you have done — out loud, in your own language, without filling a form.",
@@ -338,6 +348,8 @@ const ta: Copy = {
     "VoicePath உங்களுக்காக விண்ணப்பம் அனுப்பாது. என்ன இருக்கிறது, அங்கே போய் என்ன சொல்ல வேண்டும் என்பதைச் சொல்கிறது.",
   navHome: "முகப்பு",
   navAbout: "பற்றி",
+  flowSteps: ["பேசுங்கள்", "நான் கேட்டது", "பொருந்துவது", "உங்கள் பாஸ்போர்ட்"],
+  flowHere: "நீங்கள் இங்கே",
   aboutPageTitle: "VoicePath பற்றி",
   aboutPageLede:
     "நீங்கள் செய்த வேலையைச் சொன்னால் போதும் — உங்கள் மொழியில், படிவம் நிரப்பாமல் — அரசு வேலை, பயிற்சி, திட்டங்களைக் கண்டுபிடிக்க ஒரு வழி.",
@@ -497,6 +509,8 @@ const hi: Copy = {
     "VoicePath आपकी ओर से आवेदन नहीं भेजता। यह बताता है कि क्या मौजूद है, और वहाँ जाकर क्या कहना है।",
   navHome: "मुख्य पृष्ठ",
   navAbout: "परिचय",
+  flowSteps: ["बोलिए", "जो मैंने सुना", "जो मेल खाता है", "आपका पासपोर्ट"],
+  flowHere: "आप यहाँ हैं",
   aboutPageTitle: "VoicePath के बारे में",
   aboutPageLede:
     "जो काम आपने किया है वह बोलकर सरकारी काम, प्रशिक्षण और योजनाएँ ढूँढ़ने का एक तरीक़ा — अपनी भाषा में, बिना कोई फ़ॉर्म भरे।",
