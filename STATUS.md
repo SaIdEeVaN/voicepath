@@ -3,7 +3,7 @@
 > **This file is the live todo list.** It is updated every time a task is completed.
 > Start at **To-do** — that is the working checklist. **Next up** carries the
 > detail behind the top items; everything below it is the record of the build.
-> Last updated: 2026-09-12 (the About page reads across, not down)
+> Last updated: 2026-09-12 (speech voices load at startup; 313 tests)
 
 **Project root:** `C:\Users\Sai Dixit\voicepath`
 **Sources:** `PRD_File_For_Project.md` (spec) · `VoicePath Mockups.html` (design canvas, unpacked)
@@ -194,7 +194,7 @@ Four approaches, in order of effort:
 | 2. Backend core (config, db, providers) | ✅ Done |
 | 3. Backend pipeline (extract → normalize → match → explain) | ✅ Done |
 | 4. Backend routes + rate limiting | ✅ Done |
-| 5. Backend tests | ✅ Done — **306 passing**, 7 skipped |
+| 5. Backend tests | ✅ Done — **313 passing**, 7 skipped |
 | 6. Frontend scaffold + design tokens | ✅ Done |
 | 7. Frontend screens | ✅ Done — all 8 |
 | 8. Admin (Phase 2) | ✅ Done |
@@ -295,8 +295,8 @@ backend/
       fetch_voices.py        Piper voices for ta/hi/en (~190MB)
       ingest_documents.py    PDF/text -> chunks -> embeddings
       migrate.py
-  tests/                     313, fully offline -- no keys, network or database.
-                             306 pass; 7 skip without one (intent topic check)
+  tests/                     320, fully offline -- no keys, network or database.
+                             313 pass; 7 skip without one (intent topic check)
   data/scheme_docs/          Source PDFs, committed (~28MB): 20 central and
                              state scheme documents -- PM-AJAY, PMAGY, PM SETU,
                              PMGSY, NHDP (handicrafts and handloom), NLM, NULM,
@@ -369,7 +369,7 @@ frontend/
 - [x] `/api/admin/*` — server-side role check, sha256 tokens, bootstrap that self-disables
 - [x] Rate limiting on public routes · `GET /health` reporting every provider honestly
 
-### Phase 5 — Backend tests ✅ (306 passing, 7 skipped)
+### Phase 5 — Backend tests ✅ (313 passing, 7 skipped)
 - [x] `test_matching.py` — weights, determinism, each component, grounding
 - [x] `test_extraction.py` — evidence grounding in ta/hi/en, invention rejected
 - [x] `test_normalization.py` — alias matching across scripts, no silent upgrades
@@ -412,7 +412,7 @@ frontend/
 - [x] `/admin/schemes`, `/admin/taxonomy`, `/admin/sessions` (read-only, no transcripts)
 
 ### Phase 9 — Verification ✅
-- [x] `pytest` — 306 passed, 7 skipped (the 7 need a database)
+- [x] `pytest` — 313 passed, 7 skipped (the 7 need a database)
 - [x] `npx tsc --noEmit` — clean
 - [x] `next build` — 12 routes
 - [x] Both servers running; RSC detail page pulling live backend data
@@ -538,6 +538,51 @@ discards every response and the failure is indistinguishable from a dead server.
   eslint is not a dependency.
 - **Rate limiting is per-process.** Multiplies behind multiple instances; move
   the counter to Redis before scaling.
+
+---
+
+## Done on 2026-09-12 — speech voices load at startup
+
+Asked why the text appears and then the audio takes a moment to arrive.
+
+Three costs were stacking, and only one was worth fixing. The answer and its
+audio are **two separate requests** by design — the reply is put on screen and
+the spinner stopped before synthesis is even asked for, because holding the
+spinner "made a delivered answer look like a stalled one". So the wait is
+visible by construction.
+
+What made it long was that **the first synthesis in a language reads a 63 MB
+ONNX graph**, and on a tier that sleeps after fifteen minutes idle that happens
+again after every nap. It landed in the worst possible place: between a person
+seeing a reply and hearing it.
+
+Voices are loaded at startup now. Measured on the Tamil voice:
+
+| | |
+|---|---|
+| voice load | **2.71s** |
+| load again, cached | 0.000s |
+| synthesis with a warm voice | 0.49s |
+
+So a first spoken answer goes from roughly 3.2s to 0.5s.
+
+**Not awaited.** A 63 MB read would delay the app reporting itself ready, and
+the point is only to move it off the path of someone waiting. Whoever speaks
+first is being recorded and transcribed while it runs, so it is normally
+finished before any audio is asked for — and if it is not, `synthesize` loads
+the voice the old way and nothing breaks.
+
+**It does not reduce memory, only moves the read.** A container that never
+receives a speech request now holds a voice it would not otherwise have loaded.
+`TTS_WARM_LANGUAGES` defaults to `ta` alone — the interface default and the
+language most of these users speak. All three would hold roughly 190 MB on a
+512 MB tier.
+
+Warming touches application startup, and a missing voice file is a *supported*
+configuration — synthesis falls back to the browser's own speech, which is real
+speech in the person's language. So `tests/test_voice_warming.py` pins the part
+that could go wrong: the app starts when no voice exists, and when warming
+raises outright.
 
 ---
 

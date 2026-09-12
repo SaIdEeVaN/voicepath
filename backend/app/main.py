@@ -5,6 +5,7 @@ Run with:  uvicorn app.main:app --reload --port 8000
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
@@ -48,8 +49,39 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         settings.stt_provider, settings.tts_provider, settings.llm_provider,
         settings.embedding_provider, "on" if settings.persistence_enabled else "memory",
     )
+
+    # Load the speech voices in the background rather than on the first
+    # request that needs one.
+    #
+    # Not awaited: a 63 MB read would delay the app reporting itself ready,
+    # and the point is only to move the read off the path of someone waiting.
+    # Whoever speaks first is recording and being transcribed while this runs,
+    # so it is usually finished before any audio is asked for -- and if it is
+    # not, `synthesize` loads it the old way and nothing breaks.
+    #
+    # The reference is held because asyncio only keeps a weak one, and a task
+    # nobody holds can be collected mid-read.
+    warming = asyncio.create_task(_warm_voices(settings))
+
     yield
+
+    warming.cancel()
     await db.close_pool()
+
+
+async def _warm_voices(settings) -> None:
+    languages = settings.tts_warm_language_list
+    if not languages:
+        return
+    try:
+        loaded = await tts.warm(languages)
+    except asyncio.CancelledError:
+        raise
+    except Exception as exc:  # noqa: BLE001 - never worth failing startup for
+        logger.warning("Voice warming failed (%s); voices load on first use", exc)
+        return
+    if loaded:
+        logger.info("Speech voices ready: %s", ", ".join(loaded))
 
 
 app = FastAPI(

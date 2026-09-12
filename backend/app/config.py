@@ -66,6 +66,15 @@ class Settings(BaseSettings):
     # Piper voices, one per language. A language with no voice file falls back
     # to the browser rather than failing the request.
     piper_voice_dir: str = "models/piper"
+    # Voices to load at startup rather than on the first request that needs
+    # one. Each is a 63 MB read, and it otherwise lands in the gap between a
+    # person seeing an answer and hearing it -- again after every idle sleep on
+    # a tier that sleeps. Comma-separated; empty warms nothing.
+    #
+    # Defaults to Tamil alone, which is the interface default and the language
+    # most of this product's users speak. Warming all three would hold ~190 MB
+    # on a 512 MB container.
+    tts_warm_languages: str = "ta"
 
     # -- LLM ----------------------------------------------------------------
     # Groq hosting open-weight models. The weights are open source; the hosting
@@ -215,6 +224,10 @@ class Settings(BaseSettings):
                 "See PRD section 8."
             )
         return self
+
+    @property
+    def tts_warm_language_list(self) -> list[str]:
+        return [p.strip() for p in self.tts_warm_languages.split(",") if p.strip()]
 
     @property
     def cors_origin_list(self) -> list[str]:
