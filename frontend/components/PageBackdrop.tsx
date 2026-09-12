@@ -5,10 +5,11 @@
  * wide monitor that reads as empty rather than calm. This gives the page
  * something to sit on.
  *
- * Both marks are the product's own vocabulary rather than decoration borrowed
+ * Every mark is the product's own vocabulary rather than decoration borrowed
  * from somewhere else: concentric rings are what the microphone does when it is
  * listening, and the waveform is what a person's voice looks like on the speak
- * screen. Someone who has used it once will recognise both.
+ * screen -- along the bottom, and stood on its end down both side gutters.
+ * Someone who has used it once will recognise all of it.
  *
  * Deliberately almost invisible -- the accent at four to seven per cent. The
  * microphone is where this product spends its boldness, and a backdrop that
@@ -72,6 +73,69 @@ export function PageBackdrop() {
           strokeLinecap="round"
         />
       </svg>
+
+      {/* Margin rules down both gutters.
+      
+          The sides were the emptiest part of a wide screen: the content is a
+          centred column, so above about 1024px there is real space either
+          edge doing nothing. A hairline that fades at both ends reads as the
+          page having margins rather than as a line drawn on it.
+      
+          The ticks along each rule are the waveform again, stood on its end --
+          the same amplitude marks the speak screen draws, at rest.
+      
+          Hidden below `lg`. Measured, the gutter is 72px at 1024 and 90px at
+          1280, which is room for a rule 28px from the edge; below that the
+          content reaches the edge and there is no gutter to decorate. */}
+      {(["left", "right"] as const).map((side) => (
+        <svg
+          key={side}
+          className={`absolute inset-y-[12vh] hidden w-6 lg:block ${
+            side === "left" ? "left-7" : "right-7"
+          }`}
+          viewBox="0 0 24 600"
+          preserveAspectRatio="none"
+          fill="none"
+        >
+          <defs>
+            <linearGradient id={`vp-rule-${side}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="var(--color-accent)" stopOpacity="0" />
+              <stop offset="22%" stopColor="var(--color-accent)" stopOpacity="0.16" />
+              <stop offset="78%" stopColor="var(--color-accent)" stopOpacity="0.16" />
+              <stop offset="100%" stopColor="var(--color-accent)" stopOpacity="0" />
+            </linearGradient>
+          </defs>
+
+          <line
+            x1="12"
+            y1="0"
+            x2="12"
+            y2="600"
+            stroke={`url(#vp-rule-${side})`}
+            strokeWidth="1"
+          />
+
+          {/* Amplitudes, not decoration: short marks where a quiet passage
+              would sit, longer where a loud one would. */}
+          {(
+            [
+              [92, 4], [140, 9], [188, 5], [236, 12], [284, 6],
+              [332, 10], [380, 4], [428, 8], [476, 5],
+            ] as [number, number][]
+          ).map(([y, len]) => (
+            <line
+              key={y}
+              x1={12 - len / 2}
+              y1={y}
+              x2={12 + len / 2}
+              y2={y}
+              stroke="var(--color-accent)"
+              strokeOpacity="0.14"
+              strokeWidth="1"
+            />
+          ))}
+        </svg>
+      ))}
 
       {/* A single soft wash anchored to the rings, so the top-right corner has
           depth rather than a floating line drawing. Not a wash across the

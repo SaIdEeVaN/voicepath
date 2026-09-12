@@ -248,14 +248,9 @@ export function AskVoicePath({ schemeId }: { schemeId: number }) {
           </div>
         ))}
 
-        {draft && (
-          <p
-            className="max-w-[88%] self-end rounded-[14px_14px_4px_14px] px-4 py-2.5 text-[14.5px] italic leading-snug"
-            style={{ background: "var(--paper-08)" }}
-          >
-            {draft}
-          </p>
-        )}
+        {/* While listening, the words appear in the field below rather than
+            in a bubble here. Two copies of the same in-progress sentence, one
+            of them editable, is confusing about which one is real. */}
 
         {thinking && (
           <p className="text-[13px]" style={{ color: "var(--paper-40)" }} lang={language}>
@@ -270,56 +265,71 @@ export function AskVoicePath({ schemeId }: { schemeId: number }) {
         )}
       </div>
 
-      {canListen ? (
-        <button
-          type="button"
-          onClick={toggleListening}
-          disabled={thinking}
-          className="flex items-center justify-center gap-3 rounded-xl px-4 py-3.5 text-sm transition-colors disabled:opacity-50"
+      {/* One field, both ways in.
+      
+          This used to be either/or: the microphone when the browser could
+          listen, the text box only when it could not. So in Chrome there was
+          no way to type at all -- which fails a noisy room, a quiet room, a
+          shared phone, and anyone who would rather write than speak.
+      
+          Speaking still sends as soon as the sentence ends. The words appear
+          in the field as they are recognised, so a mishearing is visible, but
+          asking is not made to wait for a second tap: this product is used by
+          people who may not read the button they would have to find. */}
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          void ask(draft);
+        }}
+        className="flex gap-2"
+      >
+        <div
+          className="flex min-w-0 flex-1 items-center gap-1.5 rounded-xl pr-1.5"
           style={{
             border: `1px solid ${listening ? "var(--color-accent)" : "var(--paper-20)"}`,
-            background: listening ? "var(--paper-08)" : "transparent",
-            color: "var(--color-paper)",
+            background: listening ? "var(--paper-08)" : "var(--paper-05)",
           }}
-          lang={language}
-        >
-          <MicIcon size={17} strokeWidth={1.5} />
-          {listening ? copy.listeningLabel : copy.askLabel}
-        </button>
-      ) : (
-        // No on-device recognition in this browser. Typing is the fallback,
-        // not a dead end.
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            void ask(draft);
-          }}
-          className="flex gap-2"
         >
           <input
             value={draft}
             onChange={(event) => setDraft(event.target.value)}
-            placeholder={copy.askPlaceholder}
+            placeholder={listening ? copy.listeningLabel : copy.askPlaceholder}
             aria-label={copy.askLabel}
+            disabled={thinking}
             lang={language}
-            className="min-w-0 flex-1 rounded-xl px-3.5 py-3 text-sm outline-none"
-            style={{
-              border: "1px solid var(--paper-20)",
-              background: "var(--paper-05)",
-              color: "var(--color-paper)",
-            }}
+            className="min-w-0 flex-1 bg-transparent px-3.5 py-3 text-sm outline-none disabled:opacity-50"
+            style={{ color: "var(--color-paper)" }}
           />
-          <button
-            type="submit"
-            disabled={thinking || !draft.trim()}
-            className="rounded-xl px-4 text-sm font-medium disabled:opacity-40"
-            style={{ background: "var(--color-accent)", color: "var(--color-paper)" }}
-            lang={language}
-          >
-            {copy.send}
-          </button>
-        </form>
-      )}
+
+          {canListen && (
+            <button
+              type="button"
+              onClick={toggleListening}
+              disabled={thinking}
+              aria-pressed={listening}
+              aria-label={listening ? copy.listeningLabel : copy.askLabel}
+              title={listening ? copy.listeningLabel : copy.askLabel}
+              className="grid h-9 w-9 flex-none place-items-center rounded-lg transition-colors disabled:opacity-50"
+              style={{
+                background: listening ? "var(--color-accent)" : "var(--paper-08)",
+                color: "var(--color-paper)",
+              }}
+            >
+              <MicIcon size={17} strokeWidth={1.5} />
+            </button>
+          )}
+        </div>
+
+        <button
+          type="submit"
+          disabled={thinking || !draft.trim()}
+          className="rounded-xl px-4 text-sm font-medium disabled:opacity-40"
+          style={{ background: "var(--color-accent)", color: "var(--color-paper)" }}
+          lang={language}
+        >
+          {copy.send}
+        </button>
+      </form>
     </aside>
   );
 }
