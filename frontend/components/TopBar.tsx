@@ -4,33 +4,37 @@
  * Minimal chrome (PRD section 2: the large voice control is the primary
  * interaction, not a nav bar).
  *
- * So this carries the wordmark, the language switch, and one link to admin.
- * There is no other navigation -- the flow moves forward on its own, and every
- * screen that needs a way back provides its own.
+ * So this carries the wordmark, three quiet links and the language switch.
+ * The flow still moves forward on its own; these are ways out of it rather
+ * than a menu to navigate by.
  *
- * Admin sits here because an operator should not have to scroll the landing
- * page to reach their own tool. It stays visually quiet: the hero belongs to
- * the person who came to speak, and the route is token-gated server-side, so
- * this is a signpost rather than a door.
+ * Home exists even though the wordmark already goes there, because a wordmark
+ * reads as a logo and only some people know it is also a button. Admin is a
+ * signpost, not a door -- the route is token-gated server-side either way.
+ *
+ * It wraps rather than overflows. On a 360px phone the wordmark, three links
+ * and the language switch do not fit on one line, and a header that scrolls
+ * sideways is worse than one that takes two lines.
  */
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { LANGUAGES } from "@/lib/i18n";
+import { LANGUAGES, copyFor } from "@/lib/i18n";
 import { useSession } from "@/lib/session";
 import type { Language } from "@/lib/types";
 
 export function TopBar() {
   const pathname = usePathname();
   const { language, setLanguage } = useSession();
+  const copy = copyFor(language);
 
   // The admin surface is a different product for a different person.
   if (pathname?.startsWith("/admin")) return null;
 
   return (
     <header
-      className="sticky top-0 z-20 flex items-center gap-6 border-b px-6 py-2.5 backdrop-blur max-[420px]:gap-3 max-[420px]:px-4"
+      className="sticky top-0 z-20 flex flex-wrap items-center gap-x-5 gap-y-2 border-b px-6 py-2.5 backdrop-blur max-[460px]:gap-x-3.5 max-[460px]:px-4"
       style={{
         borderColor: "var(--ink-09)",
         background: "rgb(var(--paper-rgb) / 0.86)",
@@ -43,15 +47,27 @@ export function TopBar() {
         voicepath
       </Link>
 
-      <div className="flex-1" />
-
-      <Link
-        href="/admin"
-        className="flex-none text-xs underline-offset-4 transition-colors hover:underline"
-        style={{ color: "var(--ink-45)" }}
-      >
-        Admin
-      </Link>
+      <nav className="flex flex-1 items-center gap-5 max-[460px]:gap-3.5">
+        {[
+          { href: "/", label: copy.navHome },
+          { href: "/about", label: copy.navAbout },
+          { href: "/admin", label: "Admin" },
+        ].map((item) => {
+          const active = pathname === item.href;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={active ? "page" : undefined}
+              className="flex-none text-[13px] underline-offset-4 transition-colors hover:underline max-[460px]:text-xs"
+              style={{ color: active ? "var(--color-ink)" : "var(--ink-45)" }}
+              lang={language}
+            >
+              {item.label}
+            </Link>
+          );
+        })}
+      </nav>
 
       <div
         className="flex flex-none gap-1 rounded-full p-[3px]"
