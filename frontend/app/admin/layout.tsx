@@ -33,8 +33,20 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     <div className="mx-auto w-full max-w-[1180px] px-[7vw] py-10 pb-20">
       <header className="flex flex-wrap items-end justify-between gap-7">
         <div>
-          <p className="vp-label">PHASE 2 · ROLE-GATED</p>
-          <h1 className="font-display mt-2.5 text-[34px] leading-tight tracking-[-0.03em]">
+          {/* The public navbar hides itself here on purpose -- admin is a
+              different product for a different person. That left these pages
+              with no way back to the site at all, so one plain link stands in
+              for it, in admin's own register rather than the beneficiary
+              surface's. */}
+          <Link
+            href="/"
+            className="text-[12.5px] underline-offset-4 transition-colors hover:underline"
+            style={{ color: "var(--ink-45)" }}
+          >
+            ← voicepath
+          </Link>
+          <p className="vp-label mt-3">PHASE 2 · ROLE-GATED</p>
+          <h1 className="font-display mt-2 text-[34px] leading-tight tracking-[-0.03em]">
             Scheme data
           </h1>
         </div>

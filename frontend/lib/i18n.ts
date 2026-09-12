@@ -32,6 +32,19 @@ export interface Copy {
   aboutTitle: string;
   aboutSteps: { title: string; body: string }[];
   aboutNote: string;
+  /* Navbar */
+  navHome: string;
+  navAbout: string;
+  /**
+   * The About page.
+   *
+   * Only what is true of the product. No claims about who built it, because
+   * inventing a team would be the one kind of fiction this whole codebase is
+   * built to refuse.
+   */
+  aboutPageTitle: string;
+  aboutPageLede: string;
+  aboutPageSections: { heading: string; body: string }[];
   /* Speak */
   listening: string;
   stopHint: string;
@@ -166,6 +179,38 @@ const en: Copy = {
   ],
   aboutNote:
     "VoicePath does not apply for anything on your behalf. It tells you what exists, and what to say when you go.",
+  navHome: "Home",
+  navAbout: "About",
+  aboutPageTitle: "About VoicePath",
+  aboutPageLede:
+    "A way to find government work, training and schemes by saying what you have done — out loud, in your own language, without filling a form.",
+  aboutPageSections: [
+    {
+      heading: "Who this is for",
+      body:
+        "People whose skill is real but undocumented. A mechanic who learned in a shed, a tailor taught by her mother, a welder with twenty years and no certificate. The work exists; the paperwork proving it usually does not, and most government portals ask for the paperwork first.",
+    },
+    {
+      heading: "How it decides",
+      body:
+        "Your words are turned into skills, and every skill is shown back to you with the words that produced it, so you can correct anything that is wrong. Those skills are then scored against each listing — half on the work itself, and the rest on experience, requirements and distance. The score is arithmetic, not an opinion, and the same answer comes back every time.",
+    },
+    {
+      heading: "What it will not do",
+      body:
+        "It does not apply for anything on your behalf. It does not say you are eligible — only what a listing asks for. It will not tell you something it cannot trace to your own words or to a published government document, and when it does not know, it says so instead of guessing.",
+    },
+    {
+      heading: "Your voice",
+      body:
+        "Your recording is turned into text and then discarded. It is not kept unless you ask for it to be kept, and you can change that at any time on your passport. What is stored is the words, not the voice.",
+    },
+    {
+      heading: "Where the information comes from",
+      body:
+        "Published government scheme documents and official government pages. Every answer about a scheme shows the document it came from, so you can check it yourself or quote it at an office. It is free to use, and always will be.",
+    },
+  ],
   listening: "Listening",
   stopHint: "Press to finish",
   startOver: "Start again",
@@ -291,6 +336,38 @@ const ta: Copy = {
   ],
   aboutNote:
     "VoicePath உங்களுக்காக விண்ணப்பம் அனுப்பாது. என்ன இருக்கிறது, அங்கே போய் என்ன சொல்ல வேண்டும் என்பதைச் சொல்கிறது.",
+  navHome: "முகப்பு",
+  navAbout: "பற்றி",
+  aboutPageTitle: "VoicePath பற்றி",
+  aboutPageLede:
+    "நீங்கள் செய்த வேலையைச் சொன்னால் போதும் — உங்கள் மொழியில், படிவம் நிரப்பாமல் — அரசு வேலை, பயிற்சி, திட்டங்களைக் கண்டுபிடிக்க ஒரு வழி.",
+  aboutPageSections: [
+    {
+      heading: "இது யாருக்கு",
+      body:
+        "திறமை இருக்கிறது, ஆனால் அதற்கு ஆவணம் இல்லாதவர்களுக்கு. கொட்டகையில் கற்ற மெக்கானிக், அம்மாவிடம் கற்ற தையல்காரர், இருபது வருடம் வேலை செய்த சான்றிதழ் இல்லாத வெல்டர். வேலை உண்மை; அதை நிரூபிக்கும் காகிதம் இல்லை — அரசுத் தளங்கள் முதலில் காகிதத்தையே கேட்கின்றன.",
+    },
+    {
+      heading: "எப்படி முடிவு செய்கிறது",
+      body:
+        "உங்கள் வார்த்தைகள் திறமைகளாக மாறும். ஒவ்வொரு திறமையும், அதை உருவாக்கிய உங்கள் வார்த்தைகளுடன் காட்டப்படும் — தவறானதை மாற்றலாம். பிறகு ஒவ்வொரு பதிவுக்கும் மதிப்பெண் கொடுக்கப்படும்: பாதி வேலைக்கு, மீதி அனுபவம், தேவைகள், தூரத்துக்கு. இது கணக்கு, கருத்து அல்ல — ஒவ்வொரு முறையும் அதே பதில்.",
+    },
+    {
+      heading: "இது என்ன செய்யாது",
+      body:
+        "உங்களுக்காக விண்ணப்பம் அனுப்பாது. நீங்கள் தகுதியானவர் என்று சொல்லாது — பதிவு என்ன கேட்கிறது என்பதை மட்டுமே சொல்லும். உங்கள் வார்த்தையிலோ அரசு ஆவணத்திலோ இல்லாத எதையும் சொல்லாது. தெரியாதபோது, ஊகிக்காமல் தெரியாது என்றே சொல்லும்.",
+    },
+    {
+      heading: "உங்கள் குரல்",
+      body:
+        "உங்கள் பதிவு எழுத்தாக மாற்றப்பட்டு அழிக்கப்படும். நீங்கள் கேட்டால் மட்டுமே வைக்கப்படும்; அதை எப்போது வேண்டுமானாலும் உங்கள் பாஸ்போர்ட்டில் மாற்றலாம். சேமிக்கப்படுவது வார்த்தைகள், குரல் அல்ல.",
+    },
+    {
+      heading: "தகவல் எங்கிருந்து",
+      body:
+        "வெளியிடப்பட்ட அரசுத் திட்ட ஆவணங்கள் மற்றும் அதிகாரப்பூர்வ அரசு பக்கங்களிலிருந்து. ஒவ்வொரு பதிலும் எந்த ஆவணத்திலிருந்து வந்தது என்பதைக் காட்டும் — நீங்களே சரிபார்க்கலாம், அலுவலகத்தில் சொல்லலாம். இது இலவசம், எப்போதும் இலவசமாகவே இருக்கும்.",
+    },
+  ],
   listening: "கேட்டுக்கொண்டிருக்கிறேன்",
   stopHint: "முடிக்க அழுத்துங்கள்",
   startOver: "மீண்டும் தொடங்கு",
@@ -418,6 +495,38 @@ const hi: Copy = {
   ],
   aboutNote:
     "VoicePath आपकी ओर से आवेदन नहीं भेजता। यह बताता है कि क्या मौजूद है, और वहाँ जाकर क्या कहना है।",
+  navHome: "मुख्य पृष्ठ",
+  navAbout: "परिचय",
+  aboutPageTitle: "VoicePath के बारे में",
+  aboutPageLede:
+    "जो काम आपने किया है वह बोलकर सरकारी काम, प्रशिक्षण और योजनाएँ ढूँढ़ने का एक तरीक़ा — अपनी भाषा में, बिना कोई फ़ॉर्म भरे।",
+  aboutPageSections: [
+    {
+      heading: "यह किसके लिए है",
+      body:
+        "उनके लिए जिनका हुनर असली है पर काग़ज़ नहीं। वह मिस्त्री जिसने शेड में सीखा, वह दर्ज़िन जिसे माँ ने सिखाया, वह वेल्डर जिसके बीस साल हैं और प्रमाणपत्र नहीं। काम सच है; उसे साबित करने वाला काग़ज़ नहीं — और सरकारी पोर्टल पहले काग़ज़ ही माँगते हैं।",
+    },
+    {
+      heading: "यह कैसे तय करता है",
+      body:
+        "आपके शब्द हुनर में बदलते हैं, और हर हुनर के साथ वही शब्द दिखते हैं जिनसे वह बना — जो ग़लत हो बदल दीजिए। फिर हर पद के लिए अंक बनते हैं: आधा काम पर, बाक़ी अनुभव, ज़रूरतों और दूरी पर। यह गणित है, राय नहीं — हर बार वही उत्तर।",
+    },
+    {
+      heading: "यह क्या नहीं करेगा",
+      body:
+        "यह आपकी ओर से आवेदन नहीं भेजता। यह नहीं कहता कि आप पात्र हैं — सिर्फ़ यह कि पद क्या माँगता है। जो आपके अपने शब्दों या किसी प्रकाशित सरकारी दस्तावेज़ में नहीं है, वह नहीं बताएगा। और जब पता न हो, तो अनुमान लगाने के बजाय कह देगा कि पता नहीं।",
+    },
+    {
+      heading: "आपकी आवाज़",
+      body:
+        "आपकी रिकॉर्डिंग शब्दों में बदलकर मिटा दी जाती है। वह तभी रखी जाती है जब आप कहें, और इसे आप अपने पासपोर्ट पर कभी भी बदल सकते हैं। जो रखा जाता है वह शब्द हैं, आवाज़ नहीं।",
+    },
+    {
+      heading: "जानकारी कहाँ से आती है",
+      body:
+        "प्रकाशित सरकारी योजना दस्तावेज़ों और आधिकारिक सरकारी पन्नों से। योजना के बारे में हर उत्तर यह दिखाता है कि वह किस दस्तावेज़ से आया — आप ख़ुद जाँच सकते हैं या दफ़्तर में बता सकते हैं। इसका उपयोग मुफ़्त है, और हमेशा रहेगा।",
+    },
+  ],
   listening: "सुन रहा हूँ",
   stopHint: "खत्म करने के लिए दबाइए",
   startOver: "फिर से शुरू करें",

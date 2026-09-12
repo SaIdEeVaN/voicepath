@@ -3,7 +3,7 @@
 > **This file is the live todo list.** It is updated every time a task is completed.
 > Start at **To-do** — that is the working checklist. **Next up** carries the
 > detail behind the top items; everything below it is the record of the build.
-> Last updated: 2026-09-12 (the landing page says what it is)
+> Last updated: 2026-09-12 (navigation, and an About page)
 
 **Project root:** `C:\Users\Sai Dixit\voicepath`
 **Sources:** `PRD_File_For_Project.md` (spec) · `VoicePath Mockups.html` (design canvas, unpacked)
@@ -315,6 +315,7 @@ frontend/
     understanding/disambiguate/   Low-confidence screen
     schemes/           Ranked feed
     schemes/[id]/      RSC detail + score bars with their weights
+    about/                   What this is, what it will not do
     passport/                Skill Passport, audio-retention toggle
     admin/                   Schemes, taxonomy, sessions (no transcripts)
   components/                SkillCard, Waveform, MatchRing, AskVoicePath, ...
@@ -536,6 +537,41 @@ discards every response and the failure is indistinguishable from a dead server.
   eslint is not a dependency.
 - **Rate limiting is per-process.** Multiplies behind multiple instances; move
   the counter to Redis before scaling.
+
+---
+
+## Done on 2026-09-12 — navigation, and an About page
+
+**Home and About in the navbar**, on every public screen. Home exists even
+though the wordmark already goes there, because a wordmark reads as a logo and
+only some people know it is also a button. The current page is marked with
+`aria-current` and shown in full ink.
+
+The header **wraps instead of overflowing**. On a 360px phone the wordmark,
+three links and the language switch do not fit on one line, and a header that
+scrolls sideways is worse than one that takes two.
+
+**Admin had no way back at all.** The public navbar hides itself there by
+design — admin is a different product for a different person, and dressing it
+like the beneficiary surface would blur a line the spec draws sharply — but
+that left those pages with no route to the rest of the site. A single plain
+`← voicepath` link now sits in the admin header, in admin's own register.
+
+### `/about`
+
+Five sections, in all three languages: who it is for, how it decides, what it
+will not do, what happens to a recording, and where the information comes from.
+
+Everything on it is true of the product and checkable against the code — that a
+score is arithmetic rather than an opinion, that a skill is shown with the words
+that produced it, that a recording becomes text and is discarded, that every
+scheme answer names the document it came from.
+
+**It makes no claim about who built it.** Inventing a team, an organisation or a
+founding story would be the one kind of fiction this codebase exists to refuse,
+and it is the same rule that stops an explanation claiming a skill nobody
+mentioned. If the page should carry that, the details have to come from someone
+who knows them.
 
 ---
 
