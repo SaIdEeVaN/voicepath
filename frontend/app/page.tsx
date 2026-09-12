@@ -61,7 +61,13 @@ export default function LandingPage() {
   };
 
   return (
-    <section className="grid flex-1 items-center gap-16 px-[7vw] py-[clamp(2.5rem,6vw,4.5rem)] lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+    <div className="flex flex-1 flex-col">
+      {/* Not `flex-1`. The hero used to absorb every spare pixel of a tall
+          screen, which centred it beautifully and left the page empty above
+          and below. Sized to its content, what follows is visible without
+          scrolling on a desktop and one short scroll on a phone.
+          `items-center` stays: it aligns the mic against the statement. */}
+      <section className="grid items-center gap-16 px-[7vw] py-[clamp(2.5rem,6vw,4.5rem)] lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
       <div>
         <h1
           className="vp-statement vp-enter max-w-[13em]"
@@ -71,11 +77,10 @@ export default function LandingPage() {
           {copy.statement}
         </h1>
 
-        {/* The same promise in the other two languages. Pressing one switches
-            and starts, so a wrong default costs one tap, not a hunt. */}
         {/* The same promise in three scripts is the most distinctive thing on
             this page, so it arrives as its own beat rather than as a footnote
-            under the headline. */}
+            under the headline. Pressing one switches and starts, so a wrong
+            default costs one tap, not a hunt. */}
         <div className="mt-9 flex max-w-[520px] flex-col gap-0.5">
           {others.map((entry, index) => (
             <button
@@ -216,6 +221,69 @@ export default function LandingPage() {
 
         <PrivacyNote />
       </div>
-    </section>
+      </section>
+
+      {/* What this is, in the space the hero leaves on a tall screen.
+      
+          Deliberately quiet. The microphone is where this page spends its
+          boldness, and a second loud thing would compete with the one action
+          anybody needs to take. Hairline rule, body type, no cards.
+      
+          Numbered because it is genuinely a sequence -- speak, check, see --
+          and someone who reads slowly is told the order rather than left to
+          infer it from position. */}
+      <section
+        className="border-t px-[7vw] py-[clamp(2.5rem,5vw,4rem)]"
+        style={{ borderColor: "var(--ink-09)" }}
+        aria-labelledby="about-voicepath"
+      >
+        <h2
+          id="about-voicepath"
+          className="font-display text-[clamp(1.25rem,2vw,1.6rem)] tracking-[-0.02em]"
+          lang={language}
+        >
+          {copy.aboutTitle}
+        </h2>
+
+        <ol className="mt-7 grid gap-x-10 gap-y-7 lg:grid-cols-3">
+          {copy.aboutSteps.map((step, index) => (
+            <li key={step.title} className="flex gap-4">
+              <span
+                className="font-mono flex-none pt-[3px] text-[12px] tabular-nums"
+                style={{ color: "var(--ink-38)" }}
+                aria-hidden
+              >
+                {index + 1}
+              </span>
+              <div className="min-w-0">
+                <p
+                  className="font-display text-[16.5px] leading-snug tracking-[-0.015em]"
+                  lang={language}
+                >
+                  {step.title}
+                </p>
+                <p
+                  className="mt-1.5 max-w-[34em] text-[14.5px] leading-relaxed"
+                  style={{ color: "var(--ink-62)" }}
+                  lang={language}
+                >
+                  {step.body}
+                </p>
+              </div>
+            </li>
+          ))}
+        </ol>
+
+        {/* The most useful sentence on the page for someone who has dealt with
+            a government portal before. */}
+        <p
+          className="mt-8 max-w-[44em] border-t pt-6 text-[14px] leading-relaxed"
+          style={{ borderColor: "var(--ink-06)", color: "var(--ink-55)" }}
+          lang={language}
+        >
+          {copy.aboutNote}
+        </p>
+      </section>
+    </div>
   );
 }

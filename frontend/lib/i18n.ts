@@ -21,6 +21,17 @@ export interface Copy {
   typePlaceholder: string;
   typeSubmit: string;
   notKept: string;
+  /**
+   * What this is, under the hero.
+   *
+   * Three steps, because it is genuinely a sequence: speak, check, see. The
+   * closing note says what VoicePath does not do, which matters more here than
+   * anything it does -- people arrive at a government-looking site expecting
+   * it to file something on their behalf.
+   */
+  aboutTitle: string;
+  aboutSteps: { title: string; body: string }[];
+  aboutNote: string;
   /* Speak */
   listening: string;
   stopHint: string;
@@ -135,6 +146,26 @@ const en: Copy = {
   typePlaceholder: "I repair two-wheelers",
   typeSubmit: "Find work",
   notKept: "Your voice is not saved. Only what you said in words is kept.",
+  aboutTitle: "What happens here",
+  aboutSteps: [
+    {
+      title: "You speak",
+      body:
+        "Press the microphone and say the work you have done, in your own words. There is no form to fill.",
+    },
+    {
+      title: "You check what I understood",
+      body:
+        "Every skill is shown with the words you said that produced it. Change or remove anything that is wrong.",
+    },
+    {
+      title: "You see what fits",
+      body:
+        "Work, training and government schemes near you, each with the reason it matched what you said.",
+    },
+  ],
+  aboutNote:
+    "VoicePath does not apply for anything on your behalf. It tells you what exists, and what to say when you go.",
   listening: "Listening",
   stopHint: "Press to finish",
   startOver: "Start again",
@@ -240,6 +271,26 @@ const ta: Copy = {
   typePlaceholder: "நான் டூ-வீலர் ரிப்பேர் செய்வேன்",
   typeSubmit: "வேலை தேடு",
   notKept: "உங்கள் குரல் சேமிக்கப்படுவதில்லை. நீங்கள் சொன்ன வார்த்தைகள் மட்டுமே வைக்கப்படும்.",
+  aboutTitle: "இங்கே என்ன நடக்கிறது",
+  aboutSteps: [
+    {
+      title: "நீங்கள் பேசுங்கள்",
+      body:
+        "மைக்கை அழுத்தி, நீங்கள் செய்த வேலையை உங்கள் வார்த்தையில் சொல்லுங்கள். நிரப்ப படிவம் எதுவும் இல்லை.",
+    },
+    {
+      title: "நான் புரிந்ததைப் பாருங்கள்",
+      body:
+        "ஒவ்வொரு திறமையும், அதை உருவாக்கிய உங்கள் வார்த்தைகளுடன் காட்டப்படும். தவறானதை மாற்றலாம், நீக்கலாம்.",
+    },
+    {
+      title: "பொருந்துவதைப் பாருங்கள்",
+      body:
+        "உங்கள் ஊருக்கு அருகில் உள்ள வேலை, பயிற்சி, அரசுத் திட்டங்கள் — ஒவ்வொன்றும் ஏன் பொருந்துகிறது என்பதுடன்.",
+    },
+  ],
+  aboutNote:
+    "VoicePath உங்களுக்காக விண்ணப்பம் அனுப்பாது. என்ன இருக்கிறது, அங்கே போய் என்ன சொல்ல வேண்டும் என்பதைச் சொல்கிறது.",
   listening: "கேட்டுக்கொண்டிருக்கிறேன்",
   stopHint: "முடிக்க அழுத்துங்கள்",
   startOver: "மீண்டும் தொடங்கு",
@@ -347,6 +398,26 @@ const hi: Copy = {
   typePlaceholder: "मैं दोपहिया गाड़ी ठीक करता हूँ",
   typeSubmit: "काम खोजिए",
   notKept: "आपकी आवाज़ सहेजी नहीं जाती। सिर्फ़ आपके कहे शब्द रखे जाते हैं।",
+  aboutTitle: "यहाँ क्या होता है",
+  aboutSteps: [
+    {
+      title: "आप बोलिए",
+      body:
+        "माइक दबाइए और जो काम आपने किया है वह अपने शब्दों में बताइए। कोई फ़ॉर्म नहीं भरना है।",
+    },
+    {
+      title: "जो मैंने समझा वह देखिए",
+      body:
+        "हर हुनर के साथ आपके वही शब्द दिखेंगे जिनसे वह बना। जो ग़लत हो उसे बदल या हटा दीजिए।",
+    },
+    {
+      title: "जो मेल खाता है वह देखिए",
+      body:
+        "आपके पास का काम, प्रशिक्षण और सरकारी योजनाएँ — हर एक के साथ यह भी कि वह क्यों मेल खाती है।",
+    },
+  ],
+  aboutNote:
+    "VoicePath आपकी ओर से आवेदन नहीं भेजता। यह बताता है कि क्या मौजूद है, और वहाँ जाकर क्या कहना है।",
   listening: "सुन रहा हूँ",
   stopHint: "खत्म करने के लिए दबाइए",
   startOver: "फिर से शुरू करें",
