@@ -3,7 +3,7 @@
 > **This file is the live todo list.** It is updated every time a task is completed.
 > Start at **To-do** — that is the working checklist. **Next up** carries the
 > detail behind the top items; everything below it is the record of the build.
-> Last updated: 2026-09-12 (experience is shown where it can be checked)
+> Last updated: 2026-09-12 (the landing page says what it is)
 
 **Project root:** `C:\Users\Sai Dixit\voicepath`
 **Sources:** `PRD_File_For_Project.md` (spec) · `VoicePath Mockups.html` (design canvas, unpacked)
@@ -536,6 +536,43 @@ discards every response and the failure is indistinguishable from a dead server.
   eslint is not a dependency.
 - **Rate limiting is per-process.** Multiplies behind multiple instances; move
   the counter to Redis before scaling.
+
+---
+
+## Done on 2026-09-12 — the landing page says what it is
+
+The hero carried `flex-1`, so it absorbed every spare pixel of a tall screen.
+That centred it beautifully and left the page empty above and below, with
+nothing telling a first-time visitor what this was.
+
+A section under the hero now explains it in three steps — speak, check what was
+understood, see what fits — with a closing line saying what VoicePath does
+**not** do:
+
+> VoicePath does not apply for anything on your behalf. It tells you what
+> exists, and what to say when you go.
+
+That is the most useful sentence on the page for anyone who has dealt with a
+government portal before, and it is the one thing the site could not say while
+it had no room to say anything.
+
+Written in all three languages, as everything in `i18n.ts` is — in each
+language rather than translated out of the English.
+
+Two deliberate restraints:
+
+- **It is quiet.** The microphone is where this page spends its boldness, and a
+  second loud element would compete with the one action anybody needs to take.
+  A hairline rule, body type, no cards and no shadows.
+- **The steps are numbered**, which is usually a generated-page tell, but this
+  is genuinely a sequence and someone who reads slowly is told the order rather
+  than left to infer it from position.
+
+The hero is sized to its content now instead of stretching, so what follows is
+visible without scrolling on a desktop and one short scroll on a phone.
+`items-center` stays, because it aligns the microphone against the statement.
+
+Also removed a duplicated comment left in `page.tsx` by the motion pass.
 
 ---
 
