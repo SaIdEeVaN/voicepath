@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 
 import { TopBar } from "@/components/TopBar";
 import { PageBackdrop } from "@/components/PageBackdrop";
-import { FlowRail } from "@/components/FlowRail";
+import { FlowBar, FlowRail } from "@/components/FlowRail";
 import { SessionProvider } from "@/lib/session";
 
 import "./globals.css";
@@ -48,6 +48,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           <FlowRail />
           <div className="relative z-10 flex min-h-dvh flex-col">
             <TopBar />
+            {/* Under the header, in the document, for every width the rail in
+                the gutter cannot fit. Renders nothing off the flow. */}
+            <FlowBar />
             <main className="flex flex-1 flex-col">{children}</main>
           </div>
         </SessionProvider>

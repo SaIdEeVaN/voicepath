@@ -3,7 +3,7 @@
 > **This file is the live todo list.** It is updated every time a task is completed.
 > Start at **To-do** — that is the working checklist. **Next up** carries the
 > detail behind the top items; everything below it is the record of the build.
-> Last updated: 2026-09-12 (citations can carry a URL; the verification gate is real)
+> Last updated: 2026-09-12 (the stepper is bigger, and exists at every width)
 
 **Project root:** `C:\Users\Sai Dixit\voicepath`
 **Sources:** `PRD_File_For_Project.md` (spec) · `VoicePath Mockups.html` (design canvas, unpacked)
@@ -327,7 +327,7 @@ frontend/
     passport/                Skill Passport, audio-retention toggle
     admin/                   Schemes, taxonomy, sessions (no transcripts)
   components/                SkillCard, Waveform, MatchRing, AskVoicePath,
-                             PageBackdrop, FlowRail, AdminOverview, ...
+                             PageBackdrop, FlowRail/FlowBar, AdminOverview, ...
   lib/
     api.ts                   Typed client. Errors carry the backend's own words
     session.tsx              Session state; health with retry and backoff
@@ -546,6 +546,42 @@ discards every response and the failure is indistinguishable from a dead server.
   eslint is not a dependency.
 - **Rate limiting is per-process.** Multiplies behind multiple instances; move
   the counter to Redis before scaling.
+
+---
+
+## Done on 2026-09-12 — the stepper is bigger, and exists at every width
+
+Three things were asked for. **Two of them were already true**, which is worth
+recording because the report reasonably assumed otherwise: `useFlowSteps`
+derives the current step from the pathname, so *"you are here"* already moved
+by itself and already covered all four screens. Seeing it once on
+`/understanding` makes it look pinned there.
+
+The third was real, and so was a fourth nobody named.
+
+**It was too small.** Type went 13px to 15px, the current step to semibold in
+full ink, its dot from 7px to 13px with a ring around it, and the spacing
+between steps roughly doubled. The connector is 2px now and **fills behind
+you** — accent for ground covered, a hairline for what is ahead.
+
+**It did not exist below 1536px.** That is most laptops and every phone: the
+rail lives in the left gutter, and there is no gutter to live in at 1440. So
+the flow simply vanished, which is worse than a stepper that changes shape —
+nobody can learn to rely on something that appears on some screens and not
+others. There is a compact horizontal bar under the header now, everywhere the
+rail cannot fit.
+
+Both read the same `useFlowSteps`. Two components working out which step is
+current separately would drift, and the failure would be silent: a stepper
+pointing at the wrong screen looks exactly like one pointing at the right
+screen.
+
+### Widening it was tried and reverted
+
+Going to 150px pushes the requirement from 178px to 194px, and 1536 has 178.
+The rail would have disappeared below 1728 — paying for a little more room with
+most of the screens able to show it at all. The size came from type, weight,
+dot and spacing, all of which fit inside 140px.
 
 ---
 

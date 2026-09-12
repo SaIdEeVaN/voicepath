@@ -1,142 +1,209 @@
 "use client";
 
 /**
- * Where you are, down the left of a wide screen.
+ * Where you are in the journey, shown two ways.
  *
  * The product is four screens with no breadcrumb between them, and the person
- * using it may not read the headings. On a phone that is survivable because
- * each screen fills the view; on a monitor the content is a centred column and
- * the left gutter was doing nothing at all.
+ * using it may not read the headings. Both forms mark the current step, label
+ * it, and let you click back to a screen you have already filled. A step you
+ * have not reached is not a link, because it would lead somewhere empty.
  *
- * So this is content rather than decoration: the four steps, the one you are
- * on marked, and the ones behind you clickable so you can go back and change
- * something without losing your place. A step you have not reached yet is not
- * a link -- offering it would send someone to a screen with nothing on it.
+ * **The rail**, down the left gutter, wherever the window is wide enough to
+ * hold one beside the text. Measured: the content column maxes at 1180px, so
+ * the gutter is 90px at 1280 and 130px at 1440, while the rail needs 178px.
+ * Below 1536 it would sit on top of the words.
  *
- * Only on the flow itself. The landing page, About and admin are not steps in
- * anything, and a progress rail beside them would be claiming otherwise.
+ * It stayed 140px wide while being made more legible. Widening it to 150 was
+ * tried and reverted: that pushes the requirement to 194px, which 1536 does
+ * not have, so the rail would have vanished below 1728 -- paying for a little
+ * more room with most of the screens able to show it at all. The size came
+ * from type, weight, dot and spacing instead, all of which fit.
+ *
+ * **The bar**, under the header, everywhere else. Without it the flow vanished
+ * entirely below 1536px -- which is most laptops and every phone. A stepper
+ * that appears on some screens and not others is worse than one that changes
+ * shape, because nobody can learn to rely on it.
+ *
+ * Both read `useFlowSteps`, so which step is current is decided once. Two
+ * components working that out separately would drift, and the failure would be
+ * silent: a stepper pointing at the wrong screen looks exactly like one
+ * pointing at the right screen.
  */
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 
 import { copyFor } from "@/lib/i18n";
+import { useFlowSteps, type FlowStep } from "@/lib/flow";
 import { useSession } from "@/lib/session";
 
-const STEPS = ["/speak", "/understanding", "/schemes", "/passport"] as const;
-
 export function FlowRail() {
-  const pathname = usePathname();
-  const { language, sessionId, skills } = useSession();
+  const flow = useFlowSteps();
+  const { language } = useSession();
   const copy = copyFor(language);
 
-  // The disambiguation screen belongs to "what I heard", and a scheme's detail
-  // page belongs to "what fits" -- neither is a step of its own.
-  const current = STEPS.findIndex(
-    (step) => pathname === step || pathname?.startsWith(`${step}/`),
-  );
-  if (current === -1) return null;
-
-  /** Reachable means it has something on it, not merely that it exists. */
-  const reachable = (index: number) => {
-    if (index === 0) return true;
-    if (!sessionId) return false;
-    if (index >= 2) return skills.length > 0;
-    return true;
-  };
+  if (!flow) return null;
 
   return (
     <nav
-      aria-label={copy.flowSteps.join(", ")}
-      /* Anchored to the content column, not the viewport, so the gap beside
-         the text stays constant as the window grows.
-      
-         `2xl` because that is where it measurably fits. The container maxes at
-         1180px, so the gutter is 90px at 1280 and 130px at 1440 -- and a rail
-         with readable text in it needs about 178px. Below 1536 it would sit on
-         top of the words, which is worse than an empty margin. */
+      aria-label={flow.steps.map((s) => s.label).join(", ")}
+      /* Anchored to the content column rather than the viewport, so the gap
+         beside the text stays constant as the window grows. */
       className="pointer-events-none fixed top-1/2 z-20 hidden w-[140px] -translate-y-1/2 2xl:block"
       style={{ left: "max(1.5rem, calc(50% - 768px))" }}
     >
-      <ol className="flex flex-col gap-0">
-        {copy.flowSteps.map((label, index) => {
-          const href = STEPS[index];
-          if (!href) return null;
-          const isCurrent = index === current;
-          const isPast = index < current;
-          const canGo = !isCurrent && reachable(index);
+      <ol className="flex flex-col">
+        {flow.steps.map((step, index) => (
+          <li key={step.href} className="flex flex-col">
+            <div className="flex items-start gap-3.5">
+              <Dot step={step} />
+              <StepLabel step={step} language={language} big />
+            </div>
 
-          const dot = (
-            <span
-              aria-hidden
-              className="mt-[7px] h-[7px] w-[7px] flex-none rounded-full"
-              style={{
-                background: isCurrent
-                  ? "var(--color-accent)"
-                  : isPast
-                    ? "var(--ink-38)"
-                    : "var(--ink-12)",
-              }}
-            />
-          );
+            {step.isCurrent && (
+              <span
+                className="font-mono ml-[27px] mt-1.5 text-[11px] tracking-[0.07em]"
+                style={{ color: "var(--color-accent-deep)" }}
+                lang={language}
+              >
+                {copy.flowHere}
+              </span>
+            )}
 
-          const text = (
-            <span
-              className="text-[13px] leading-snug"
-              style={{
-                color: isCurrent
-                  ? "var(--color-ink)"
-                  : isPast
-                    ? "var(--ink-62)"
-                    : "var(--ink-38)",
-                fontWeight: isCurrent ? 500 : 400,
-              }}
-              lang={language}
-            >
-              {label}
-            </span>
-          );
-
-          return (
-            <li key={label} className="flex flex-col">
-              <div className="flex items-start gap-3">
-                {dot}
-                {canGo ? (
-                  <Link
-                    href={href}
-                    className="pointer-events-auto underline-offset-4 hover:underline"
-                  >
-                    {text}
-                  </Link>
-                ) : (
-                  text
-                )}
-              </div>
-
-              {isCurrent && (
-                <span
-                  className="font-mono ml-[19px] mt-1 text-[10px] tracking-[0.08em]"
-                  style={{ color: "var(--ink-38)" }}
-                  lang={language}
-                >
-                  {copy.flowHere}
-                </span>
-              )}
-
-              {/* The line between steps, drawn only between them. */}
-              {index < STEPS.length - 1 && (
-                <span
-                  aria-hidden
-                  className="my-1 ml-[3px] h-6 w-px flex-none"
-                  style={{
-                    background: index < current ? "var(--ink-22)" : "var(--ink-09)",
-                  }}
-                />
-              )}
-            </li>
-          );
-        })}
+            {/* The connector fills behind you: accent for ground covered, a
+                hairline for what is still ahead. */}
+            {index < flow.steps.length - 1 && (
+              <span
+                aria-hidden
+                className="my-2 ml-[6px] w-[2px] flex-none rounded-full"
+                style={{
+                  height: step.isCurrent ? 24 : 28,
+                  background: step.isPast
+                    ? "var(--color-accent)"
+                    : step.isCurrent
+                      ? "var(--ink-22)"
+                      : "var(--ink-09)",
+                  opacity: step.isPast ? 0.5 : 1,
+                }}
+              />
+            )}
+          </li>
+        ))}
       </ol>
     </nav>
+  );
+}
+
+/**
+ * The same flow laid flat, for every width the rail cannot fit.
+ *
+ * In the document rather than fixed, so it never covers anything, and it
+ * scrolls sideways on a narrow phone rather than wrapping into two rows that
+ * shift the page under a thumb.
+ */
+export function FlowBar() {
+  const flow = useFlowSteps();
+  const { language } = useSession();
+  const copy = copyFor(language);
+
+  if (!flow) return null;
+
+  return (
+    <nav
+      aria-label={flow.steps.map((s) => s.label).join(", ")}
+      className="border-b px-[7vw] py-3 2xl:hidden"
+      style={{ borderColor: "var(--ink-09)", background: "var(--ink-03)" }}
+    >
+      <ol className="mx-auto flex w-full max-w-[1180px] items-center gap-2 overflow-x-auto">
+        {flow.steps.map((step, index) => (
+          <li key={step.href} className="flex flex-none items-center gap-2">
+            <Dot step={step} inline />
+            <StepLabel step={step} language={language} />
+            {step.isCurrent && (
+              <span
+                className="font-mono hidden text-[10px] tracking-[0.07em] sm:inline"
+                style={{ color: "var(--color-accent-deep)" }}
+                lang={language}
+              >
+                · {copy.flowHere}
+              </span>
+            )}
+
+            {index < flow.steps.length - 1 && (
+              <span
+                aria-hidden
+                className="ml-1 h-[2px] w-6 flex-none rounded-full sm:w-10"
+                style={{
+                  background: step.isPast ? "var(--color-accent)" : "var(--ink-12)",
+                  opacity: step.isPast ? 0.5 : 1,
+                }}
+              />
+            )}
+          </li>
+        ))}
+      </ol>
+    </nav>
+  );
+}
+
+function Dot({ step, inline = false }: { step: FlowStep; inline?: boolean }) {
+  const size = step.isCurrent ? 13 : 9;
+  return (
+    <span
+      aria-hidden
+      className="flex-none rounded-full"
+      style={{
+        width: size,
+        height: size,
+        marginTop: inline ? 0 : step.isCurrent ? 4 : 6,
+        background:
+          step.isCurrent || step.isPast
+            ? "var(--color-accent)"
+            : "var(--ink-12)",
+        opacity: step.isPast && !step.isCurrent ? 0.45 : 1,
+        // A ring on the current step, so it reads as the one being stood on
+        // rather than just a darker dot.
+        boxShadow: step.isCurrent
+          ? "0 0 0 4px color-mix(in srgb, var(--color-accent) 18%, transparent)"
+          : "none",
+      }}
+    />
+  );
+}
+
+function StepLabel({
+  step,
+  language,
+  big = false,
+}: {
+  step: FlowStep;
+  language: string;
+  big?: boolean;
+}) {
+  const text = (
+    <span
+      className={`${big ? "text-[15px]" : "text-[13px]"} whitespace-nowrap leading-snug`}
+      style={{
+        color: step.isCurrent
+          ? "var(--color-ink)"
+          : step.isPast
+            ? "var(--ink-62)"
+            : "var(--ink-38)",
+        fontWeight: step.isCurrent ? 600 : 400,
+      }}
+      lang={language}
+    >
+      {step.label}
+    </span>
+  );
+
+  return step.canGo ? (
+    <Link
+      href={step.href}
+      className="pointer-events-auto underline-offset-4 hover:underline"
+    >
+      {text}
+    </Link>
+  ) : (
+    text
   );
 }
