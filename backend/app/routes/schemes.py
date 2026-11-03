@@ -32,7 +32,7 @@ async def match(payload: schemas.MatchRequest) -> schemas.MatchResponse:
     settings = get_settings()
 
     if payload.session_id is not None:
-        profile_input, profile_row = await pipeline.load_profile_input(payload.session_id)
+        profile_input, _ = await pipeline.load_profile_input(payload.session_id)
         session = await repository.get_session(payload.session_id)
         if session is None:
             raise HTTPException(
@@ -43,7 +43,6 @@ async def match(payload: schemas.MatchRequest) -> schemas.MatchResponse:
     elif payload.skills is not None:
         normalized = await pipeline.schema_skills_to_normalized(payload.skills)
         profile_input = pipeline.to_profile_input(payload.profile, normalized)
-        profile_row = None
         language = "en"
     else:
         raise HTTPException(

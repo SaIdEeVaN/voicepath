@@ -13,6 +13,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 
@@ -125,6 +126,14 @@ export default function SchemesPage() {
       >
         {ranked ? copy.matchesSub : copy.fromRecord}
       </p>
+      <Link
+        href="/nearby"
+        className="mt-4 inline-flex items-center gap-2 text-[14px] underline underline-offset-4"
+        style={{ color: "var(--color-accent-deep)" }}
+        lang={language}
+      >
+        {copy.nearbyShowOnMap} →
+      </Link>
 
       {error && (
         <div className="mt-8 max-w-[46em]">

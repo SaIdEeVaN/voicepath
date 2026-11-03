@@ -25,7 +25,6 @@ import unicodedata
 from dataclasses import dataclass, field
 from typing import Any
 
-from app.config import get_settings
 from app.data.catalogue import TAXONOMY
 from app.prompts import EXTRACTION_SYSTEM, EXTRACTION_USER_TEMPLATE
 from app.services import llm

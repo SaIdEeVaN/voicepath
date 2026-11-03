@@ -57,6 +57,7 @@ export function TopBar() {
       <nav className="flex items-center justify-center gap-7 max-[560px]:order-3 max-[560px]:col-span-2 max-[560px]:gap-8">
         {[
           { href: "/", label: copy.navHome },
+          { href: "/nearby", label: copy.navNearby },
           { href: "/about", label: copy.navAbout },
           { href: "/admin", label: "Admin" },
         ].map((item) => {
@@ -80,7 +81,8 @@ export function TopBar() {
         className="flex flex-none justify-self-end gap-1 rounded-full p-[3px]"
         style={{ background: "var(--ink-04)" }}
         role="group"
-        aria-label="Language"
+        aria-label={copy.languageSwitch}
+        lang={language}
       >
         {LANGUAGES.map((entry) => {
           const active = entry.code === language;

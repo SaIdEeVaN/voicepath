@@ -35,7 +35,6 @@ from __future__ import annotations
 
 import math
 
-import pytest
 
 from app.services.matching import ProfileInput, score_one, skill_similarity
 from app.services.normalization import NormalizedSkill

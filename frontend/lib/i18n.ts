@@ -11,7 +11,7 @@
  * it is the wrong string.
  */
 
-import type { Language } from "./types";
+import type { Language, NearbyCategory } from "./types";
 
 export interface Copy {
   /* Landing */
@@ -136,6 +136,63 @@ export interface Copy {
   officialPage: string;
   viewPassport: string;
   fromRecord: string;
+  /*
+   * Facts under a scheme. These were English literals on the detail screen,
+   * so a Tamil page said "Pay" and "2 years" in the middle of Tamil prose.
+   */
+  factPay: string;
+  factExperience: string;
+  factCertificates: string;
+  /** `{years}` is replaced with the number. */
+  yearsCount: string;
+  /** Accessible name for the language switch. */
+  languageSwitch: string;
+  /*
+   * Near you: the map.
+   *
+   * Two kinds of thing share it. Openings come from the catalogue and are
+   * pinned at their town, because the record has no street address -- the
+   * screen says so rather than letting a pin imply a doorstep. Support
+   * offices come from OpenStreetMap, which is community-kept and can be out
+   * of date; the screen says that too.
+   */
+  navNearby: string;
+  nearbyTitle: string;
+  nearbySub: string;
+  nearbyUseLocation: string;
+  nearbyLocating: string;
+  nearbyGpsNote: string;
+  nearbyLocationDenied: string;
+  nearbyLocationFailed: string;
+  nearbyCentreGps: string;
+  /** `{place}` is replaced with the town the person said. */
+  nearbyCentrePlace: string;
+  /** `{place}` is replaced with the town the person picked. */
+  nearbyCentreChosen: string;
+  nearbyCentreDefault: string;
+  nearbyChooseTown: string;
+  nearbyWithin: string;
+  nearbyYourMatches: string;
+  nearbyAllOpenings: string;
+  nearbyOpeningsHeading: string;
+  nearbySupportHeading: string;
+  nearbySupportNote: string;
+  nearbySupportUnavailable: string;
+  nearbySupportNone: string;
+  nearbySupportOffline: string;
+  nearbyApprox: string;
+  /** `{km}` is replaced with the distance. */
+  nearbyKm: string;
+  nearbyYou: string;
+  nearbyDirections: string;
+  nearbyShowOnMap: string;
+  /** `{count}` is replaced with how many openings share one town. */
+  nearbyCount: string;
+  nearbyCategories: Record<NearbyCategory, string>;
+  nearbyOpenings: string;
+  nearbyUnplaced: string;
+  nearbyStraightLine: string;
+  nearbyViewOnOsm: string;
   /* Score bars */
   barSkills: string;
   barExperience: string;
@@ -311,6 +368,55 @@ const en: Copy = {
   officialPage: "Read this on the government's own page",
   viewPassport: "My passport",
   fromRecord: "Taken only from the record. Nothing beyond it has been added.",
+  factPay: "Pay",
+  factExperience: "Experience asked for",
+  factCertificates: "Certificates required",
+  yearsCount: "{years} years",
+  languageSwitch: "Language",
+  navNearby: "Near you",
+  nearbyTitle: "What is near you.",
+  nearbySub:
+    "The openings that fit your work, and the offices where you can ask about them.",
+  nearbyUseLocation: "Use my location",
+  nearbyLocating: "Finding where you are…",
+  nearbyGpsNote:
+    "Your exact spot is not sent — only the area, to about a kilometre, for this one search. Nothing is saved.",
+  nearbyLocationDenied: "Location was not allowed, so the map stays where it was.",
+  nearbyLocationFailed: "Your location could not be found, so the map stays where it was.",
+  nearbyCentreGps: "Around where you are now",
+  nearbyCentrePlace: "Around {place}, the place you told me",
+  nearbyCentreChosen: "Around {place}",
+  nearbyCentreDefault:
+    "I do not know where you are, so this shows where the openings are. Choose your town, or use your location.",
+  nearbyChooseTown: "Choose a town",
+  nearbyWithin: "Within",
+  nearbyYourMatches: "Your matches",
+  nearbyAllOpenings: "All openings",
+  nearbyOpeningsHeading: "Openings, nearest first",
+  nearbySupportHeading: "Places that can help",
+  nearbySupportNote:
+    "From OpenStreetMap. Check the timings before you go — this list can be out of date.",
+  nearbySupportUnavailable:
+    "The nearby offices could not be loaded just now. The openings are still shown.",
+  nearbySupportNone: "No offices of this kind are marked on the map near here.",
+  nearbySupportOffline: "Nearby offices are not looked up on this server.",
+  nearbyApprox:
+    "Marked at the town centre — the record does not give a street address.",
+  nearbyKm: "{km} km",
+  nearbyYou: "You",
+  nearbyDirections: "Directions",
+  nearbyShowOnMap: "See on a map",
+  nearbyCount: "{count} here",
+  nearbyCategories: {
+    training: "Training centres and ITIs",
+    employment: "Employment offices",
+    government: "Government offices",
+    bank: "Banks",
+  },
+  nearbyOpenings: "Openings",
+  nearbyUnplaced: "Not on the map yet — the map does not know its town.",
+  nearbyStraightLine: "Distances are in a straight line, not by road.",
+  nearbyViewOnOsm: "On OpenStreetMap",
   barSkills: "Your skills",
   barExperience: "Your experience",
   barRequirements: "What they need",
@@ -479,6 +585,56 @@ const ta: Copy = {
   officialPage: "அரசின் சொந்தப் பக்கத்தில் இதைப் படியுங்கள்",
   viewPassport: "என் பாஸ்போர்ட்",
   fromRecord: "பதிவில் உள்ளது மட்டுமே. அதற்கு மேல் எதுவும் சேர்க்கப்படவில்லை.",
+  factPay: "தொகை",
+  factExperience: "கேட்கும் அனுபவம்",
+  factCertificates: "தேவையான சான்றிதழ்கள்",
+  yearsCount: "{years} வருடம்",
+  languageSwitch: "மொழி",
+  navNearby: "அருகில்",
+  nearbyTitle: "உங்கள் அருகில் என்ன இருக்கிறது.",
+  nearbySub:
+    "உங்கள் வேலைக்குப் பொருந்துபவை, அவற்றைப் பற்றிக் கேட்கக்கூடிய அலுவலகங்கள்.",
+  nearbyUseLocation: "என் இருப்பிடத்தைப் பயன்படுத்து",
+  nearbyLocating: "நீங்கள் எங்கே இருக்கிறீர்கள் என்று பார்க்கிறேன்…",
+  nearbyGpsNote:
+    "உங்கள் சரியான இடம் அனுப்பப்படாது — சுமார் ஒரு கிலோமீட்டர் பகுதி மட்டும், இந்த ஒரு தேடலுக்காக. எதுவும் சேமிக்கப்படாது.",
+  nearbyLocationDenied:
+    "இருப்பிடத்துக்கு அனுமதி கிடைக்கவில்லை, அதனால் வரைபடம் அப்படியே இருக்கிறது.",
+  nearbyLocationFailed:
+    "உங்கள் இருப்பிடம் கிடைக்கவில்லை, அதனால் வரைபடம் அப்படியே இருக்கிறது.",
+  nearbyCentreGps: "நீங்கள் இப்போது இருக்கும் இடத்தைச் சுற்றி",
+  nearbyCentrePlace: "நீங்கள் சொன்ன {place} அருகில்",
+  nearbyCentreChosen: "{place} அருகில்",
+  nearbyCentreDefault:
+    "நீங்கள் எங்கே இருக்கிறீர்கள் என்று எனக்குத் தெரியாது, அதனால் வாய்ப்புகள் இருக்கும் இடத்தைக் காட்டுகிறேன். உங்கள் ஊரைத் தேர்ந்தெடுங்கள், அல்லது இருப்பிடத்தைப் பயன்படுத்துங்கள்.",
+  nearbyChooseTown: "ஊரைத் தேர்ந்தெடுங்கள்",
+  nearbyWithin: "சுற்றளவு",
+  nearbyYourMatches: "உங்களுக்குப் பொருந்துபவை",
+  nearbyAllOpenings: "எல்லா வாய்ப்புகளும்",
+  nearbyOpeningsHeading: "வாய்ப்புகள், அருகில் உள்ளவை முதலில்",
+  nearbySupportHeading: "உதவக்கூடிய இடங்கள்",
+  nearbySupportNote:
+    "OpenStreetMap-இலிருந்து. போகும் முன் நேரத்தைச் சரிபாருங்கள் — இந்தப் பட்டியல் பழையதாக இருக்கலாம்.",
+  nearbySupportUnavailable:
+    "அருகிலுள்ள அலுவலகங்களை இப்போது ஏற்ற முடியவில்லை. வாய்ப்புகள் இன்னும் காட்டப்படுகின்றன.",
+  nearbySupportNone: "இந்த வகை அலுவலகம் இங்கு அருகில் வரைபடத்தில் குறிக்கப்படவில்லை.",
+  nearbySupportOffline: "இந்தச் சர்வரில் அருகிலுள்ள அலுவலகங்கள் தேடப்படுவதில்லை.",
+  nearbyApprox: "ஊரின் மையத்தில் குறிக்கப்பட்டுள்ளது — பதிவில் தெரு முகவரி இல்லை.",
+  nearbyKm: "{km} கி.மீ",
+  nearbyYou: "நீங்கள்",
+  nearbyDirections: "வழி",
+  nearbyShowOnMap: "வரைபடத்தில் பாருங்கள்",
+  nearbyCount: "இங்கே {count}",
+  nearbyCategories: {
+    training: "பயிற்சி நிலையங்கள், ஐடிஐ",
+    employment: "வேலைவாய்ப்பு அலுவலகங்கள்",
+    government: "அரசு அலுவலகங்கள்",
+    bank: "வங்கிகள்",
+  },
+  nearbyOpenings: "வாய்ப்புகள்",
+  nearbyUnplaced: "இன்னும் வரைபடத்தில் இல்லை — இதன் ஊர் வரைபடத்துக்குத் தெரியாது.",
+  nearbyStraightLine: "தூரம் நேர்கோட்டில், சாலை வழியாக அல்ல.",
+  nearbyViewOnOsm: "OpenStreetMap-இல்",
   barSkills: "உங்கள் திறன்கள்",
   barExperience: "உங்கள் அனுபவம்",
   barRequirements: "அவர்கள் கேட்பது",
@@ -644,6 +800,54 @@ const hi: Copy = {
   officialPage: "इसे सरकार के अपने पेज पर पढ़िए",
   viewPassport: "मेरा पासपोर्ट",
   fromRecord: "सिर्फ़ रिकॉर्ड में जो है वही। उसके बाहर कुछ नहीं जोड़ा गया।",
+  factPay: "रकम",
+  factExperience: "माँगा गया अनुभव",
+  factCertificates: "ज़रूरी प्रमाणपत्र",
+  yearsCount: "{years} साल",
+  languageSwitch: "भाषा",
+  navNearby: "आसपास",
+  nearbyTitle: "आपके आसपास क्या है।",
+  nearbySub:
+    "आपके काम से मेल खाने वाले मौके, और वे दफ़्तर जहाँ आप उनके बारे में पूछ सकते हैं।",
+  nearbyUseLocation: "मेरी जगह इस्तेमाल करें",
+  nearbyLocating: "देख रहा हूँ कि आप कहाँ हैं…",
+  nearbyGpsNote:
+    "आपकी सटीक जगह नहीं भेजी जाती — सिर्फ़ लगभग एक किलोमीटर का इलाका, इसी एक खोज के लिए। कुछ भी सहेजा नहीं जाता।",
+  nearbyLocationDenied: "जगह की इजाज़त नहीं मिली, इसलिए नक्शा वहीं है जहाँ था।",
+  nearbyLocationFailed: "आपकी जगह पता नहीं चल पाई, इसलिए नक्शा वहीं है जहाँ था।",
+  nearbyCentreGps: "आप अभी जहाँ हैं, उसके आसपास",
+  nearbyCentrePlace: "{place} के आसपास — जो जगह आपने बताई",
+  nearbyCentreChosen: "{place} के आसपास",
+  nearbyCentreDefault:
+    "मुझे नहीं पता कि आप कहाँ हैं, इसलिए यह वहाँ दिखा रहा है जहाँ मौके हैं। अपना शहर चुनिए, या अपनी जगह इस्तेमाल कीजिए।",
+  nearbyChooseTown: "शहर चुनिए",
+  nearbyWithin: "दायरा",
+  nearbyYourMatches: "आपसे मेल खाने वाले",
+  nearbyAllOpenings: "सभी मौके",
+  nearbyOpeningsHeading: "मौके, सबसे पास वाले पहले",
+  nearbySupportHeading: "जहाँ से मदद मिल सकती है",
+  nearbySupportNote:
+    "OpenStreetMap से। जाने से पहले समय पता कर लीजिए — यह सूची पुरानी हो सकती है।",
+  nearbySupportUnavailable:
+    "आसपास के दफ़्तर अभी लोड नहीं हो पाए। मौके फिर भी दिख रहे हैं।",
+  nearbySupportNone: "इस तरह का कोई दफ़्तर यहाँ आसपास नक्शे पर दर्ज नहीं है।",
+  nearbySupportOffline: "इस सर्वर पर आसपास के दफ़्तर नहीं खोजे जाते।",
+  nearbyApprox: "शहर के बीच में दिखाया गया है — रिकॉर्ड में गली का पता नहीं है।",
+  nearbyKm: "{km} किमी",
+  nearbyYou: "आप",
+  nearbyDirections: "रास्ता",
+  nearbyShowOnMap: "नक्शे पर देखिए",
+  nearbyCount: "यहाँ {count}",
+  nearbyCategories: {
+    training: "प्रशिक्षण केंद्र और आईटीआई",
+    employment: "रोज़गार दफ़्तर",
+    government: "सरकारी दफ़्तर",
+    bank: "बैंक",
+  },
+  nearbyOpenings: "मौके",
+  nearbyUnplaced: "अभी नक्शे पर नहीं — नक्शे को इसका शहर पता नहीं।",
+  nearbyStraightLine: "दूरी सीधी रेखा में है, सड़क से नहीं।",
+  nearbyViewOnOsm: "OpenStreetMap पर",
   barSkills: "आपके हुनर",
   barExperience: "आपका अनुभव",
   barRequirements: "उनकी शर्तें",

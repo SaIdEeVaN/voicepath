@@ -62,16 +62,26 @@ export function AskVoicePath({ schemeId }: { schemeId: number }) {
   // after the screen is gone. Without this the clip starts playing to a
   // page the person already left -- the cleanup ran before the audio existed.
   const mounted = useRef(true);
-  const canListen = canRecogniseOnDevice();
+  // Whether this browser can recognise speech is only knowable in a browser.
+  // Asking during render made the server (no mic button) and the client
+  // (mic button) disagree, and React threw away the whole screen to repair
+  // the mismatch. Starting false on both sides and checking after mount
+  // keeps the first paint identical.
+  const [canListen, setCanListen] = useState(false);
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    // Set here, not only at declaration: Strict Mode runs effects twice
+    // (mount, cleanup, mount), and without this the cleanup's `false` stuck,
+    // so every answer was treated as arriving after the screen had gone and
+    // was never spoken.
+    mounted.current = true;
+    setCanListen(canRecogniseOnDevice());
+    return () => {
       mounted.current = false;
       recognitionRef.current?.abort();
       stopAllSpeech();
-    },
-    [],
-  );
+    };
+  }, []);
 
   // TODO: RAG integration. This asks about one scheme, and the backend
   // answers from that row alone -- deliberately, so it cannot invent an
