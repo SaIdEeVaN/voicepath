@@ -110,6 +110,13 @@ twice is harmless. There is no cost to doing this in the safe order.
 
 ### After the 2026-11-03 outage
 
+- [x] **A page opened during an outage said "cannot reach the server" until
+      reloaded** — fixed 2026-11-03. The health check gave up after ~45 s and
+      never asked again, so pages opened while the backend was down stayed
+      broken after it recovered. It now keeps asking every 15 s (and at once
+      when the tab is looked at again or the network returns) and recovers by
+      itself. The message no longer tells a beneficiary to "start the backend".
+
 - [ ] **Confirm the keep-alive runs.** Actions → *Keep the backend and
       database awake* → *Run workflow* once by hand. It should go green and
       print `"connected": true`. Supabase's exact definition of "inactive" is
@@ -128,9 +135,15 @@ twice is harmless. There is no cost to doing this in the safe order.
       the offices ship with the app*. Live lookups remain for searches the
       snapshot does not cover, and will fail the same way while those servers
       do.
-- [ ] **Refresh the offices snapshot now and then.** `cd backend && python -m
-      app.scripts.fetch_support_places`. Offices move rarely, but they do; the
-      page shows the snapshot's date so nobody mistakes it for live.
+- [ ] **Create the first offices snapshot.** It could not be fetched from
+      the build sandbox: its network blocks `overpass-api.de`, and the one
+      mirror it could reach timed out on every attempt. Run **Actions → Refresh
+      the offices snapshot → Run workflow** (GitHub's network is open), then
+      merge the pull request it opens. Until then every office search goes live
+      and usually comes back "could not be loaded". The workflow needs
+      **Settings → Actions → General → Allow GitHub Actions to create and
+      approve pull requests**, or it pushes the branch and logs a link instead.
+      It then runs monthly on its own.
 - [ ] **Openings are pinned at their town's centre.** The catalogue records a
       town, never an address, so that is all the map can honestly show — and it
       says so. Real coordinates need `latitude`/`longitude` on `schemes` (a

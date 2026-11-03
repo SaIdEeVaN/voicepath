@@ -138,7 +138,9 @@ employment and government offices, banks. No key and no cost.
   volunteer server being up; the page shows the snapshot's date. Anywhere else
   -- a device location far from those towns -- asks the Overpass API live, and
   the screen says plainly when that could not be loaded. Refresh the snapshot
-  with `cd backend && python -m app.scripts.fetch_support_places` (add
+  from **Actions → Refresh the offices snapshot → Run workflow**, which fetches
+  on GitHub's network and opens a pull request (it also runs monthly), or
+  locally with `cd backend && python -m app.scripts.fetch_support_places` (add
   `--towns salem,erode` to refetch only some).
 - **Location** is the town the person mentioned, a town they pick, or -- only
   if they press *Use my location* -- the device, rounded to about a kilometre

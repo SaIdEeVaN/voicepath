@@ -30,6 +30,9 @@ import type {
 
 const STORAGE_KEY = "voicepath.session.v1";
 
+/** How often to keep asking once the server has missed its quick retries. */
+const SLOW_RETRY_MS = 15000;
+
 interface StoredState {
   language: Language;
   sessionId: string | null;
@@ -123,38 +126,76 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   // server that is merely asleep. Retrying with backoff covers the wake-up, and
   // `healthWaking` lets screens say "starting up" rather than "broken" while it
   // happens -- a distinction the person waiting can act on.
+  //
+  // It never stops trying while the page is open. It used to give up after
+  // about 45 seconds and stay given up: on 2026-11-03 the backend was down
+  // for an hour, came back, and every page opened during the outage still
+  // said it could not reach the server until someone thought to reload. A
+  // wake from sleep on the free tier can also run past 45 seconds. Now, once
+  // the quick retries are spent, it keeps asking every SLOW_RETRY_MS -- and
+  // at once when the tab comes back into view or the network returns -- and
+  // the page recovers by itself the moment the server answers.
   useEffect(() => {
     let cancelled = false;
+    let answered = false;
+    let slowTimer: ReturnType<typeof setTimeout> | null = null;
 
-    const attempt = async (remaining: number, delayMs: number): Promise<void> => {
+    const check = async (): Promise<boolean> => {
       try {
         const result = await api.health();
-        if (cancelled) return;
+        if (cancelled) return true;
+        answered = true;
         setHealth(result);
         setHealthUnreachable(false);
         setHealthWaking(false);
+        return true;
       } catch {
-        if (cancelled) return;
-        if (remaining <= 0) {
-          // Out of attempts: this is a real outage, not a slow start.
-          setHealth(null);
-          setHealthWaking(false);
-          setHealthUnreachable(true);
-          return;
-        }
-        setHealthWaking(true);
-        await new Promise((resolve) => setTimeout(resolve, delayMs));
-        if (cancelled) return;
-        // Backoff, capped so a long outage does not stretch to minutes between
-        // tries while someone is watching the screen.
-        return attempt(remaining - 1, Math.min(delayMs * 1.6, 12000));
+        return false;
       }
     };
 
-    void attempt(6, 2000);
+    const slow = () => {
+      slowTimer = setTimeout(async () => {
+        if (cancelled || answered) return;
+        if (!(await check())) slow();
+      }, SLOW_RETRY_MS);
+    };
+
+    const fast = async (remaining: number, delayMs: number): Promise<void> => {
+      if (await check()) return;
+      if (cancelled) return;
+      if (remaining <= 0) {
+        // Past a normal wake-up: say so, and keep trying more slowly.
+        setHealth(null);
+        setHealthWaking(false);
+        setHealthUnreachable(true);
+        slow();
+        return;
+      }
+      setHealthWaking(true);
+      await new Promise((resolve) => setTimeout(resolve, delayMs));
+      if (cancelled) return;
+      // Backoff, capped so a long outage does not stretch to minutes between
+      // tries while someone is watching the screen.
+      return fast(remaining - 1, Math.min(delayMs * 1.6, 12000));
+    };
+
+    // Coming back to the tab, or back online, is the moment someone looks --
+    // ask now rather than at the next tick.
+    const nudge = () => {
+      if (cancelled || answered || document.visibilityState !== "visible") return;
+      void check();
+    };
+
+    void fast(6, 2000);
+    document.addEventListener("visibilitychange", nudge);
+    window.addEventListener("online", nudge);
 
     return () => {
       cancelled = true;
+      if (slowTimer) clearTimeout(slowTimer);
+      document.removeEventListener("visibilitychange", nudge);
+      window.removeEventListener("online", nudge);
     };
   }, []);
 
