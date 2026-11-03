@@ -22,6 +22,7 @@ SpeechProvider = Literal["local", "groq", "offline"]
 EmbeddingProvider = Literal["local", "hf_api", "offline"]
 NERProvider = Literal["local", "offline"]
 SearchProvider = Literal["tavily", "offline"]
+PlacesProvider = Literal["overpass", "offline"]
 
 
 class Settings(BaseSettings):
@@ -123,6 +124,24 @@ class Settings(BaseSettings):
     # in trusted_domains -- a page from one is still Tier 1 if it ever arrives
     # by another route -- but asking for them wastes the query.
     unreadable_domains: str = "myscheme.gov.in"
+
+    # -- Nearby places (the map) ---------------------------------------------
+    # Support offices near a person -- ITIs, employment offices, government
+    # offices, banks -- come from OpenStreetMap through the Overpass API. No
+    # key and no cost, which is why it is on by default; "offline" turns the
+    # lookup off and the map shows the catalogue's openings alone.
+    places_provider: PlacesProvider = "overpass"
+    # Tried in order. The public instances are volunteer-run and any one of
+    # them can be busy, so a second endpoint is the difference between a map
+    # with offices on it and one without.
+    overpass_urls: str = (
+        "https://overpass-api.de/api/interpreter,"
+        "https://maps.mail.ru/osm/tools/overpass/api/interpreter"
+    )
+    places_timeout_seconds: float = 20.0
+    # Offices do not move by the hour. A repeated search for the same area is
+    # answered from memory rather than asking a volunteer server again.
+    places_cache_hours: int = 24
 
     # -- Embeddings ---------------------------------------------------------
     # "hf_api" runs the same model as "local" through the Hugging Face
@@ -244,6 +263,10 @@ class Settings(BaseSettings):
         return [d for d in self.trusted_domain_list if d not in skip]
 
     @property
+    def overpass_url_list(self) -> list[str]:
+        return [u.strip() for u in self.overpass_urls.split(",") if u.strip()]
+
+    @property
     def persistence_enabled(self) -> bool:
         return bool(self.database_url)
 
@@ -263,6 +286,8 @@ class Settings(BaseSettings):
             out.append("ner")
         if self.search_provider == "offline":
             out.append("search")
+        if self.places_provider == "offline":
+            out.append("places")
         if not self.persistence_enabled:
             out.append("database")
         return out

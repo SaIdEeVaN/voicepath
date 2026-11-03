@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 Language = Literal["ta", "hi", "en", "auto"]
 
@@ -339,6 +339,126 @@ class HealthResponse(Base):
     providers: dict[str, str]
     degraded: list[str]
     database: dict[str, object]
+
+
+# ---------------------------------------------------------------------------
+# Nearby (the map)
+# ---------------------------------------------------------------------------
+
+NearbyCategory = Literal["training", "employment", "government", "bank"]
+NEARBY_CATEGORIES: tuple[str, ...] = ("training", "employment", "government", "bank")
+
+
+class NearbyRequest(Base):
+    """Where to look, and for what.
+
+    A device location wins over a spoken place when both are sent. It is
+    rounded to about a kilometre before it is used for anything, and it is
+    never stored: this request writes nothing.
+    """
+
+    place: str | None = Field(default=None, max_length=120)
+    latitude: float | None = Field(default=None, ge=-90, le=90)
+    longitude: float | None = Field(default=None, ge=-180, le=180)
+
+    @model_validator(mode="after")
+    def _both_coordinates_or_neither(self) -> "NearbyRequest":
+        if (self.latitude is None) != (self.longitude is None):
+            raise ValueError("Send both latitude and longitude, or neither.")
+        return self
+
+
+class NearbyCentre(Base):
+    latitude: float
+    longitude: float
+    # gps: the device said; place: a town we recognised; default: we do not
+    # know where the person is, so this is where the openings are.
+    source: Literal["gps", "place", "default"]
+    key: str | None = None
+    names: dict[str, str] = Field(default_factory=dict)
+
+
+class NearbySchemeRef(Base):
+    id: int
+    title: str
+    organization: str
+    type: str
+
+
+class NearbySchemePlace(Base):
+    """Every opening in one town, pinned at the town centre.
+
+    Grouped because the record knows the town and nothing finer: eleven
+    pins stacked on one point would look like eleven addresses.
+    """
+
+    key: str
+    names: dict[str, str]
+    latitude: float
+    longitude: float
+    distance_km: float
+    approximate: bool = True
+    schemes: list[NearbySchemeRef]
+
+
+class SupportPlace(Base):
+    """An office from OpenStreetMap. Passed through, never invented."""
+
+    id: str
+    category: NearbyCategory
+    name: str
+    names: dict[str, str] = Field(default_factory=dict)
+    latitude: float
+    longitude: float
+    distance_km: float
+    address: str | None = None
+    opening_hours: str | None = None
+    osm_url: str
+
+
+class NearbyResponse(Base):
+    """The openings half of the map. Answered from the catalogue alone.
+
+    Offices are a separate request (``SupportRequest``) because they come from
+    a volunteer server that can take tens of seconds; the openings should not
+    wait on it.
+    """
+
+    centre: NearbyCentre
+    scheme_places: list[NearbySchemePlace]
+    # Openings whose town is not on the map yet. Listed, not dropped: a
+    # scheme missing from the map is still a scheme.
+    unplaced_schemes: list[NearbySchemeRef] = Field(default_factory=list)
+
+
+class SupportRequest(Base):
+    """Offices around a point. Coarsened to about a kilometre before use."""
+
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+    radius_km: float = Field(default=10, ge=1, le=25)
+    categories: list[NearbyCategory] = Field(
+        default_factory=lambda: list(NEARBY_CATEGORIES)
+    )
+
+
+class SupportResponse(Base):
+    support_places: list[SupportPlace]
+    # ok: looked, and this is what is there (possibly nothing).
+    # unavailable: could not look just now. offline: not looked up here.
+    support_status: Literal["ok", "unavailable", "offline"]
+    radius_km: float
+    provider: str
+    degraded: bool
+    attribution: str
+
+
+class KnownPlace(Base):
+    key: str
+    district: str
+    names: dict[str, str]
+    latitude: float
+    longitude: float
 
 
 ExtractedSkill.model_rebuild()

@@ -16,7 +16,6 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import Any
 
 from app.prompts import ASSISTANT_SYSTEM, ASSISTANT_USER_TEMPLATE
 from app.services import llm, retrieval, scheme_qa

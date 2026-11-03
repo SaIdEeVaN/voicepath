@@ -257,6 +257,254 @@
   .vp-icon-button-danger:focus-visible {
     color: var(--color-danger);
   }
+
+  /* A quiet native select, for the town picker and the radius. Native on
+     purpose: on a phone it opens the system list, which people know. */
+  .vp-select {
+    appearance: none;
+    border-radius: 999px;
+    border: 1px solid var(--ink-12);
+    background:
+      var(--color-surface)
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2316130f' stroke-opacity='.5' stroke-width='1.5'/%3E%3C/svg%3E")
+      no-repeat right 0.9rem center;
+    padding: 0.6rem 2.2rem 0.6rem 1rem;
+    font-size: 0.9rem;
+    color: var(--color-ink);
+    max-width: 100%;
+  }
+
+  /* A filter that is on or off. aria-pressed carries the state; this only
+     draws it. */
+  .vp-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    border-radius: 999px;
+    border: 1px solid var(--ink-12);
+    padding: 0.45rem 0.9rem;
+    font-size: 0.84rem;
+    color: var(--ink-45);
+    background: transparent;
+    transition:
+      background 0.16s ease,
+      color 0.16s ease,
+      border-color 0.16s ease;
+  }
+
+  .vp-chip[data-on="true"] {
+    background: var(--color-surface);
+    border-color: var(--ink-22);
+    color: var(--color-ink);
+  }
+
+  .vp-chip[data-on="false"] .vp-chip-dot {
+    opacity: 0.35;
+  }
+
+  .vp-chip-dot {
+    display: inline-block;
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 999px;
+    flex: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   The map (Near you)
+
+   Outside the layers on purpose, and scoped under .vp-map: Leaflet ships its
+   own unlayered stylesheet, which would beat anything inside a layer, and the
+   order the two arrive in is not ours to fix.
+
+   One colour per kind of office. Openings take the product's own accent, so
+   the thing the person came for is the thing that stands out.
+--------------------------------------------------------------------------- */
+
+:root {
+  --map-training: oklch(0.55 0.09 195);
+  --map-employment: oklch(0.52 0.09 300);
+  --map-government: oklch(0.5 0.08 255);
+  --map-bank: oklch(0.52 0.08 55);
+}
+
+[data-cat="training"] {
+  --cat: var(--map-training);
+}
+[data-cat="employment"] {
+  --cat: var(--map-employment);
+}
+[data-cat="government"] {
+  --cat: var(--map-government);
+}
+[data-cat="bank"] {
+  --cat: var(--map-bank);
+}
+
+.vp-chip-dot,
+.vp-map-dot {
+  background: var(--cat, var(--ink-45));
+}
+
+/* Leaflet's panes sit at z-index 400 and up; without a stacking context of
+   its own the map would slide over the sticky header when scrolled. */
+.vp-map-frame {
+  position: relative;
+  z-index: 0;
+  isolation: isolate;
+}
+
+.vp-map {
+  background: var(--ink-04);
+  border: 1px solid var(--ink-09);
+  font-family: var(--font-sans);
+}
+
+.vp-map .vp-map-radius {
+  fill: var(--color-accent);
+  fill-opacity: 0.05;
+  stroke: var(--color-accent);
+  stroke-opacity: 0.45;
+  stroke-width: 1.5;
+  stroke-dasharray: 5 6;
+}
+
+.vp-map-pin-wrap,
+.vp-map-dot-wrap,
+.vp-map-you {
+  background: none;
+  border: none;
+}
+
+.vp-map-pin {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: var(--color-accent);
+  color: var(--color-paper);
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow:
+    0 0 0 3px var(--color-surface),
+    0 2px 8px rgb(var(--ink-rgb) / 0.25);
+}
+
+/* The same bubble, small, beside a town in the list -- so the list and the
+   map visibly describe the same thing. */
+.vp-map-pin-small {
+  width: 24px;
+  height: 24px;
+  font-size: 12px;
+  box-shadow: none;
+}
+
+.vp-map-dot {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  box-shadow:
+    0 0 0 2.5px var(--color-surface),
+    0 1px 4px rgb(var(--ink-rgb) / 0.3);
+}
+
+.vp-map-you::after {
+  content: "";
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--color-ink);
+  box-shadow:
+    0 0 0 4px var(--color-surface),
+    0 0 0 9px rgb(var(--ink-rgb) / 0.12);
+}
+
+.vp-map .leaflet-popup-content-wrapper {
+  border-radius: 14px;
+  background: var(--color-surface);
+  color: var(--color-ink);
+  box-shadow: 0 6px 24px rgb(var(--ink-rgb) / 0.18);
+}
+
+.vp-map .leaflet-popup-tip {
+  background: var(--color-surface);
+}
+
+.vp-map .leaflet-popup-content {
+  margin: 14px 16px;
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+
+.vp-map .leaflet-popup-content p {
+  margin: 6px 0 0;
+}
+
+.vp-map-popup strong {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.vp-map-popup-meta {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--ink-55);
+}
+
+.vp-map-popup ul {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.vp-map-popup li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 3px 0;
+}
+
+.vp-map .vp-map-popup a {
+  color: var(--color-accent-deep);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.vp-map-popup-score {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--ink-55);
+}
+
+.vp-map-popup-note,
+.vp-map-popup-hours {
+  font-size: 11.5px;
+  color: var(--ink-45);
+}
+
+.vp-map-popup-links {
+  display: flex;
+  gap: 14px;
+}
+
+.vp-map .leaflet-control-attribution {
+  background: rgb(var(--paper-rgb) / 0.86);
+  color: var(--ink-55);
+  font-size: 10.5px;
+}
+
+.vp-map .leaflet-bar a {
+  background: var(--color-surface);
+  color: var(--color-ink);
+  border-bottom-color: var(--ink-09);
 }
 
 /* ---------------------------------------------------------------------------

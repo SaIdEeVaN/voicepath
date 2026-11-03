@@ -112,6 +112,27 @@ Offline extraction finds skills a person **names** ("welding") but not ones they
 only **describe** ("I join metal pipes"). That is a recall limit, never a
 precision one — no offline path can assert something the person did not say.
 
+### Near you: the map
+
+`/nearby` shows the openings near a person on an OpenStreetMap map (Leaflet),
+and the offices that can help them act on one: training centres and ITIs,
+employment and government offices, banks. No key and no cost.
+
+- **Openings** come from the catalogue, pinned at their town's centre because
+  the record has no street address -- and the screen says so.
+- **Offices** come from OpenStreetMap through the Overpass API
+  (`PLACES_PROVIDER=overpass`, the default; `offline` turns it off). The public
+  Overpass servers are volunteer-run, so offices load after the openings and
+  the screen says plainly when they could not be loaded.
+- **Location** is the town the person mentioned, a town they pick, or -- only
+  if they press *Use my location* -- the device, rounded to about a kilometre
+  in the browser before it is sent, and never stored.
+- **Distance never ranks anything.** `matching.py` does not import the places
+  service; the ranked list on `/schemes` is unchanged.
+
+Map tiles come from OpenStreetMap's own server, which is meant for light use.
+Set `NEXT_PUBLIC_MAP_TILE_URL` to a tile provider before real traffic.
+
 ### Known limit: Tamil speech recognition
 
 Whisper's Hindi is excellent and its Tamil is not. It mishears English loanwords
@@ -175,7 +196,7 @@ the database level and not only in application code.
 ## Tests
 
 ```bash
-cd backend && python -m pytest        # 178 tests
+cd backend && python -m pytest        # 435 tests
 cd frontend && npx tsc --noEmit && npx next build
 ```
 

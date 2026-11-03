@@ -10,8 +10,11 @@ import type {
   AssistantQueryResponse,
   ExtractResponse,
   HealthResponse,
+  KnownPlace,
   Language,
   MatchResponse,
+  NearbyCategory,
+  NearbyResponse,
   NormalizeResponse,
   SchemeDetail,
   SchemeSummary,
@@ -19,6 +22,7 @@ import type {
   QueryUnderstandResponse,
   SessionSummary,
   SkillEdit,
+  SupportResponse,
   SynthesizeResponse,
   TranscribeResponse,
 } from "./types";
@@ -207,6 +211,42 @@ export const api = {
       },
       params.sessionId,
     ),
+
+  /**
+   * Where the map centres, and the openings by town.
+   *
+   * Answered from the catalogue alone, so it is quick. A device location is
+   * sent in the body, never the URL -- query strings land in access logs --
+   * and is already coarsened by `coarsen` before it gets here.
+   */
+  nearby: (params: {
+    place?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+  }) =>
+    request<NearbyResponse>("/api/places/nearby", {
+      method: "POST",
+      body: JSON.stringify(params),
+    }),
+
+  /** Offices near a point, from OpenStreetMap. Can be slow; ask separately. */
+  support: (params: {
+    latitude: number;
+    longitude: number;
+    radiusKm: number;
+    categories: NearbyCategory[];
+  }) =>
+    request<SupportResponse>("/api/places/support", {
+      method: "POST",
+      body: JSON.stringify({
+        latitude: params.latitude,
+        longitude: params.longitude,
+        radius_km: params.radiusKm,
+        categories: params.categories,
+      }),
+    }),
+
+  knownPlaces: () => request<KnownPlace[]>("/api/places/known"),
 
   passport: (sessionId: string) =>
     request<PassportResponse>(`/api/sessions/${sessionId}`, {}, sessionId),

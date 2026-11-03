@@ -236,17 +236,20 @@ export function SchemeView({
             </p>
           )}
 
-          <dl className="mt-6 flex flex-wrap gap-x-10 gap-y-3 text-sm">
-            {pay && <Fact label="Pay" value={pay} />}
+          <dl className="mt-6 flex flex-wrap gap-x-10 gap-y-3 text-sm" lang={language}>
+            {pay && <Fact label={copy.factPay} value={pay} />}
             {scheme.minimum_experience > 0 && (
               <Fact
-                label="Experience asked for"
-                value={`${scheme.minimum_experience} years`}
+                label={copy.factExperience}
+                value={copy.yearsCount.replace(
+                  "{years}",
+                  String(scheme.minimum_experience),
+                )}
               />
             )}
             {scheme.certifications_required.length > 0 && (
               <Fact
-                label="Certificates required"
+                label={copy.factCertificates}
                 value={scheme.certifications_required.join(", ")}
               />
             )}
@@ -270,6 +273,13 @@ export function SchemeView({
             </button>
             <Link href="/passport" className="vp-pill vp-pill-quiet" lang={language}>
               {copy.viewPassport}
+            </Link>
+            <Link
+              href={`/nearby?scheme=${scheme.id}`}
+              className="vp-pill vp-pill-quiet"
+              lang={language}
+            >
+              {copy.nearbyShowOnMap}
             </Link>
           </div>
 

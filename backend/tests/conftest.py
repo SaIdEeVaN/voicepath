@@ -26,6 +26,9 @@ os.environ.update(
         "STT_PROVIDER": "offline",
         "TTS_PROVIDER": "offline",
         "EMBEDDING_PROVIDER": "offline",
+        # Needs no key, so nothing downgrades it automatically -- without this
+        # the map tests would query a volunteer server on every run.
+        "PLACES_PROVIDER": "offline",
         "RATE_LIMIT_ENABLED": "false",
         "LOG_LEVEL": "WARNING",
     }

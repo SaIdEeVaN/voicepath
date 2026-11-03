@@ -29,7 +29,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
 
 from app.scripts.ingest_documents import read_source_urls
 from app.services import scheme_qa

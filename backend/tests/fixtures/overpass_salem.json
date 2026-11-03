@@ -1,0 +1,255 @@
+{
+ "version": 0.6,
+ "osm3s": {
+  "timestamp_osm_base": "2026-11-03T13:01:25Z",
+  "copyright": "The data included in this document is from www.openstreetmap.org. The data is made available under ODbL."
+ },
+ "elements": [
+  {
+   "type": "node",
+   "id": 4299406993,
+   "lat": 11.6552182,
+   "lon": 78.1567587,
+   "tags": {
+    "amenity": "bank",
+    "brand": "State Bank of India",
+    "brand:wikidata": "Q1340361",
+    "brand:wikipedia": "en:State Bank of India",
+    "name": "State Bank of India",
+    "short_name": "SBI"
+   }
+  },
+  {
+   "type": "node",
+   "id": 4299420391,
+   "lat": 11.6548938,
+   "lon": 78.1563773,
+   "tags": {
+    "amenity": "bank",
+    "brand": "Indian Bank",
+    "brand:wikidata": "Q2003789",
+    "brand:wikipedia": "en:Indian Bank",
+    "name": "Indian Bank",
+    "name:en": "Indian Bank",
+    "website": "https://www.indianbank.in/"
+   }
+  },
+  {
+   "type": "node",
+   "id": 4299433689,
+   "lat": 11.6591681,
+   "lon": 78.1582186,
+   "tags": {
+    "addr:city": "Salem",
+    "addr:district": "Salem",
+    "addr:postcode": "636001",
+    "addr:street": "Cherry Road",
+    "amenity": "bank",
+    "name": "Salem District Central Co-op Bank"
+   }
+  },
+  {
+   "type": "node",
+   "id": 4305472996,
+   "lat": 11.663557,
+   "lon": 78.1590823,
+   "tags": {
+    "addr:city": "Salem",
+    "addr:postcode": "636007",
+    "addr:street": "Hasthampatty - Cherry Road",
+    "amenity": "college",
+    "grades": "UG, PG, Ph.D",
+    "name": "GOVERNMENT ARTS COLLEGE",
+    "operator": "Government",
+    "wikidata": "Q25552315",
+    "wikipedia": "en:Government Arts College, Salem"
+   }
+  },
+  {
+   "type": "node",
+   "id": 4580803489,
+   "lat": 11.6733851,
+   "lon": 78.1513127,
+   "tags": {
+    "amenity": "bank"
+   }
+  },
+  {
+   "type": "node",
+   "id": 10243925247,
+   "lat": 11.6565217,
+   "lon": 78.1566388,
+   "tags": {
+    "addr:city": "Salem",
+    "addr:postcode": "636001",
+    "addr:street": "Fort Road",
+    "government": "government",
+    "name": "District Collector  Office - Salem",
+    "office": "government"
+   }
+  },
+  {
+   "type": "node",
+   "id": 10727746199,
+   "lat": 11.6518585,
+   "lon": 78.2006729,
+   "tags": {
+    "addr:city": "Salem",
+    "addr:postcode": "636014",
+    "addr:street": "Salem Bypass",
+    "government": "register_office",
+    "name": "Register Office - Salem (E)",
+    "office": "government"
+   }
+  },
+  {
+   "type": "node",
+   "id": 10968036588,
+   "lat": 11.6711437,
+   "lon": 78.1130627,
+   "tags": {
+    "government": "police",
+    "name": "Deputy Superintendent of Police",
+    "office": "government",
+    "operator": "Railway Police"
+   }
+  },
+  {
+   "type": "node",
+   "id": 11372654913,
+   "lat": 11.6614363,
+   "lon": 78.1671011,
+   "tags": {
+    "addr:city": "Salem",
+    "addr:district": "Salem",
+    "addr:postcode": "636001",
+    "addr:street": "Annaimediu Bridge",
+    "government": "tax",
+    "name": "Central Excise Commissinorate",
+    "name:ta": "மத்திய கலால்வரித்துறை ஆணையரகம்",
+    "office": "government"
+   }
+  },
+  {
+   "type": "node",
+   "id": 11393375264,
+   "lat": 11.6919383,
+   "lon": 78.1636731,
+   "tags": {
+    "amenity": "college",
+    "name": "Govt ITI"
+   }
+  },
+  {
+   "type": "node",
+   "id": 13736854410,
+   "lat": 11.662834,
+   "lon": 78.199032,
+   "tags": {
+    "addr:city": "Kamaraj Nagar Colony",
+    "addr:district": "Salem",
+    "addr:postcode": "636014",
+    "addr:street": "Thathampatti Road",
+    "government": "administrative",
+    "name": "Thathampatti Village Administration Office",
+    "office": "government"
+   }
+  },
+  {
+   "type": "way",
+   "id": 374690842,
+   "center": {
+    "lat": 11.6692169,
+    "lon": 78.0671082
+   },
+   "tags": {
+    "addr:postcode": "636030",
+    "amenity": "college",
+    "internet_access": "yes",
+    "internet_access:fee": "no",
+    "name": "Salem Mohan Kumaramangalam Medical College",
+    "name:etymology:wikidata": "Q6893549",
+    "wikidata": "Q24905943",
+    "wikipedia": "en:Government Mohan Kumaramangalam Medical College"
+   }
+  },
+  {
+   "type": "way",
+   "id": 1109599600,
+   "center": {
+    "lat": 11.6551136,
+    "lon": 78.1549677
+   },
+   "tags": {
+    "addr:city": "Salem",
+    "addr:postcode": "636001",
+    "addr:street": "Fort Road",
+    "amenity": "townhall",
+    "name": "Salem City Corporation",
+    "operator": "Government",
+    "townhall:type": "city"
+   }
+  },
+  {
+   "type": "way",
+   "id": 1109912787,
+   "center": {
+    "lat": 11.6627146,
+    "lon": 78.1700314
+   },
+   "tags": {
+    "addr:city": "Salem",
+    "addr:postcode": "636001",
+    "addr:street": "Thillai Nagar Main Road",
+    "amenity": "college",
+    "name": "Indian Institute of Handloom Technology Salem",
+    "operator:type": "government",
+    "short_name": "IIHT Salem",
+    "website": "https://iiht.ac.in/"
+   }
+  },
+  {
+   "type": "way",
+   "id": 1127495883,
+   "center": {
+    "lat": 11.7020465,
+    "lon": 78.1743686
+   },
+   "tags": {
+    "amenity": "college",
+    "name": "LAW College"
+   }
+  },
+  {
+   "type": "way",
+   "id": 1153476174,
+   "center": {
+    "lat": 11.651822,
+    "lon": 78.2008106
+   },
+   "tags": {
+    "addr:city": "Salem",
+    "addr:postcode": "636014",
+    "addr:street": "Salem Bypass",
+    "building": "yes",
+    "government": "register_office",
+    "name": "Register Office - Salem (E)",
+    "office": "government"
+   }
+  },
+  {
+   "type": "way",
+   "id": 1227828361,
+   "center": {
+    "lat": 11.6625794,
+    "lon": 78.1625425
+   },
+   "tags": {
+    "alt_name": "St. Therasa's I.T.I.",
+    "amenity": "college",
+    "education": "college",
+    "name": "St. Theresa's Industrial Training Institute"
+   }
+  }
+ ]
+}

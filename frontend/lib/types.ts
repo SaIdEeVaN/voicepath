@@ -195,3 +195,85 @@ export interface AddSkillResponse {
   question: string | null;
   provider: string;
 }
+
+/* -- Near you (the map) -------------------------------------------------- */
+
+export type NearbyCategory = "training" | "employment" | "government" | "bank";
+
+export const NEARBY_CATEGORIES: NearbyCategory[] = [
+  "training",
+  "employment",
+  "government",
+  "bank",
+];
+
+export interface NearbyCentre {
+  latitude: number;
+  longitude: number;
+  /**
+   * gps: the device said. place: a town we recognised. default: we do not
+   * know where the person is, so this is where the openings are.
+   */
+  source: "gps" | "place" | "default";
+  key: string | null;
+  /** {"en": ..., "ta": ..., "hi": ...}. Empty for a device location. */
+  names: Record<string, string>;
+}
+
+export interface NearbySchemeRef {
+  id: number;
+  title: string;
+  organization: string;
+  type: string;
+}
+
+/** Every opening in one town, pinned at the town centre. */
+export interface NearbySchemePlace {
+  key: string;
+  names: Record<string, string>;
+  latitude: number;
+  longitude: number;
+  distance_km: number;
+  /** Always true: the record knows the town, not the street. */
+  approximate: boolean;
+  schemes: NearbySchemeRef[];
+}
+
+export interface NearbyResponse {
+  centre: NearbyCentre;
+  scheme_places: NearbySchemePlace[];
+  /** Openings whose town the map does not know. Listed, never dropped. */
+  unplaced_schemes: NearbySchemeRef[];
+}
+
+/** An office from OpenStreetMap. Passed through, never invented. */
+export interface SupportPlace {
+  id: string;
+  category: NearbyCategory;
+  name: string;
+  names: Record<string, string>;
+  latitude: number;
+  longitude: number;
+  distance_km: number;
+  address: string | null;
+  opening_hours: string | null;
+  osm_url: string;
+}
+
+export interface SupportResponse {
+  support_places: SupportPlace[];
+  /** ok: looked. unavailable: could not look just now. offline: not looked up here. */
+  support_status: "ok" | "unavailable" | "offline";
+  radius_km: number;
+  provider: string;
+  degraded: boolean;
+  attribution: string;
+}
+
+export interface KnownPlace {
+  key: string;
+  district: string;
+  names: Record<string, string>;
+  latitude: number;
+  longitude: number;
+}

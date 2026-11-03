@@ -3,7 +3,7 @@
 > **This file is the live todo list.** It is updated every time a task is completed.
 > Start at **To-do** — that is the working checklist. **Next up** carries the
 > detail behind the top items; everything below it is the record of the build.
-> Last updated: 2026-09-12 (the stepper matches the flow the buttons take)
+> Last updated: 2026-11-03 (runtime errors fixed; "Near you" map added)
 
 **Project root:** `C:\Users\Sai Dixit\voicepath`
 **Sources:** `PRD_File_For_Project.md` (spec) · `VoicePath Mockups.html` (design canvas, unpacked)
@@ -99,13 +99,34 @@ twice is harmless. There is no cost to doing this in the safe order.
       message at render time would fix it, across six files' error paths.
       Narrow and transient, which is why it was left rather than bundled
       into the language fix.
-- [ ] **`npm run lint` does not exist.** `package.json` still points at
-      `next lint`, which Next 16 removed, and eslint is not a dependency. Either
-      add eslint properly or drop the script so it stops lying.
+- [x] **`npm run lint` does not exist** — fixed 2026-11-03 by dropping the
+      script. `npm run typecheck` is the check that exists. Adding eslint
+      properly is still open if anyone wants it; it would arrive with its own
+      backlog of findings.
 - [ ] **The motion layer has not been seen in a browser.** It compiles, `/`
       still prerenders, and every rule degrades under `prefers-reduced-motion`
       — but no screenshot was taken, because this environment has no browser.
       Worth one look on a real phone before it is shown to anyone.
+
+### Near you (the map) — follow-ups
+
+- [ ] **Overpass has not been reached from the deployed backend.** The build
+      environment could not connect to `overpass-api.de` and found the mail.ru
+      mirror overloaded, so the office lookup was verified against a real
+      Salem response replayed locally, not live. Open `/nearby` on the Render
+      deployment once and confirm offices appear; if not, `/api/places/support`
+      answers `support_status: "unavailable"` and the log says why.
+- [ ] **Openings are pinned at their town's centre.** The catalogue records a
+      town, never an address, so that is all the map can honestly show — and it
+      says so. Real coordinates need `latitude`/`longitude` on `schemes` (a
+      migration — mind the deploy order above) and a field in the admin form.
+- [ ] **OpenStreetMap's own tile server is for light use.** Fine for a demo;
+      set `NEXT_PUBLIC_MAP_TILE_URL` to a tile provider before real traffic.
+- [ ] **The gazetteer is 22 towns around Salem and Erode.** A spoken place
+      outside it falls back to "where the openings are", which is honest but
+      not useful. Extend `backend/app/data/places.py` alongside
+      `matching.PLACE_ALIASES` as the catalogue grows; `tests/test_nearby.py`
+      fails if the two drift.
 
 ### Later — scale, breadth and loose ends
 
@@ -199,7 +220,7 @@ Four approaches, in order of effort:
 | 2. Backend core (config, db, providers) | ✅ Done |
 | 3. Backend pipeline (extract → normalize → match → explain) | ✅ Done |
 | 4. Backend routes + rate limiting | ✅ Done |
-| 5. Backend tests | ✅ Done — **325 passing**, 7 skipped |
+| 5. Backend tests | ✅ Done — **435 passing**, 7 skipped |
 | 6. Frontend scaffold + design tokens | ✅ Done |
 | 7. Frontend screens | ✅ Done — all 8 |
 | 8. Admin (Phase 2) | ✅ Done |
@@ -377,7 +398,7 @@ frontend/
 - [x] `/api/admin/*` — server-side role check, sha256 tokens, bootstrap that self-disables
 - [x] Rate limiting on public routes · `GET /health` reporting every provider honestly
 
-### Phase 5 — Backend tests ✅ (325 passing, 7 skipped)
+### Phase 5 — Backend tests ✅ (435 passing, 7 skipped)
 - [x] `test_matching.py` — weights, determinism, each component, grounding
 - [x] `test_extraction.py` — evidence grounding in ta/hi/en, invention rejected
 - [x] `test_normalization.py` — alias matching across scripts, no silent upgrades
@@ -542,10 +563,97 @@ discards every response and the failure is indistinguishable from a dead server.
   play.
 - **Place names render in English inside non-English sentences.** Matching
   resolves them correctly; only the display label is untranslated.
-- **`npm run lint` does not exist.** `next lint` was removed in Next 16 and
-  eslint is not a dependency.
 - **Rate limiting is per-process.** Multiplies behind multiple instances; move
   the counter to Redis before scaling.
+
+---
+
+## Done on 2026-11-03 — "Near you": the map
+
+A new screen, `/nearby`, linked from the header, from `/schemes` and from every
+scheme's own page (`/nearby?scheme=7` opens on that scheme's town). It shows
+two things, kept visibly apart because they deserve different trust:
+
+- **Openings** from the catalogue, grouped by town and ordered by straight-line
+  distance. One green pin per town with a count — the record knows the town,
+  not the street, and eleven stacked pins would each look like an address. The
+  screen says they are marked at the town centre.
+- **Places that can help** from OpenStreetMap via the Overpass API: training
+  centres and ITIs, employment offices, government offices, banks. Each has a
+  Directions link (a keyless Google Maps URL, which opens the Maps app on most
+  phones) and a link to the OpenStreetMap record.
+
+Stack: Leaflet 1.9.4 over OpenStreetMap tiles. Free, no key, open data — the
+same reasoning as the rest of the stack.
+
+**Where the map centres**, in order of what is actually known: the device
+location if the person presses *Use my location*; a town picked from the list;
+the place they said while describing their work (through the matcher's own
+`canonical_place`, so "சேலத்துல" and "सेलम में" both land on Salem); otherwise
+"where the openings are", and the screen says it does not know where they are.
+A "you" dot is drawn only for a device location — a spoken town is a town, not
+a doorstep.
+
+**Privacy.** A device location is rounded to two decimals (about 1.1 km) in the
+browser before it is sent, rounded again on the server, sent in a POST body
+rather than a query string (query strings land in access logs), held in
+component state rather than session storage, and never written anywhere.
+`tests/test_nearby.py` asserts the Overpass query never carries the precise
+point.
+
+**It does not rank.** Distance is information beside an opening; the audited
+ranking stays on `/schemes`. `matching.py` does not import the places service,
+and a test reads its imports to keep it that way.
+
+**Overpass is volunteer-run, so the map does not wait on it.** Openings come
+from `POST /api/places/nearby`, answered from the catalogue alone. Offices come
+from `POST /api/places/support`, asked for afterwards. Endpoints in
+`OVERPASS_URLS` are tried in order; a failure answers `unavailable` at once for
+the next 60 seconds rather than making every request wait out the same
+timeouts; success is cached for `PLACES_CACHE_HOURS`. "Nothing mapped here" and
+"could not look" are different statuses and the screen says which.
+`PLACES_PROVIDER=offline` turns the lookup off and `/health` reports `places`.
+
+**What counts as help** was decided against a real Overpass response for
+central Salem, now trimmed into `tests/fixtures/overpass_salem.json`. Colleges
+count only by name (ITI, Industrial Training, Polytechnic, Skill, Handloom…),
+so law, arts and medical colleges stay off a list about skilling. Police and
+tax offices are excluded by tag and by name: most Salem tax offices carry no
+`government=` tag, and some are named only in `name:en` — a filter reading
+`name` alone let the GST offices through. The RTO stays, because a licence is
+what the driving openings ask for.
+
+Copy is written in Tamil, Hindi and English. Town names in the gazetteer carry
+all three scripts, so on this screen at least a place renders in the reader's
+script.
+
+---
+
+## Fixed on 2026-11-03 — the scheme page rebuilt itself on every load
+
+**A hydration error on `/schemes/[id]`, in every language.** `AskVoicePath`
+asked during render whether the browser can recognise speech. The server
+cannot, so it rendered no mic button; the browser can, so it rendered one;
+React threw the server HTML away (minified error #418) and rebuilt the screen
+on the client. The check now runs after mount and both sides start without it.
+
+**Spoken answers never played in development.** The same component's
+`mounted` ref was set false by Strict Mode's mount → cleanup → mount, and
+nothing set it back, so every answer looked like it arrived after the screen
+had gone. The effect now sets it true on each mount.
+
+**English on a Tamil page.** The facts under a scheme — "Pay", "Experience
+asked for", "Certificates required", "2 years" — were literals, as was the
+language switch's accessible name. All are in `lib/i18n.ts` now.
+
+**`npm run lint`** pointed at `next lint`, removed in Next 16. Dropped.
+
+**Backend lint.** Seven unused imports and one unused variable, found by
+`ruff --select F`; removed. No behaviour change.
+
+Found by driving every route in all three languages in a headless browser and
+collecting console errors, then re-run after the fixes: 16 routes × 3
+languages, no page errors.
 
 ---
 
