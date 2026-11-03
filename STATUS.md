@@ -3,7 +3,7 @@
 > **This file is the live todo list.** It is updated every time a task is completed.
 > Start at **To-do** — that is the working checklist. **Next up** carries the
 > detail behind the top items; everything below it is the record of the build.
-> Last updated: 2026-11-03 (runtime errors fixed; "Near you" map added)
+> Last updated: 2026-11-03 (a paused database no longer takes the API down)
 
 **Project root:** `C:\Users\Sai Dixit\voicepath`
 **Sources:** `PRD_File_For_Project.md` (spec) · `VoicePath Mockups.html` (design canvas, unpacked)
@@ -107,6 +107,18 @@ twice is harmless. There is no cost to doing this in the safe order.
       still prerenders, and every rule degrades under `prefers-reduced-motion`
       — but no screenshot was taken, because this environment has no browser.
       Worth one look on a real phone before it is shown to anyone.
+
+### After the 2026-11-03 outage
+
+- [ ] **Confirm the keep-alive runs.** Actions → *Keep the backend and
+      database awake* → *Run workflow* once by hand. It should go green and
+      print `"connected": true`. Supabase's exact definition of "inactive" is
+      theirs; if the project pauses anyway, the job goes red and emails you.
+- [ ] **The API does not reconnect on its own.** After a database outage it
+      stays on memory until it restarts. On the free tier that happens on the
+      next wake from sleep anyway; on an always-on plan, restart it by hand
+      (or add a careful reconnect — sessions started in memory would vanish
+      if it switched underneath them).
 
 ### Near you (the map) — follow-ups
 
@@ -220,7 +232,7 @@ Four approaches, in order of effort:
 | 2. Backend core (config, db, providers) | ✅ Done |
 | 3. Backend pipeline (extract → normalize → match → explain) | ✅ Done |
 | 4. Backend routes + rate limiting | ✅ Done |
-| 5. Backend tests | ✅ Done — **435 passing**, 7 skipped |
+| 5. Backend tests | ✅ Done — **445 passing**, 7 skipped |
 | 6. Frontend scaffold + design tokens | ✅ Done |
 | 7. Frontend screens | ✅ Done — all 8 |
 | 8. Admin (Phase 2) | ✅ Done |
@@ -398,7 +410,7 @@ frontend/
 - [x] `/api/admin/*` — server-side role check, sha256 tokens, bootstrap that self-disables
 - [x] Rate limiting on public routes · `GET /health` reporting every provider honestly
 
-### Phase 5 — Backend tests ✅ (435 passing, 7 skipped)
+### Phase 5 — Backend tests ✅ (445 passing, 7 skipped)
 - [x] `test_matching.py` — weights, determinism, each component, grounding
 - [x] `test_extraction.py` — evidence grounding in ta/hi/en, invention rejected
 - [x] `test_normalization.py` — alias matching across scripts, no silent upgrades
@@ -565,6 +577,54 @@ discards every response and the failure is indistinguishable from a dead server.
   resolves them correctly; only the display label is untranslated.
 - **Rate limiting is per-process.** Multiplies behind multiple instances; move
   the counter to Redis before scaling.
+
+---
+
+## Fixed on 2026-11-03 — a paused database took the whole API down
+
+**What happened.** PR #8 merged and Render deployed it. The build succeeded;
+startup did not. Every boot died connecting to Postgres:
+
+```
+asyncpg.exceptions.InternalServerError: (ENOTFOUND) tenant/user postgres.<project> not found
+ERROR:    Application startup failed. Exiting.
+```
+
+The Supabase project had been paused for inactivity — the free tier does that
+after about a week, and the last deploy was 2026-09-12. The pooler answers
+"tenant not found" for a paused project. Render kept the previous deploy
+nominally live, but the free instance sleeps when idle and every wake re-ran
+the same startup, so the old version failed identically: the site was down
+whichever code was deployed. Vercel built and served the frontend fine; it
+had no backend to talk to. The new map code was not involved.
+
+**Fixed, in four parts.**
+
+1. **The project was restored** and checked before redeploying: 44 taxonomy
+   rows, all embedded; 19 active schemes; 93 sessions; the 007 and 009
+   columns present.
+2. **The API starts without its database.** `db.init_pool` catches the
+   failure, logs it in full, and falls back to the in-memory store — which
+   every route already used when `DATABASE_URL` was unset. The catalogue,
+   matching and the map need no database, so a database outage no longer
+   takes them down too. It is not hidden: `/health` lists `database` as degraded
+   with `"configured": true`, and the interface shows a notice in all three
+   languages that a record may not be kept.
+3. **The admin gate refuses during an outage.** The bootstrap token is
+   honoured only while `admin_users` is empty, and with the database down
+   nobody can see whether it is. Falling through would have treated "cannot
+   check" as "empty" and reopened the backdoor for exactly as long as the
+   database was down. It answers 503 instead.
+4. **A keep-alive.** `.github/workflows/keep-alive.yml` calls `/health` every
+   three days — it runs real queries — and fails loudly if the database is
+   not connected.
+
+Also: `/health` no longer publishes the raw driver error, which can name the
+host, project or user. It gives the kind of error; the log has the detail.
+
+`tests/test_database_outage.py` simulates the outage with a port nothing
+listens on. Without the fix all ten of its tests fail exactly as Render did;
+with it they pass.
 
 ---
 

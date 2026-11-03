@@ -67,6 +67,18 @@ Add `--all` to recompute vectors that already exist — needed after changing
 it the script only fills in missing rows and silently leaves stale vectors in
 place.
 
+**If the database cannot be reached** — Supabase's free tier pauses a project
+after about a week without activity — the API still starts, on the in-memory
+store. `/health` lists `database` as degraded with `"configured": true`, the
+interface tells people their record may not be kept, and admin access is
+refused until the database is back (the bootstrap token cannot be checked
+safely without it). Restore the project in the Supabase dashboard and restart
+the backend; it does not reconnect on its own.
+
+`.github/workflows/keep-alive.yml` calls `/health` every three days so the
+project stays active, and fails — which emails the repository owner — if the
+database is not connected.
+
 ---
 
 ## The stack, and what it costs
@@ -196,7 +208,7 @@ the database level and not only in application code.
 ## Tests
 
 ```bash
-cd backend && python -m pytest        # 435 tests
+cd backend && python -m pytest        # 445 tests
 cd frontend && npx tsc --noEmit && npx next build
 ```
 
