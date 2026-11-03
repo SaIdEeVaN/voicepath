@@ -36,7 +36,7 @@ import {
   type MapTown,
 } from "@/components/NearbyMap";
 import { ApiError, api } from "@/lib/api";
-import { copyFor, typeLabel } from "@/lib/i18n";
+import { copyFor, localeFor, typeLabel } from "@/lib/i18n";
 import { useSession } from "@/lib/session";
 import {
   NEARBY_CATEGORIES,
@@ -55,6 +55,22 @@ type LocationProblem = "denied" | "failed" | null;
 /** Two decimals of a degree: about 1.1 km. Done before anything is sent. */
 function coarsen(value: number): number {
   return Math.round(value * 100) / 100;
+}
+
+/** "2026-11-03" as each language writes a date. Falls back to the ISO form. */
+function formatDay(iso: string, language: Language): string {
+  const day = new Date(`${iso}T00:00:00Z`);
+  if (Number.isNaN(day.getTime())) return iso;
+  try {
+    return new Intl.DateTimeFormat(localeFor(language), {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      timeZone: "UTC",
+    }).format(day);
+  } catch {
+    return iso;
+  }
 }
 
 function nameIn(names: Record<string, string>, language: Language, fallback = ""): string {
@@ -143,6 +159,8 @@ export function NearbyView({ focusSchemeId }: { focusSchemeId: number | null }) 
           setSupport({
             support_places: [],
             support_status: "unavailable",
+            source: null,
+            as_of: null,
             radius_km: radius,
             provider: "",
             degraded: true,
@@ -630,6 +648,18 @@ export function NearbyView({ focusSchemeId }: { focusSchemeId: number | null }) 
           {support?.attribution && (
             <p className="mt-6 text-[11.5px]" style={{ color: "var(--ink-38)" }}>
               {support.attribution}
+              {/* The bundled list is a snapshot; say how old, so "this list
+                  can be out of date" has a date to it. Rendered only after
+                  hydration, so the locale's date format cannot mismatch. */}
+              {support.source === "snapshot" && support.as_of && (
+                <>
+                  {" · "}
+                  {copy.nearbySupportAsOf.replace(
+                    "{date}",
+                    formatDay(support.as_of, language),
+                  )}
+                </>
+              )}
             </p>
           )}
         </div>

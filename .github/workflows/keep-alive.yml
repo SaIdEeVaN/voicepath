@@ -1,0 +1,47 @@
+name: Keep the backend and database awake
+
+# Supabase's free tier pauses a project after about a week without activity,
+# and on 2026-11-03 a paused database took the whole API down with it: every
+# boot died on its first connection. /health runs real queries against the
+# database, so calling it every three days keeps the project active. It also
+# wakes the Render free instance, which sleeps after fifteen idle minutes.
+#
+# The job fails -- and GitHub emails the repository owner -- when the backend
+# does not answer, or answers with its database not connected. A pause that
+# happens anyway is then noticed within days, not in the middle of a demo.
+#
+# Point it elsewhere with a repository variable named HEALTH_URL
+# (Settings -> Secrets and variables -> Actions -> Variables).
+#
+# GitHub turns off scheduled workflows in a repository with no commits for 60
+# days, and emails before it does. Re-enable it from the Actions tab.
+
+on:
+  schedule:
+    # 03:17 UTC every third day. Off the hour, when scheduled jobs pile up.
+    - cron: "17 3 */3 * *"
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      HEALTH_URL: ${{ vars.HEALTH_URL || 'https://voicepath-api.onrender.com/health' }}
+    steps:
+      - name: Call /health and check the database answered
+        run: |
+          set -euo pipefail
+          # A sleeping free instance can take a minute to answer its first
+          # request, so retry rather than fail on the cold start.
+          body=$(curl -fsS --retry 5 --retry-delay 20 --retry-all-errors \
+            --max-time 120 "$HEALTH_URL")
+          echo "$body" | jq '{status, degraded, database}'
+
+          connected=$(echo "$body" | jq -r '.database.connected')
+          if [ "$connected" != "true" ]; then
+            echo "::error::The backend answered, but its database is not connected. If Supabase paused the project, restore it from the Supabase dashboard, then redeploy the backend on Render."
+            exit 1
+          fi

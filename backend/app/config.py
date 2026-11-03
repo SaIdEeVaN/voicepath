@@ -127,9 +127,12 @@ class Settings(BaseSettings):
 
     # -- Nearby places (the map) ---------------------------------------------
     # Support offices near a person -- ITIs, employment offices, government
-    # offices, banks -- come from OpenStreetMap through the Overpass API. No
-    # key and no cost, which is why it is on by default; "offline" turns the
-    # lookup off and the map shows the catalogue's openings alone.
+    # offices, banks -- come from OpenStreetMap. Searches around the towns the
+    # map knows are answered from a bundled snapshot
+    # (app/data/support_places.json, refreshed by
+    # app.scripts.fetch_support_places); anything else asks the Overpass API
+    # live. No key and no cost. "offline" turns the live lookups off; the
+    # snapshot, being local data, still answers what it covers.
     places_provider: PlacesProvider = "overpass"
     # Tried in order. The public instances are volunteer-run and any one of
     # them can be busy, so a second endpoint is the difference between a map

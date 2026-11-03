@@ -78,6 +78,22 @@ async def require_admin(
 
     digest = _hash_token(token)
 
+    # A database is configured but did not answer at startup, so the API is
+    # running on the in-memory store. The bootstrap token is honoured only
+    # while admin_users is empty, and right now nobody can see whether it is.
+    # Falling through would treat "cannot check" as "empty" and reopen the
+    # very backdoor that rule exists to close -- for exactly as long as the
+    # database is down. Refuse instead, and say why.
+    if db.is_configured() and not db.is_available():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "Admin access is paused: the database is unreachable, so this "
+                "server cannot check who is an admin. It returns once the "
+                "database is back and the API restarts."
+            ),
+        )
+
     if db.is_available():
         row = await db.fetchrow(
             "select email, role from admin_users "

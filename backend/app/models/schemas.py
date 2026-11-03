@@ -445,8 +445,13 @@ class SupportRequest(Base):
 class SupportResponse(Base):
     support_places: list[SupportPlace]
     # ok: looked, and this is what is there (possibly nothing).
-    # unavailable: could not look just now. offline: not looked up here.
+    # unavailable: could not look just now. offline: live lookups are off
+    # here and the bundled snapshot does not cover this search.
     support_status: Literal["ok", "unavailable", "offline"]
+    # Where an ok answer came from: the bundled snapshot or a live query.
+    source: Literal["snapshot", "live"] | None = None
+    # The day the snapshot was fetched (ISO date), when it answered.
+    as_of: str | None = None
     radius_km: float
     provider: str
     degraded: bool

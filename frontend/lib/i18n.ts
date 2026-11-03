@@ -193,6 +193,8 @@ export interface Copy {
   nearbyUnplaced: string;
   nearbyStraightLine: string;
   nearbyViewOnOsm: string;
+  /** `{date}` is replaced with the day the bundled office list was fetched. */
+  nearbySupportAsOf: string;
   /* Score bars */
   barSkills: string;
   barExperience: string;
@@ -217,6 +219,11 @@ export interface Copy {
    */
   somethingWentWrong: string;
   offlineNotice: string;
+  /**
+   * The database is configured but did not answer, so the server is running
+   * on memory. Matching still works; what is said may not be kept.
+   */
+  storageOfflineNotice: string;
 }
 
 const en: Copy = {
@@ -417,6 +424,7 @@ const en: Copy = {
   nearbyUnplaced: "Not on the map yet — the map does not know its town.",
   nearbyStraightLine: "Distances are in a straight line, not by road.",
   nearbyViewOnOsm: "On OpenStreetMap",
+  nearbySupportAsOf: "OpenStreetMap data as of {date}.",
   barSkills: "Your skills",
   barExperience: "Your experience",
   barRequirements: "What they need",
@@ -432,6 +440,8 @@ const en: Copy = {
   somethingWentWrong: "Something went wrong.",
   offlineNotice:
     "Running without the speech and language services, so I am reading only what you name directly.",
+  storageOfflineNotice:
+    "Saving is paused right now, so your record may not be kept. Everything else works.",
 };
 
 const ta: Copy = {
@@ -635,6 +645,7 @@ const ta: Copy = {
   nearbyUnplaced: "இன்னும் வரைபடத்தில் இல்லை — இதன் ஊர் வரைபடத்துக்குத் தெரியாது.",
   nearbyStraightLine: "தூரம் நேர்கோட்டில், சாலை வழியாக அல்ல.",
   nearbyViewOnOsm: "OpenStreetMap-இல்",
+  nearbySupportAsOf: "{date} நிலவரப்படி OpenStreetMap தரவு.",
   barSkills: "உங்கள் திறன்கள்",
   barExperience: "உங்கள் அனுபவம்",
   barRequirements: "அவர்கள் கேட்பது",
@@ -650,6 +661,8 @@ const ta: Copy = {
   somethingWentWrong: "ஏதோ தவறாகி விட்டது. மீண்டும் முயற்சி செய்யுங்கள்.",
   offlineNotice:
     "பேச்சு மற்றும் மொழி சேவைகள் இல்லாமல் இயங்குகிறது, நீங்கள் நேரடியாகச் சொன்னதை மட்டுமே படிக்கிறேன்.",
+  storageOfflineNotice:
+    "இப்போது சேமிப்பு நிறுத்தப்பட்டுள்ளது, அதனால் உங்கள் பதிவு நிலைக்காமல் போகலாம். மற்றவை எல்லாம் வேலை செய்கின்றன.",
 };
 
 const hi: Copy = {
@@ -848,6 +861,7 @@ const hi: Copy = {
   nearbyUnplaced: "अभी नक्शे पर नहीं — नक्शे को इसका शहर पता नहीं।",
   nearbyStraightLine: "दूरी सीधी रेखा में है, सड़क से नहीं।",
   nearbyViewOnOsm: "OpenStreetMap पर",
+  nearbySupportAsOf: "{date} तक का OpenStreetMap डेटा।",
   barSkills: "आपके हुनर",
   barExperience: "आपका अनुभव",
   barRequirements: "उनकी शर्तें",
@@ -863,6 +877,8 @@ const hi: Copy = {
   somethingWentWrong: "कुछ गड़बड़ हो गई। फिर कोशिश कीजिए।",
   offlineNotice:
     "भाषा और आवाज़ की सेवाओं के बिना चल रहा है, इसलिए सिर्फ़ वही पढ़ रहा हूँ जो आपने सीधे कहा।",
+  storageOfflineNotice:
+    "अभी सहेजना रुका हुआ है, इसलिए हो सकता है आपका रिकॉर्ड न रहे। बाकी सब काम कर रहा है।",
 };
 
 export const COPY: Record<Language, Copy> = { en, ta, hi };

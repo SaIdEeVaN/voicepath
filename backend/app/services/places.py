@@ -32,13 +32,15 @@ saying the offices could not be loaded rather than pretending there are none.
 
 from __future__ import annotations
 
+import json
 import logging
 import math
 import re
 import time
 from collections import OrderedDict
 from dataclasses import dataclass, field
-from typing import Iterable
+from pathlib import Path
+from typing import Iterable, NamedTuple
 
 import httpx
 
@@ -299,12 +301,18 @@ def categorize(tags: dict[str, str]) -> str | None:
 
 
 def build_query(
-    latitude: float, longitude: float, radius_km: float, categories: Iterable[str]
+    latitude: float,
+    longitude: float,
+    radius_km: float,
+    categories: Iterable[str],
+    *,
+    timeout_seconds: int | None = None,
 ) -> str:
     """Overpass QL for the requested categories around one point.
 
     Every value interpolated here is a number or comes from a fixed table, so
-    nothing a person typed can reach the query.
+    nothing a person typed can reach the query. ``timeout_seconds`` is for the
+    snapshot script, which can afford to wait where a person cannot.
     """
     around = f"(around:{int(radius_km * 1000)},{latitude:.4f},{longitude:.4f})"
     wanted = set(categories)
@@ -324,8 +332,9 @@ def build_query(
         clauses.append(f'nwr["amenity"="bank"]{around};')
     # A little under the HTTP timeout, so a slow query is ended by the server
     # with a remark we can read, rather than by us with a dropped connection.
-    timeout = max(5, int(get_settings().places_timeout_seconds) - 2)
-    return f"[out:json][timeout:{timeout}];(" + "".join(clauses) + ");out center tags 500;"
+    timeout = timeout_seconds or max(5, int(get_settings().places_timeout_seconds) - 2)
+    limit = "" if timeout_seconds else " 500"
+    return f"[out:json][timeout:{timeout}];(" + "".join(clauses) + f");out center tags{limit};"
 
 
 def _address(tags: dict[str, str]) -> str | None:
@@ -494,25 +503,119 @@ async def fetch_elements(query: str) -> list[dict]:
     raise PlacesUnavailable("; ".join(failures) or "no Overpass endpoint configured")
 
 
+# -- Snapshot ------------------------------------------------------------------
+#
+# The public servers could not answer the deployed backend in time on the day
+# this shipped, so offices around every town the map knows are fetched ahead
+# of time by ``app/scripts/fetch_support_places.py``. A search whose whole
+# circle sits inside a fetched town's circle is answered from that file: no
+# network, no waiting, and no dependence on a volunteer server being up.
+# Anything else -- a device location far from every known town -- still asks
+# Overpass live.
+
+SNAPSHOT_PATH = Path(__file__).resolve().parents[1] / "data" / "support_places.json"
+
+
+@dataclass(frozen=True)
+class Snapshot:
+    radius_km: float
+    as_of: str | None
+    fetched_towns: tuple[str, ...]
+    elements: tuple[dict, ...]
+
+
+_snapshot_cache: dict[str, Snapshot | None] = {}
+
+
+def load_snapshot() -> Snapshot | None:
+    """The bundled offices, or None if there is no usable file."""
+    if "value" in _snapshot_cache:
+        return _snapshot_cache["value"]
+    snapshot: Snapshot | None = None
+    try:
+        raw = json.loads(SNAPSHOT_PATH.read_text(encoding="utf-8"))
+        snapshot = Snapshot(
+            radius_km=float(raw["radius_km"]),
+            as_of=raw.get("as_of"),
+            fetched_towns=tuple(
+                key for key, status in (raw.get("towns") or {}).items()
+                if status.get("fetched") and key in PLACES
+            ),
+            elements=tuple(raw.get("elements") or ()),
+        )
+    except FileNotFoundError:
+        logger.info("No offices snapshot at %s; every lookup goes live", SNAPSHOT_PATH)
+    except (ValueError, KeyError, TypeError, AttributeError) as exc:
+        logger.error("Offices snapshot at %s is unreadable (%s); ignoring it", SNAPSHOT_PATH, exc)
+    _snapshot_cache["value"] = snapshot
+    return snapshot
+
+
+def reset_snapshot() -> None:
+    _snapshot_cache.clear()
+
+
+def snapshot_covers(
+    snapshot: Snapshot, latitude: float, longitude: float, radius_km: float
+) -> bool:
+    """Whether the snapshot holds everything inside this search circle.
+
+    Only when the circle sits wholly inside a fetched town's circle. Partial
+    overlap is not coverage: the missing part could hold the nearest ITI.
+    """
+    for key in snapshot.fetched_towns:
+        entry = PLACES[key]
+        distance = haversine_km(latitude, longitude, entry["latitude"], entry["longitude"])
+        if distance + radius_km <= snapshot.radius_km + 1e-9:
+            return True
+    return False
+
+
+class SupportResult(NamedTuple):
+    places: list[SupportPlace]
+    # ok: looked, and this is what is there (possibly nothing).
+    # unavailable: could not look just now. offline: live lookups are off and
+    # the snapshot does not cover this search.
+    status: str
+    # snapshot or live when status is ok; None otherwise.
+    source: str | None = None
+    # The day the snapshot was fetched, when the answer came from it.
+    as_of: str | None = None
+
+
 async def support_places(
     *,
     latitude: float,
     longitude: float,
     radius_km: float,
     categories: Iterable[str],
-) -> tuple[list[SupportPlace], str]:
-    """Offices near a point, and whether the lookup worked.
+) -> SupportResult:
+    """Offices near a point: from the snapshot if it covers them, else live.
 
-    Status is ``ok``, ``offline`` (switched off here) or ``unavailable`` (every
-    endpoint failed). The last two both come with an empty list, and the
-    caller says which it was -- "none nearby" and "could not look" are
-    different answers.
+    "None nearby" and "could not look" are different answers, and the status
+    says which -- the caller tells the person.
     """
-    if not is_available():
-        return [], "offline"
     wanted = tuple(sorted(set(categories) & set(ALL_CATEGORIES)))
     if not wanted:
-        return [], "ok"
+        return SupportResult([], "ok", None)
+
+    snapshot = load_snapshot()
+    if snapshot is not None and snapshot_covers(snapshot, latitude, longitude, radius_km):
+        return SupportResult(
+            parse_elements(
+                snapshot.elements,
+                latitude=latitude,
+                longitude=longitude,
+                radius_km=radius_km,
+                categories=wanted,
+            ),
+            "ok",
+            "snapshot",
+            snapshot.as_of,
+        )
+
+    if not is_available():
+        return SupportResult([], "offline")
 
     global _unavailable_until
     lat, lng = coarsen(latitude), coarsen(longitude)
@@ -520,17 +623,17 @@ async def support_places(
     elements = _cache_get(key)
     if elements is None:
         if time.monotonic() < _unavailable_until:
-            return [], "unavailable"
+            return SupportResult([], "unavailable")
         try:
             elements = await fetch_elements(build_query(lat, lng, radius_km, wanted))
         except PlacesUnavailable as exc:
             # The reason, never the coordinates.
             logger.warning("Nearby offices could not be loaded: %s", exc)
             _unavailable_until = time.monotonic() + FAILURE_BACKOFF_SECONDS
-            return [], "unavailable"
+            return SupportResult([], "unavailable")
         _cache_put(key, elements)
 
-    return (
+    return SupportResult(
         parse_elements(
             elements,
             latitude=latitude,
@@ -539,6 +642,7 @@ async def support_places(
             categories=wanted,
         ),
         "ok",
+        "live",
     )
 
 

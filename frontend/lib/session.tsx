@@ -254,13 +254,21 @@ export function useSession(): SessionContextValue {
   return context;
 }
 
-/** True when speech or language services are running offline. */
-export function useDegraded(): { speech: boolean; language: boolean } {
+/**
+ * What is running offline, as the interface needs to know it.
+ *
+ * `storage` is a database that was configured and did not answer -- the API
+ * then runs on memory, and a record may not survive. A database that was
+ * never configured (local development) is not flagged: nothing was promised.
+ */
+export function useDegraded(): { speech: boolean; language: boolean; storage: boolean } {
   const { health } = useSession();
   const degraded = health?.degraded ?? [];
+  const database = health?.database ?? {};
   return {
     speech: degraded.includes("stt"),
     language: degraded.includes("llm"),
+    storage: database.configured === true && database.connected === false,
   };
 }
 

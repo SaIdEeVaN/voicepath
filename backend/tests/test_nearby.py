@@ -24,10 +24,18 @@ SALEM = PLACES["salem"]
 
 
 @pytest.fixture(autouse=True)
-def _fresh_cache():
+def _fresh_cache(monkeypatch, tmp_path):
+    """No cache, and no bundled snapshot unless a test writes one.
+
+    The live-lookup tests below are about the live path; letting the real
+    snapshot answer them would test the file instead.
+    """
     places.reset_cache()
+    places.reset_snapshot()
+    monkeypatch.setattr(places, "SNAPSHOT_PATH", tmp_path / "no-snapshot.json")
     yield
     places.reset_cache()
+    places.reset_snapshot()
 
 
 @pytest.fixture
@@ -274,7 +282,7 @@ class TestSupportLookup:
             raise AssertionError("network used while offline")
 
         monkeypatch.setattr(places, "fetch_elements", boom)
-        found, status = await places.support_places(
+        found, status, *_ = await places.support_places(
             latitude=11.66, longitude=78.15, radius_km=10, categories=places.ALL_CATEGORIES
         )
         assert (found, status) == ([], "offline")
@@ -288,7 +296,7 @@ class TestSupportLookup:
 
         monkeypatch.setattr(places, "fetch_elements", fake)
         for _ in range(3):
-            found, status = await places.support_places(
+            found, status, *_ = await places.support_places(
                 latitude=SALEM["latitude"], longitude=SALEM["longitude"],
                 radius_km=10, categories=places.ALL_CATEGORIES,
             )
@@ -319,7 +327,7 @@ class TestSupportLookup:
             raise places.PlacesUnavailable("busy")
 
         monkeypatch.setattr(places, "fetch_elements", down)
-        found, status = await places.support_places(
+        found, status, *_ = await places.support_places(
             latitude=11.66, longitude=78.15, radius_km=10, categories=places.ALL_CATEGORIES
         )
         assert (found, status) == ([], "unavailable")
@@ -343,7 +351,7 @@ class TestSupportLookup:
             return _elements()
 
         monkeypatch.setattr(places, "_post", post)
-        found, status = await places.support_places(
+        found, status, *_ = await places.support_places(
             latitude=SALEM["latitude"], longitude=SALEM["longitude"],
             radius_km=10, categories=places.ALL_CATEGORIES,
         )
@@ -442,3 +450,136 @@ class TestBoundary:
             for alias in (node.names if isinstance(node, ast.Import) else [node])
         }
         assert not any("places" in (name or "") for name in imported)
+
+
+def _write_snapshot(path, *, towns=None, elements=None, radius_km=25, as_of="2026-11-03"):
+    from app.scripts.fetch_support_places import _flatten
+
+    flat = [f for f in (_flatten(e) for e in (elements or _elements())) if f]
+    path.write_text(
+        json.dumps({
+            "source": "OpenStreetMap, via the Overpass API",
+            "license": "ODbL 1.0",
+            "attribution": places.ATTRIBUTION,
+            "radius_km": radius_km,
+            "as_of": as_of,
+            "towns": towns if towns is not None else {"salem": {"fetched": True}},
+            "elements": flat,
+        }),
+        encoding="utf-8",
+    )
+    places.reset_snapshot()
+
+
+@pytest.fixture
+def snapshot(monkeypatch, tmp_path):
+    path = tmp_path / "support_places.json"
+    monkeypatch.setattr(places, "SNAPSHOT_PATH", path)
+    _write_snapshot(path)
+    return path
+
+
+@pytest.fixture
+def no_network(monkeypatch):
+    async def boom(query):  # pragma: no cover - must not run
+        raise AssertionError("asked Overpass for something the snapshot covers")
+
+    monkeypatch.setattr(places, "fetch_elements", boom)
+
+
+class TestSnapshot:
+    async def test_a_covered_search_is_answered_without_the_network(
+        self, snapshot, no_network
+    ):
+        result = await places.support_places(
+            latitude=SALEM["latitude"], longitude=SALEM["longitude"],
+            radius_km=10, categories=places.ALL_CATEGORIES,
+        )
+        assert result.status == "ok"
+        assert result.source == "snapshot"
+        assert result.as_of == "2026-11-03"
+        assert any(p.name == "Govt ITI" for p in result.places)
+
+    async def test_the_snapshot_answers_even_with_live_lookups_on(
+        self, snapshot, no_network, overpass_on
+    ):
+        """The point: a volunteer server being down must not matter here."""
+        result = await places.support_places(
+            latitude=SALEM["latitude"], longitude=SALEM["longitude"],
+            radius_km=25, categories=["training"],
+        )
+        assert result.source == "snapshot"
+
+    async def test_the_same_filters_apply_to_snapshot_data(self, snapshot, no_network):
+        result = await places.support_places(
+            latitude=SALEM["latitude"], longitude=SALEM["longitude"],
+            radius_km=10, categories=places.ALL_CATEGORIES,
+        )
+        names = {p.name for p in result.places}
+        assert "LAW College" not in names
+        assert "Deputy Superintendent of Police" not in names
+        assert [p.name for p in result.places].count("Register Office - Salem (E)") == 1
+
+    async def test_a_search_outside_every_town_goes_live(
+        self, snapshot, monkeypatch, overpass_on
+    ):
+        asked = []
+
+        async def fake(query):
+            asked.append(query)
+            return []
+
+        monkeypatch.setattr(places, "fetch_elements", fake)
+        result = await places.support_places(
+            latitude=22.57, longitude=88.36, radius_km=10, categories=["bank"]
+        )
+        assert asked and result.source == "live"
+
+    async def test_partial_overlap_is_not_coverage(self, snapshot, monkeypatch, overpass_on):
+        """20 km out with a 10 km circle pokes past a 25 km snapshot. The part
+        outside could hold the nearest ITI, so it is not claimed."""
+        asked = []
+
+        async def fake(query):
+            asked.append(query)
+            return []
+
+        monkeypatch.setattr(places, "fetch_elements", fake)
+        result = await places.support_places(
+            latitude=SALEM["latitude"] + 0.18, longitude=SALEM["longitude"],
+            radius_km=10, categories=["bank"],
+        )
+        assert asked and result.source == "live"
+
+    async def test_a_town_that_failed_to_fetch_is_not_coverage(
+        self, snapshot, monkeypatch
+    ):
+        _write_snapshot(snapshot, towns={"salem": {"fetched": False}})
+        result = await places.support_places(
+            latitude=SALEM["latitude"], longitude=SALEM["longitude"],
+            radius_km=10, categories=places.ALL_CATEGORIES,
+        )
+        # Offline provider in the suite: not covered, so nothing to say.
+        assert (result.places, result.status) == ([], "offline")
+
+    async def test_offline_and_uncovered_says_offline(self, snapshot, no_network):
+        result = await places.support_places(
+            latitude=22.57, longitude=88.36, radius_km=10, categories=["bank"]
+        )
+        assert result.status == "offline"
+
+    async def test_an_unreadable_snapshot_is_ignored_not_fatal(self, snapshot):
+        snapshot.write_text("{ not json", encoding="utf-8")
+        places.reset_snapshot()
+        assert places.load_snapshot() is None
+
+    def test_the_route_says_where_the_answer_came_from(self, snapshot, client):
+        body = client.post(
+            "/api/places/support",
+            json={"latitude": SALEM["latitude"], "longitude": SALEM["longitude"]},
+        ).json()
+        assert body["support_status"] == "ok"
+        assert body["source"] == "snapshot"
+        assert body["as_of"] == "2026-11-03"
+        assert body["degraded"] is False
+

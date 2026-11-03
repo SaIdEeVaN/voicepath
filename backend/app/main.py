@@ -37,7 +37,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     await db.init_pool()
 
-    degraded = settings.degraded_providers
+    degraded = _degraded(settings)
     if degraded:
         # Loud, once, at startup -- so nobody discovers it from a puzzling
         # response three screens into a demo.
@@ -68,6 +68,20 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     warming.cancel()
     await db.close_pool()
+
+
+def _degraded(settings) -> list[str]:
+    """Providers running offline, including a database that would not answer.
+
+    Settings can only see whether DATABASE_URL is set. Whether the database
+    behind it actually connected is known only after startup tried it -- and
+    a configured database that did not answer is the more important of the
+    two to report, because everything looks configured.
+    """
+    degraded = list(settings.degraded_providers)
+    if db.unreachable() is not None and "database" not in degraded:
+        degraded.append("database")
+    return degraded
 
 
 async def _warm_voices(settings) -> None:
@@ -131,7 +145,7 @@ async def value_error_handler(request: Request, exc: ValueError) -> JSONResponse
 async def health() -> schemas.HealthResponse:
     settings = get_settings()
     database = await db.healthcheck()
-    degraded = settings.degraded_providers
+    degraded = _degraded(settings)
     return schemas.HealthResponse(
         status="degraded" if degraded else "ok",
         providers={

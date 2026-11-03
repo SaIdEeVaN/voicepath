@@ -36,24 +36,36 @@ export function PrivacyNote({ className = "" }: { className?: string }) {
 
 export function DegradedNote() {
   const { language } = useSession();
-  const { language: languageOffline } = useDegraded();
-  if (!languageOffline) return null;
+  const { language: languageOffline, storage } = useDegraded();
+  const copy = copyFor(language);
+
+  // Each is its own sentence: a person can be told both, and neither should
+  // be folded into the other.
+  const notices = [
+    languageOffline ? copy.offlineNotice : null,
+    storage ? copy.storageOfflineNotice : null,
+  ].filter((notice): notice is string => notice !== null);
+  if (notices.length === 0) return null;
 
   return (
-    <div
-      className="mx-auto mb-8 flex max-w-[46em] items-start gap-3 rounded-xl px-4 py-3 text-sm leading-relaxed"
-      style={{
-        background: "color-mix(in srgb, var(--color-caution) 14%, transparent)",
-        color: "var(--color-caution-ink)",
-      }}
-      role="status"
-      lang={language}
-    >
-      <span
-        className="mt-1.5 h-2 w-2 flex-none rotate-45"
-        style={{ background: "var(--color-caution-mark)" }}
-      />
-      {copyFor(language).offlineNotice}
+    <div className="mx-auto mb-8 flex max-w-[46em] flex-col gap-2" lang={language}>
+      {notices.map((notice) => (
+        <div
+          key={notice}
+          className="flex items-start gap-3 rounded-xl px-4 py-3 text-sm leading-relaxed"
+          style={{
+            background: "color-mix(in srgb, var(--color-caution) 14%, transparent)",
+            color: "var(--color-caution-ink)",
+          }}
+          role="status"
+        >
+          <span
+            className="mt-1.5 h-2 w-2 flex-none rotate-45"
+            style={{ background: "var(--color-caution-mark)" }}
+          />
+          {notice}
+        </div>
+      ))}
     </div>
   );
 }
