@@ -122,12 +122,15 @@ twice is harmless. There is no cost to doing this in the safe order.
 
 ### Near you (the map) — follow-ups
 
-- [ ] **Overpass has not been reached from the deployed backend.** The build
-      environment could not connect to `overpass-api.de` and found the mail.ru
-      mirror overloaded, so the office lookup was verified against a real
-      Salem response replayed locally, not live. Open `/nearby` on the Render
-      deployment once and confirm offices appear; if not, `/api/places/support`
-      answers `support_status: "unavailable"` and the log says why.
+- [x] **Overpass from the deployed backend** — checked 2026-11-03, and it
+      failed: `overpass-api.de` refused connections from Render and the mail.ru
+      mirror timed out. Fixed by bundling a snapshot; see *Done on 2026-11-03 —
+      the offices ship with the app*. Live lookups remain for searches the
+      snapshot does not cover, and will fail the same way while those servers
+      do.
+- [ ] **Refresh the offices snapshot now and then.** `cd backend && python -m
+      app.scripts.fetch_support_places`. Offices move rarely, but they do; the
+      page shows the snapshot's date so nobody mistakes it for live.
 - [ ] **Openings are pinned at their town's centre.** The catalogue records a
       town, never an address, so that is all the map can honestly show — and it
       says so. Real coordinates need `latitude`/`longitude` on `schemes` (a
@@ -577,6 +580,33 @@ discards every response and the failure is indistinguishable from a dead server.
   resolves them correctly; only the display label is untranslated.
 - **Rate limiting is per-process.** Multiplies behind multiple instances; move
   the counter to Redis before scaling.
+
+---
+
+## Done on 2026-11-03 — the offices ship with the app
+
+The live check after the outage fix found the map's "Places that can help"
+empty in production. From Render, `overpass-api.de` refused connections and
+the mail.ru mirror timed out; the page said so honestly, but the feature was
+not there.
+
+Offices around every town the map knows are now fetched ahead of time by
+`app/scripts/fetch_support_places.py` and shipped as
+`backend/app/data/support_places.json` (OpenStreetMap data, ODbL, attributed in
+the file and on the page). A search is answered from it when its whole circle
+sits inside a fetched town's 25 km circle — partial overlap is not coverage,
+because the missing part could hold the nearest ITI. Everything else still asks
+Overpass live. The same filters apply to both, and the page shows the
+snapshot's date.
+
+`PLACES_PROVIDER=offline` now means "no live lookups": the snapshot is local
+data and still answers what it covers, the same way the bundled catalogue does.
+
+The script asks for one kind of office around one town at a time, alternating
+GET and POST with backoff — one query for all four kinds over 25 km timed out
+on a busy server again and again, where four small ones got through. A town
+counts as fetched only if all four kinds came back; one that did not is
+recorded as such, and the API does not claim to cover it.
 
 ---
 

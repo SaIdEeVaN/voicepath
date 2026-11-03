@@ -193,6 +193,8 @@ export interface Copy {
   nearbyUnplaced: string;
   nearbyStraightLine: string;
   nearbyViewOnOsm: string;
+  /** `{date}` is replaced with the day the bundled office list was fetched. */
+  nearbySupportAsOf: string;
   /* Score bars */
   barSkills: string;
   barExperience: string;
@@ -422,6 +424,7 @@ const en: Copy = {
   nearbyUnplaced: "Not on the map yet — the map does not know its town.",
   nearbyStraightLine: "Distances are in a straight line, not by road.",
   nearbyViewOnOsm: "On OpenStreetMap",
+  nearbySupportAsOf: "OpenStreetMap data as of {date}.",
   barSkills: "Your skills",
   barExperience: "Your experience",
   barRequirements: "What they need",
@@ -642,6 +645,7 @@ const ta: Copy = {
   nearbyUnplaced: "இன்னும் வரைபடத்தில் இல்லை — இதன் ஊர் வரைபடத்துக்குத் தெரியாது.",
   nearbyStraightLine: "தூரம் நேர்கோட்டில், சாலை வழியாக அல்ல.",
   nearbyViewOnOsm: "OpenStreetMap-இல்",
+  nearbySupportAsOf: "{date} நிலவரப்படி OpenStreetMap தரவு.",
   barSkills: "உங்கள் திறன்கள்",
   barExperience: "உங்கள் அனுபவம்",
   barRequirements: "அவர்கள் கேட்பது",
@@ -857,6 +861,7 @@ const hi: Copy = {
   nearbyUnplaced: "अभी नक्शे पर नहीं — नक्शे को इसका शहर पता नहीं।",
   nearbyStraightLine: "दूरी सीधी रेखा में है, सड़क से नहीं।",
   nearbyViewOnOsm: "OpenStreetMap पर",
+  nearbySupportAsOf: "{date} तक का OpenStreetMap डेटा।",
   barSkills: "आपके हुनर",
   barExperience: "आपका अनुभव",
   barRequirements: "उनकी शर्तें",

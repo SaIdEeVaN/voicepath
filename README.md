@@ -132,10 +132,14 @@ employment and government offices, banks. No key and no cost.
 
 - **Openings** come from the catalogue, pinned at their town's centre because
   the record has no street address -- and the screen says so.
-- **Offices** come from OpenStreetMap through the Overpass API
-  (`PLACES_PROVIDER=overpass`, the default; `offline` turns it off). The public
-  Overpass servers are volunteer-run, so offices load after the openings and
-  the screen says plainly when they could not be loaded.
+- **Offices** come from OpenStreetMap. Around the 22 towns the map knows,
+  they are served from a bundled snapshot, `backend/app/data/support_places.json`
+  (ODbL, (c) OpenStreetMap contributors), so the map does not depend on a
+  volunteer server being up; the page shows the snapshot's date. Anywhere else
+  -- a device location far from those towns -- asks the Overpass API live, and
+  the screen says plainly when that could not be loaded. Refresh the snapshot
+  with `cd backend && python -m app.scripts.fetch_support_places` (add
+  `--towns salem,erode` to refetch only some).
 - **Location** is the town the person mentioned, a town they pick, or -- only
   if they press *Use my location* -- the device, rounded to about a kilometre
   in the browser before it is sent, and never stored.

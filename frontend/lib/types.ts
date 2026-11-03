@@ -262,8 +262,15 @@ export interface SupportPlace {
 
 export interface SupportResponse {
   support_places: SupportPlace[];
-  /** ok: looked. unavailable: could not look just now. offline: not looked up here. */
+  /**
+   * ok: looked. unavailable: could not look just now. offline: live lookups
+   * are off here and the bundled snapshot does not cover this search.
+   */
   support_status: "ok" | "unavailable" | "offline";
+  /** Where an ok answer came from. */
+  source: "snapshot" | "live" | null;
+  /** ISO date the snapshot was fetched, when it answered. */
+  as_of: string | null;
   radius_km: number;
   provider: string;
   degraded: boolean;

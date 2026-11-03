@@ -84,12 +84,13 @@ async def support(payload: schemas.SupportRequest) -> schemas.SupportResponse:
     from "could not look just now" -- an empty list means different things in
     each, and the person is told which.
     """
-    offices, status = await places.support_places(
+    result = await places.support_places(
         latitude=payload.latitude,
         longitude=payload.longitude,
         radius_km=payload.radius_km,
         categories=payload.categories,
     )
+    offices, status = result.places, result.status
     return schemas.SupportResponse(
         support_places=[
             schemas.SupportPlace(
@@ -107,6 +108,8 @@ async def support(payload: schemas.SupportRequest) -> schemas.SupportResponse:
             for p in offices
         ],
         support_status=status,
+        source=result.source,
+        as_of=result.as_of,
         radius_km=payload.radius_km,
         provider=places.provider_name(),
         degraded=status != "ok",
