@@ -79,6 +79,8 @@ interface SessionContextValue extends StoredState {
     degraded: boolean,
   ): void;
   setSkills(skills: ExtractedSkill[]): void;
+  /** A corrected profile. Drops the matches, which were scored on the old one. */
+  setProfile(profile: ExtractedProfile): void;
   setMatches(matches: MatchResult[], language: Language): void;
   setAudioRetained(retained: boolean): void;
   reset(): void;
@@ -239,6 +241,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setState((s) => ({ ...s, skills, matches: [] })),
     [],
   );
+  const setProfile = useCallback(
+    (profile: ExtractedProfile) =>
+      setState((s) => ({ ...s, profile, matches: [], matchesLanguage: null })),
+    [],
+  );
   const setMatches = useCallback(
     (matches: MatchResult[], language: Language) =>
       setState((s) => ({ ...s, matches, matchesLanguage: language })),
@@ -263,6 +270,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setSession,
       setUnderstanding,
       setSkills,
+      setProfile,
       setMatches,
       setAudioRetained,
       reset,
@@ -276,6 +284,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setSession,
       setUnderstanding,
       setSkills,
+      setProfile,
       setMatches,
       setAudioRetained,
       reset,

@@ -189,6 +189,65 @@ async def normalize(payload: schemas.NormalizeRequest) -> schemas.NormalizeRespo
     )
 
 
+@router.put(
+    "/experience",
+    response_model=schemas.ExtractedProfile,
+    dependencies=[Depends(default_limit)],
+)
+async def correct_experience(
+    payload: schemas.ExperienceUpdateRequest,
+) -> schemas.ExtractedProfile:
+    """Years of work, corrected by the person they describe.
+
+    Experience is a quarter of every match score, and until now the only way
+    to fix a misheard number -- Whisper reading "six" as "two" -- was to
+    record everything again. This changes that one field and nothing else:
+    the skills, their evidence and the rest of the profile stay as extracted.
+
+    It is the person's own statement, so it needs no quote from the
+    transcript the way an extracted skill does; the rule that extraction may
+    not invent is about the model, not about them.
+
+    Stored matches are cleared when the number changes, because every one of
+    them was scored on the old number. The next visit to /schemes ranks
+    again, and a scheme page opened before then shows no stale score.
+    """
+    session = await repository.get_session(payload.session_id)
+    if session is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="That session was not found."
+        )
+
+    profile = await repository.get_profile(payload.session_id)
+    if profile is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Nothing has been understood for this session yet.",
+        )
+
+    # The column is numeric(4,1).
+    years = (
+        None if payload.experience_years is None
+        else round(float(payload.experience_years), 1)
+    )
+
+    updated = await repository.upsert_profile(
+        payload.session_id,
+        experience_years=years,
+        experience_context=profile.experience_context,
+        education=profile.education,
+        certifications=profile.certifications,
+        location=profile.location,
+        work_preferences=profile.work_preferences,
+        uncertainty_flags=profile.uncertainty_flags,
+    )
+
+    if years != profile.experience_years:
+        await repository.replace_matches(payload.session_id, [])
+
+    return pipeline.profile_to_schema(updated)
+
+
 @router.post(
     "/skills",
     response_model=schemas.AddSkillResponse,

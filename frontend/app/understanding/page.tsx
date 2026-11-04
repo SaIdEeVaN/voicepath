@@ -16,6 +16,7 @@ import { DegradedNote, ErrorNote } from "@/components/Notices";
 import { MicIcon } from "@/components/MicIcon";
 import { SafetyNotice } from "@/components/SafetyNotice";
 import { AddSkillByTyping } from "@/components/AddSkillByTyping";
+import { ExperienceEditor } from "@/components/ExperienceEditor";
 import { SkillCard } from "@/components/SkillCard";
 import { ApiError, api } from "@/lib/api";
 import { copyFor } from "@/lib/i18n";
@@ -32,6 +33,7 @@ export default function UnderstandingPage() {
     profile,
     setUnderstanding,
     setSkills,
+    setProfile,
   } = useSession();
   const copy = copyFor(language);
 
@@ -274,49 +276,16 @@ export default function UnderstandingPage() {
             {copy.weHeardSub}
           </p>
 
-          {/* How long they have worked, shown where it can be checked.
-          
-              It is a quarter of a match score and appeared nowhere on this
-              screen -- only on the passport, after matching was done. So a
-              transcript read as two years when the person said six was scored
-              on two, and this screen invited them to "change anything that is
-              wrong" without ever showing it to them.
-          
-              Not editable yet: correcting it means re-recording. Seeing that
-              it is wrong is the part that was missing. */}
-          {!loading && skills.length > 0 && (
-            <div className="mt-5 flex flex-wrap items-baseline gap-2.5">
-              {profile?.experience_years != null ? (
-                <>
-                  <span
-                    className="font-display text-[22px] leading-none tracking-[-0.02em]"
-                    lang={language}
-                  >
-                    {copy.experienceHeard.replace(
-                      "{years}",
-                      String(profile.experience_years),
-                    )}
-                  </span>
-                  {profile.experience_context ? (
-                    <span
-                      className="text-[13.5px] italic"
-                      style={{ color: "var(--ink-55)" }}
-                      lang={language}
-                    >
-                      &ldquo;{profile.experience_context}&rdquo;
-                    </span>
-                  ) : null}
-                </>
-              ) : (
-                <span
-                  className="text-[13.5px]"
-                  style={{ color: "var(--color-caution-ink)" }}
-                  lang={language}
-                >
-                  {copy.experienceNotHeard}
-                </span>
-              )}
-            </div>
+          {/* How long they have worked: a quarter of a match score, so it is
+              shown where it can be checked and corrected in place. Saving a
+              new number drops the stored ranking; /schemes ranks again. */}
+          {!loading && skills.length > 0 && sessionId && (
+            <ExperienceEditor
+              language={language}
+              sessionId={sessionId}
+              profile={profile}
+              onSaved={setProfile}
+            />
           )}
         </div>
 

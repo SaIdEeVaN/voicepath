@@ -3,7 +3,7 @@
 > **This file is the live todo list.** It is updated every time a task is completed.
 > Start at **To-do** — that is the working checklist. **Next up** carries the
 > detail behind the top items; everything below it is the record of the build.
-> Last updated: 2026-11-04 (a plea for help is answered with 112)
+> Last updated: 2026-11-04 (experience can be corrected on /understanding)
 
 **Project root:** `C:\Users\Sai Dixit\voicepath`
 **Sources:** `PRD_File_For_Project.md` (spec) · `VoicePath Mockups.html` (design canvas, unpacked)
@@ -50,10 +50,9 @@ twice is harmless. There is no cost to doing this in the safe order.
       alone. Paste the address each was downloaded from and re-run the ingest.
       Nothing invents one, so an empty entry is safe, just not useful.
 
-- [ ] **Experience cannot be corrected, only seen.** `/understanding` shows it
-      now, but changing it means re-recording: there is no endpoint that edits
-      a stored profile, only one that replaces it. It is a quarter of a match
-      score, so a misread number is worth more than a misread skill.
+- [x] **Experience cannot be corrected, only seen** — fixed 2026-11-04.
+      *Not right? Change it* beside the number on `/understanding`; see *Done
+      on 2026-11-04 — experience can be corrected*.
 - [ ] **Groq's daily allowance ran out on 2026-09-12** (200,000 tokens), and
       everything silently fell back to the offline lexical pass — which finds
       only named skills, not described ones. `/health` reports the *configured*
@@ -273,7 +272,7 @@ Four approaches, in order of effort:
 | 2. Backend core (config, db, providers) | ✅ Done |
 | 3. Backend pipeline (extract → normalize → match → explain) | ✅ Done |
 | 4. Backend routes + rate limiting | ✅ Done |
-| 5. Backend tests | ✅ Done — **550 passing**, 13 skipped |
+| 5. Backend tests | ✅ Done — **562 passing**, 13 skipped |
 | 6. Frontend scaffold + design tokens | ✅ Done |
 | 7. Frontend screens | ✅ Done — all 8 |
 | 8. Admin (Phase 2) | ✅ Done |
@@ -451,7 +450,7 @@ frontend/
 - [x] `/api/admin/*` — server-side role check, sha256 tokens, bootstrap that self-disables
 - [x] Rate limiting on public routes · `GET /health` reporting every provider honestly
 
-### Phase 5 — Backend tests ✅ (550 passing, 13 skipped)
+### Phase 5 — Backend tests ✅ (562 passing, 13 skipped)
 - [x] `test_matching.py` — weights, determinism, each component, grounding
 - [x] `test_extraction.py` — evidence grounding in ta/hi/en, invention rejected
 - [x] `test_normalization.py` — alias matching across scripts, no silent upgrades
@@ -618,6 +617,32 @@ discards every response and the failure is indistinguishable from a dead server.
   resolves them correctly; only the display label is untranslated.
 - **Rate limiting is per-process.** Multiplies behind multiple instances; move
   the counter to Redis before scaling.
+
+---
+
+## Done on 2026-11-04 — experience can be corrected
+
+Years of work are a quarter of every match score, and a misheard number --
+Whisper reading "six" as "two" -- could be seen on `/understanding` but fixed
+only by recording everything again.
+
+**Now** the number has *Not right? Change it* beside it (*Add it* when none
+was heard). It opens a number field in place, in the screen's language;
+half years are allowed, and anything outside 0-70 is refused with a message in
+that language rather than the browser's own. Saving calls
+`PUT /api/profile/experience`, which changes that one field -- skills, their
+evidence and the rest of the profile stay exactly as extracted -- and, if the
+number actually changed, **deletes the stored matches**, because every one of
+them was scored on the old number. The browser drops its copy too, so the
+next visit to `/schemes` ranks again, and a scheme page opened in between
+shows no stale score. Saving the same number keeps the ranking.
+
+It is the person's own statement, so unlike an extracted skill it needs no
+quote from the transcript: the rule that extraction may not invent binds the
+model, not them. `tests/test_experience_correction.py`, 12 tests, including
+that a scheme asking for experience scores lower after six years is corrected
+to half a year. Checked in a browser in Tamil: edit, save, the new number on
+screen, and `/schemes` calling match again.
 
 ---
 

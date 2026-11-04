@@ -9,6 +9,7 @@
 import type {
   AssistantQueryResponse,
   ExtractResponse,
+  ExtractedProfile,
   HealthResponse,
   KnownPlace,
   Language,
@@ -184,6 +185,20 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ session_id: sessionId, text, language }),
     }),
+
+  /** Years of work, corrected by the person. Null clears it. */
+  correctExperience: (sessionId: string, experienceYears: number | null) =>
+    request<ExtractedProfile>(
+      "/api/profile/experience",
+      {
+        method: "PUT",
+        body: JSON.stringify({
+          session_id: sessionId,
+          experience_years: experienceYears,
+        }),
+      },
+      sessionId,
+    ),
 
   /** What was this person doing -- describing work, asking, or both. */
   understand: (text: string, language: Language) =>

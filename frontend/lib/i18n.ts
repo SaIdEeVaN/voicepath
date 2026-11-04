@@ -90,6 +90,13 @@ export interface Copy {
    */
   experienceHeard: string;
   experienceNotHeard: string;
+  experienceChange: string;
+  experienceAdd: string;
+  experienceLabel: string;
+  experienceSave: string;
+  experienceCancel: string;
+  experienceRematch: string;
+  experienceInvalid: string;
   youSaid: string;
   notSure: string;
   edit: string;
@@ -321,6 +328,13 @@ const en: Copy = {
     "That is not work I can use. Tell me the kind of work you do — like carpentry, welding or driving — or ask about a scheme.",
   experienceHeard: "{years} years of work",
   experienceNotHeard: "You did not say how long you have done this work.",
+  experienceChange: "Not right? Change it",
+  experienceAdd: "Add it",
+  experienceLabel: "How many years have you done this work?",
+  experienceSave: "Save",
+  experienceCancel: "Cancel",
+  experienceRematch: "Your schemes will be matched again with this number.",
+  experienceInvalid: "Enter a number of years from 0 to 70.",
   youSaid: "YOU SAID",
   notSure: "I am not fully sure about this one",
   edit: "Edit",
@@ -547,6 +561,13 @@ const ta: Copy = {
     "அது வேலை போல் தெரியவில்லை. நீங்கள் செய்யும் வேலையைச் சொல்லுங்கள் — தச்சு, வெல்டிங், ஓட்டுநர் — அல்லது ஒரு திட்டத்தைப் பற்றிக் கேளுங்கள்.",
   experienceHeard: "{years} வருட வேலை",
   experienceNotHeard: "இந்த வேலையை எவ்வளவு காலம் செய்கிறீர்கள் என்று சொல்லவில்லை.",
+  experienceChange: "சரியில்லையா? மாற்றுங்கள்",
+  experienceAdd: "சேர்க்கவும்",
+  experienceLabel: "இந்த வேலையை எத்தனை வருடங்களாகச் செய்கிறீர்கள்?",
+  experienceSave: "சேமி",
+  experienceCancel: "ரத்து",
+  experienceRematch: "இந்த எண்ணை வைத்து உங்கள் திட்டங்கள் மீண்டும் பொருத்தப்படும்.",
+  experienceInvalid: "0 முதல் 70 வரை வருடங்களின் எண்ணிக்கையை உள்ளிடவும்.",
   youSaid: "நீங்கள் சொன்னது",
   notSure: "இதில் எனக்கு முழு உறுதி இல்லை",
   edit: "மாற்று",
@@ -771,6 +792,13 @@ const hi: Copy = {
     "यह काम जैसा नहीं लगा। जो काम आप करते हैं वह बताइए — बढ़ईगीरी, वेल्डिंग, ड्राइविंग — या किसी योजना के बारे में पूछिए।",
   experienceHeard: "{years} साल का काम",
   experienceNotHeard: "आपने यह नहीं बताया कि यह काम कितने समय से कर रहे हैं।",
+  experienceChange: "सही नहीं है? बदलिए",
+  experienceAdd: "जोड़िए",
+  experienceLabel: "आप यह काम कितने साल से कर रहे हैं?",
+  experienceSave: "सहेजें",
+  experienceCancel: "रद्द करें",
+  experienceRematch: "इस संख्या के साथ आपकी योजनाएँ फिर से मिलाई जाएँगी।",
+  experienceInvalid: "0 से 70 के बीच सालों की संख्या लिखिए।",
   youSaid: "आपने कहा",
   notSure: "इस बारे में मुझे पूरा भरोसा नहीं है",
   edit: "बदलें",

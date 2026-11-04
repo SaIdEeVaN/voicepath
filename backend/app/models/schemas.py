@@ -205,6 +205,15 @@ class MatchResult(Base):
     skill_evidence: bool = False
 
 
+class ExperienceUpdateRequest(Base):
+    """Years of work, as the person corrects them on /understanding."""
+
+    session_id: UUID
+    # Null clears it -- "I did not say" is a correction too. The same bound
+    # extraction applies to a number the model reads from speech.
+    experience_years: float | None = Field(default=None, ge=0, le=70)
+
+
 class AddSkillRequest(Base):
     """Text someone typed on the understanding screen."""
 
