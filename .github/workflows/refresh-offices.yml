@@ -32,7 +32,10 @@ concurrency:
 
 jobs:
   refresh:
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest became 26.04 in November 2026, which has no
+    # build of Python 3.11.9 -- the version in backend/.python-version and
+    # the one Render runs. The first run failed in setup-python on that.
+    runs-on: ubuntu-24.04
     timeout-minutes: 150
     defaults:
       run:
