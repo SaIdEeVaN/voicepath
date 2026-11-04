@@ -57,14 +57,22 @@ twice is harmless. There is no cost to doing this in the safe order.
       (same title, 2.64 MB); `PMGSY_RCPLWE_Road_Connectivity_Guidelines_2017.pdf`
       → pmgsy.nic.in/sites/default/files/RCPLWEA22feb17.pdf. PM-AJAY's
       `Guidelines.pdf` (May 2023) is listed on socialjustice.gov.in/schemes/104.
-- [ ] **Nine of the twenty PDFs are not government documents.** Every file
-      named `*_Detailed_Scheme_Information.pdf` or `*_Information_Summary.pdf`
-      (Fund of Funds, Khadi, NMDFC, NSSH, PM Fishermen, UNNATI, SCDCs, SFURTI,
-      SMAM) was generated with ReportLab -- a summary someone wrote, not a
-      file a ministry published -- yet the assistant cites it like one. They
-      have no official URL to record. Decide whether to keep them, mark them
-      as summaries, or replace each with the scheme's official release (as
-      was done for the national schemes).
+- [x] **Nine of the twenty PDFs were not government documents** — replaced
+      2026-11-04. Each `*_Detailed_Scheme_Information.pdf` /
+      `*_Information_Summary.pdf` was generated with ReportLab (several said
+      so: "a prepared informational summary, not an official Government
+      notification") yet was cited like one. All nine are rejected in the
+      corpus and deleted from the repo; eleven official PIB releases (Dec 2024
+      to Jul 2026) replace eight of them -- Fund of Funds 1.0 and 2.0, KVIC
+      and Gramodyog Vikas Yojana, NMDFC credit and marketing, National SC-ST
+      Hub, PMMSY (for the fishermen summary), MGNREGA with Project UNNATI,
+      SFURTI, SMAM -- and `scheme_names.py` points each scheme at its own.
+- [ ] **No official text found for the SCDC scheme** (Scheme of Assistance
+      to State Scheduled Castes Development Corporations). Its summary was
+      rejected with nothing in its place, so the assistant now says it does
+      not have that rather than quoting a summary. Add a release when one is
+      found.
+- [x] **Listings 18–20 deactivated** 2026-11-04 (test entries, confirmed).
 
 - [x] **Experience cannot be corrected, only seen** — fixed 2026-11-04.
       *Not right? Change it* beside the number on `/understanding`; see *Done
@@ -125,13 +133,15 @@ twice is harmless. There is no cost to doing this in the safe order.
       — but no screenshot was taken, because this environment has no browser.
       Worth one look on a real phone before it is shown to anyone.
 
-### Embeddings — needs a decision
+### Embeddings — credits being added
 
 - [ ] **The Hugging Face Inference API is out of credits** (402 Payment
-      Required since at least 2026-11-04 15:39 UTC). Until it is paid for or
-      replaced, skills are recognised only when said by name or alias, the
-      assistant searches documents by keyword only, and the 24 new skills and
-      13 new documents cannot be embedded. `/health` shows
+      Required since at least 2026-11-04 15:39 UTC). Decided 2026-11-04: the
+      owner adds HF credits. Until then skills are recognised only when said
+      by name or alias, the assistant searches documents by keyword only, and
+      the 24 new skills and 24 new official documents cannot be embedded.
+      After adding credits, restart the API (Render: Manual Deploy → Restart);
+      its startup catch-up embeds and ingests everything missing. `/health` shows
       `"embeddings": {"status": "payment_required"}`. Options: buy HF
       pre-paid credits or PRO; or move to a provider that serves the same
       `multilingual-e5-base` model, so stored vectors stay valid. A different
@@ -233,10 +243,10 @@ twice is harmless. There is no cost to doing this in the safe order.
       and its release disagree.
 - [ ] **Stand-Up India was left out** on purpose: its last official extension
       ran to 2025 and no release confirms it is open now. Add it when one does.
-- [ ] **Listings 18–20 look like test entries** made through the admin form
-      ("Pharma Business / REC", "Plumbing Works", "Carpentry / BlockChain
-      Innovation Club"), with github.com, vercel.com and rajalakshmi.org as
-      their "official" links. Deactivate them at `/admin/schemes` if so.
+- [x] **Listings 18–20 were test entries** ("Pharma Business / REC",
+      "Plumbing Works", "Carpentry / BlockChain Innovation Club", with
+      github.com, vercel.com and rajalakshmi.org as "official" links) —
+      deactivated 2026-11-04, not deleted.
 - [ ] **Retrieval still cannot reach matching.**
       `tests/test_assistant_routing.py` asserts the separation by reading
       `matching.py`'s source rather than its imports, which is weaker than it
@@ -318,7 +328,7 @@ Four approaches, in order of effort:
 | 2. Backend core (config, db, providers) | ✅ Done |
 | 3. Backend pipeline (extract → normalize → match → explain) | ✅ Done |
 | 4. Backend routes + rate limiting | ✅ Done |
-| 5. Backend tests | ✅ Done — **668 passing**, 13 skipped |
+| 5. Backend tests | ✅ Done — **669 passing**, 13 skipped |
 | 6. Frontend scaffold + design tokens | ✅ Done |
 | 7. Frontend screens | ✅ Done — all 8 |
 | 8. Admin (Phase 2) | ✅ Done |
@@ -496,7 +506,7 @@ frontend/
 - [x] `/api/admin/*` — server-side role check, sha256 tokens, bootstrap that self-disables
 - [x] Rate limiting on public routes · `GET /health` reporting every provider honestly
 
-### Phase 5 — Backend tests ✅ (668 passing, 13 skipped)
+### Phase 5 — Backend tests ✅ (669 passing, 13 skipped)
 - [x] `test_matching.py` — weights, determinism, each component, grounding
 - [x] `test_extraction.py` — evidence grounding in ta/hi/en, invention rejected
 - [x] `test_normalization.py` — alias matching across scripts, no silent upgrades

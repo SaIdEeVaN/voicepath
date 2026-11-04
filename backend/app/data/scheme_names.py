@@ -118,15 +118,17 @@ SCHEME_NAMES: dict[str, SchemeName] = {
     },
     "fund-of-funds": {
         "names": ["fund of funds"],
-        "sources": ["Fund_of_Funds_for_Startups_Detailed_Scheme_Information.pdf"],
+        "sources": ["PIB_Startup_India_Fund_of_Funds_and_Flagship_Schemes_2025-12-12.md",
+                    "PIB_Startup_India_Fund_of_Funds_2.0_Guidelines_2026-04-25.md"],
     },
     "khadi": {
         "names": ["khadi", "kvic", "village industries", "காதி", "खादी"],
-        "sources": ["Khadi_and_Village_Industries_Programmes_Detailed_Information.pdf"],
+        "sources": ["PIB_KVIC_Khadi_and_Village_Industries_2025-03-28.md",
+                    "PIB_KVIC_Gramodyog_Vikas_Yojana_2026-03-29.md"],
     },
     "nssh": {
         "names": ["nssh", "sc st hub", "sc-st hub", "national sc st hub"],
-        "sources": ["National_SC_ST_Hub_NSSH_Detailed_Scheme_Information.pdf"],
+        "sources": ["PIB_National_SC-ST_Hub_2026-06-09.md"],
     },
     "nlm": {
         "names": ["national livestock mission", "livestock mission"],
@@ -134,34 +136,31 @@ SCHEME_NAMES: dict[str, SchemeName] = {
     },
     "nmdfc": {
         "names": ["nmdfc"],
-        "sources": ["NMDFC_Scheme_Information_Summary.pdf"],
+        "sources": ["PIB_NMDFC_Concessional_Credit_2025-03-12.md",
+                    "PIB_NMDFC_Marketing_Support_2025-12-08.md"],
     },
     "nulm-suh": {
         "names": ["nulm", "shelter for urban homeless", "urban homeless"],
         "sources": ["NULM-SUH-Guidelines.pdf"],
     },
     "fishermen": {
-        "names": ["fishermen", "fisherman", "மீனவர்", "मछुआरे"],
-        "sources": ["PM_Fishermen_Welfare_Programmes_Information_Summary.pdf"],
+        "names": ["fishermen", "fisherman", "matsya sampada", "pmmsy", "மீனவர்", "मछुआरे"],
+        "sources": ["PIB_PMMSY_Fisheries_Sector_2026-04-06.md"],
     },
     "unnati": {
         "names": ["unnati", "உன்னதி", "उन्नति"],
-        "sources": ["Project_UNNATI_Rural_Skilling_Detailed_Summary.pdf"],
-    },
-    "scdc": {
-        "names": ["scdc", "scdcs", "scheduled castes development corporation"],
-        "sources": ["SCDCs_Scheme_Information_Summary.pdf"],
+        "sources": ["PIB_MGNREGA_and_Project_UNNATI_2025-08-26.md"],
     },
     "sfurti": {
         "names": ["sfurti"],
-        "sources": ["SFURTI_Scheme_Information_Summary.pdf"],
+        "sources": ["PIB_SFURTI_Traditional_Industries_2026-03-16.md"],
     },
     "smam": {
         "names": ["smam", "sub-mission on agricultural mechanization",
                   "sub mission on agricultural mechanisation",
                   "agricultural mechanization", "agricultural mechanisation",
                   "farm mechanization", "farm mechanisation"],
-        "sources": ["SMAM_Detailed_Scheme_Information_Summary.pdf"],
+        "sources": ["PIB_SMAM_Agricultural_Mechanization_2026-07-09.md"],
     },
     "startup-india": {
         "names": ["startup india", "startup schemes"],
@@ -189,8 +188,9 @@ SCHEME_NAMES: dict[str, SchemeName] = {
             "https://www.india.gov.in/category/infrastructure-industries/"
             "subcategory/manufacturing-retail/details/"
             "schemes-for-ssis-in-priority-sector-by-ministry-of-msme",
-            "National_SC_ST_Hub_NSSH_Detailed_Scheme_Information.pdf",
-            "SFURTI_Scheme_Information_Summary.pdf",
+            "PIB_National_SC-ST_Hub_2026-06-09.md",
+            "PIB_SFURTI_Traditional_Industries_2026-03-16.md",
+            "PIB_MSME_Grassroots_Economy_PMEGP_PM_Vishwakarma_2026-05-14.md",
         ],
     },
 }
