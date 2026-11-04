@@ -201,14 +201,16 @@ twice is harmless. There is no cost to doing this in the safe order.
       the offices ship with the app*. Live lookups remain for searches the
       snapshot does not cover, and will fail the same way while those servers
       do.
-- [ ] **Create the first offices snapshot.** Two Overpass-based runs failed
-      on 2026-11-04: the first on Python 3.11.9 missing from Ubuntu 26.04
-      (runner pinned to 24.04), the second ran its full 150 minutes and got
-      nothing -- from GitHub's network overpass-api.de timed out on every
-      connection and the mail.ru mirror answered every query with 504. The
-      workflow now builds the snapshot from a Geofabrik extract filtered with
-      osmium (`build_support_places.py`; checked against real osmium output),
-      with a 30-minute limit. Tick this when its first run commits the file.
+- [x] **Create the first offices snapshot** — done 2026-11-04, after two
+      Overpass-based runs failed (Python 3.11.9 missing on Ubuntu 26.04; then
+      150 minutes of timeouts and 504s from both Overpass servers on GitHub's
+      network). The workflow now builds it from Geofabrik's southern-India
+      extract filtered with osmium, in about eight minutes: 1,291 offices
+      around all 22 towns, OpenStreetMap data as of 2026-11-03 -- e.g. Salem
+      has the Government ITI and polytechnics, the Collectorate, the RTO and
+      30 bank branches. One police training college was caught on review and
+      is now excluded by `categorize`. OpenStreetMap has no employment
+      offices mapped near most towns, so that category is mostly empty.
 - [ ] **Openings are pinned at their town's centre.** The catalogue records a
       town, never an address, so that is all the map can honestly show — and it
       says so. Real coordinates need `latitude`/`longitude` on `schemes` (a
@@ -329,7 +331,7 @@ Four approaches, in order of effort:
 | 2. Backend core (config, db, providers) | ✅ Done |
 | 3. Backend pipeline (extract → normalize → match → explain) | ✅ Done |
 | 4. Backend routes + rate limiting | ✅ Done |
-| 5. Backend tests | ✅ Done — **669 passing**, 13 skipped |
+| 5. Backend tests | ✅ Done — **688 passing**, 7 skipped |
 | 6. Frontend scaffold + design tokens | ✅ Done |
 | 7. Frontend screens | ✅ Done — all 8 |
 | 8. Admin (Phase 2) | ✅ Done |
@@ -507,7 +509,7 @@ frontend/
 - [x] `/api/admin/*` — server-side role check, sha256 tokens, bootstrap that self-disables
 - [x] Rate limiting on public routes · `GET /health` reporting every provider honestly
 
-### Phase 5 — Backend tests ✅ (669 passing, 13 skipped)
+### Phase 5 — Backend tests ✅ (688 passing, 7 skipped)
 - [x] `test_matching.py` — weights, determinism, each component, grounding
 - [x] `test_extraction.py` — evidence grounding in ta/hi/en, invention rejected
 - [x] `test_normalization.py` — alias matching across scripts, no silent upgrades

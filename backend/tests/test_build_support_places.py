@@ -169,3 +169,9 @@ async def test_the_overpass_script_stops_when_the_servers_are_down(tmp_path, mon
     written = json.loads((tmp_path / "support_places.json").read_text(encoding="utf-8"))
     assert set(written["towns"]) == set(towns)
     assert not any(t["fetched"] for t in written["towns"].values())
+
+
+def test_a_police_training_college_is_not_a_training_centre():
+    assert places.categorize({"amenity": "college", "name": "Police Training College"}) is None
+    assert places.categorize({"amenity": "training", "name": "Police Recruits Training"}) is None
+    assert places.categorize({"amenity": "college", "name": "Govt Polytechnic"}) == "training"

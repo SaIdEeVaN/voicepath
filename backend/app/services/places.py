@@ -283,6 +283,10 @@ def categorize(tags: dict[str, str]) -> str | None:
         value for key, value in tags.items() if key == "name" or key.startswith("name:")
     )
 
+    if amenity in ("training", "college", "school", "university") and _NOT_SUPPORT_NAME.search(name):
+        # A police training college is a police academy, not somewhere to
+        # certify a trade. Found in the first extract-built snapshot.
+        return None
     if amenity == "training":
         return "training"
     if amenity in ("college", "school", "university") and _TRAINING_NAME.search(name):
