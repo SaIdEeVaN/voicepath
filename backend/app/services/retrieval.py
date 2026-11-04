@@ -343,42 +343,157 @@ async def ingest(
     return document_id, len(chunks)
 
 
-async def search(question: str, *, limit: int = 5) -> list[Retrieved]:
+# Words that say what kind of question it is, not what it is about. The chunks
+# are indexed with the `simple` config, which keeps every word, so a query
+# that ANDed "who is eligible for" alongside the scheme's name needed all of
+# them in one passage -- and natural questions matched nothing at all: measured
+# against the live corpus, "Who is eligible for Sigaram Thodu?" found 0 chunks
+# by keyword. Dropped before the query is built. "scheme" is here too: nearly
+# every passage says it, so it ranks nothing.
+_QUESTION_WORDS = frozenset(
+    """
+    a an the this that these those there here it its is are was were be been am
+    to of in on at by for with from and or but if then than so as not no yes
+    i you he she we they me my your our their his her us them
+    what who whom whose which when where why how does do did done can could
+    would should will shall may might must have has had get gets got give gives
+    given tell explain about more details detail information info any some all
+    also need needed want wants please know much many under scheme schemes
+    hi hey hello thanks thank ok okay test
+    क्या कौन किस कैसे कब कहाँ कहां है हैं था थी का की के में से को और या इस यह वह
+    मुझे मेरा मेरी मेरे लिए पर भी तो कितना कितनी कितने बताइए बताओ बताएं योजना
+    என்ன யார் எப்படி எங்கே எப்போது இது அது ஒரு மற்றும் பற்றி சொல்லுங்கள்
+    சொல்லுங்க எனக்கு என் இந்த அந்த திட்டம் திட்டத்தின்
+    """.split()
+)
+
+# Characters that carry no topic. Stripped from each word's edges only, so a
+# hyphenated name like "pm-ajay" survives intact for the query.
+_EDGE_PUNCTUATION = ".,!?;:\"'()[]{}<>“”‘’`|/\\।"
+
+
+def content_terms(question: str) -> list[str]:
+    """The words of a question that could be in a passage, in order, once each."""
+    seen: list[str] = []
+    for raw in (question or "").split():
+        word = raw.strip(_EDGE_PUNCTUATION).lower()
+        if len(word) < 2 or word in _QUESTION_WORDS or word in seen:
+            continue
+        seen.append(word)
+    return seen
+
+
+def _is_latin(text: str) -> bool:
+    return all(ord(ch) < 0x250 for ch in text)
+
+
+def _normalise(text: str) -> str:
+    """Lower-cased, punctuation read as spaces, so "PM-AJAY?" meets "pm ajay"."""
+    return " " + re.sub(
+        r"[\s\-–—_.,!?;:\"'()\[\]{}<>/\\|।“”‘’`]+", " ", (text or "").lower()
+    ).strip() + " "
+
+
+def named_schemes(question: str) -> list[str]:
+    """Keys of the schemes in data/scheme_names.py that a question names."""
+    from app.data.scheme_names import SCHEME_NAMES
+
+    haystack = _normalise(question)
+    found: list[str] = []
+    for key, entry in SCHEME_NAMES.items():
+        for name in entry["names"]:
+            needle = _normalise(name)
+            if _is_latin(name):
+                # Whole words: " ajay " inside " pm ajay scheme ", never inside
+                # " vijayan ". The padding in _normalise makes that a plain
+                # substring test.
+                hit = needle in haystack
+            else:
+                # Tamil and Devanagari attach case endings to the name itself,
+                # so the bare stem is matched wherever it occurs.
+                hit = needle.strip() in haystack
+            if hit:
+                found.append(key)
+                break
+    return found
+
+
+def named_sources(question: str) -> list[str]:
+    """``scheme_documents.source`` values for every scheme the question names."""
+    from app.data.scheme_names import SCHEME_NAMES
+
+    sources: list[str] = []
+    for key in named_schemes(question):
+        for source in SCHEME_NAMES[key]["sources"]:
+            if source not in sources:
+                sources.append(source)
+    return sources
+
+
+async def search(
+    question: str, *, limit: int = 5, sources: list[str] | None = None
+) -> list[Retrieved]:
     """Hybrid retrieval: dense and keyword, merged.
 
     Dense search finds meaning and crosses languages. Keyword search finds exact
     strings -- "NSQF Level 4", a section number -- that a 768-dimensional
     average blurs away. Running both and merging costs one extra query and
     covers the failure mode of each.
+
+    ``sources`` restricts both paths to those documents. It is set when the
+    question names a scheme: a passage from another scheme's guidelines can
+    read as a confident answer and be wrong in every particular.
     """
     clean = (question or "").strip()
     if not clean:
         return []
 
     vector = await asyncio.to_thread(embeddings.embed_query, clean)
+    restrict = list(sources) if sources else None
 
-    dense, keyword = await asyncio.gather(
-        db.fetch(
-            "select * from match_document_chunks($1::vector, $2, 0.0)",
-            db.vector_literal(vector), limit,
-        ),
-        db.fetch(
+    # Content words, ORed. ts_rank still puts passages holding more of them
+    # first, and the fusion below does the rest.
+    terms = content_terms(clean)
+    keyword_query = " OR ".join(terms)
+
+    dense_rows = db.fetch(
+        """
+        select c.id as chunk_id, d.title as document_title, d.source,
+               d.source_url, c.heading, c.content,
+               1 - (c.embedding <=> $1::vector) as similarity
+        from document_chunks c
+        join scheme_documents d on d.id = c.document_id
+        -- A source awaiting verification, or rejected outright, must not be
+        -- reachable by either route.
+        where d.status = 'active'
+          and c.embedding is not null
+          and ($3::text[] is null or d.source = any($3::text[]))
+        order by c.embedding <=> $1::vector
+        limit $2
+        """,
+        db.vector_literal(vector), limit, restrict,
+    )
+
+    async def keyword_rows() -> list:
+        if not terms:
+            return []
+        return await db.fetch(
             """
             select c.id as chunk_id, d.title as document_title, d.source,
                    d.source_url, c.heading, c.content,
-                   ts_rank(c.tsv, plainto_tsquery('simple', $1)) as rank
+                   ts_rank(c.tsv, websearch_to_tsquery('simple', $1)) as rank
             from document_chunks c
             join scheme_documents d on d.id = c.document_id
-            -- Same gate as the vector path. A source awaiting verification, or
-            -- rejected outright, must not be reachable by either route.
             where d.status = 'active'
-              and c.tsv @@ plainto_tsquery('simple', $1)
+              and c.tsv @@ websearch_to_tsquery('simple', $1)
+              and ($3::text[] is null or d.source = any($3::text[]))
             order by rank desc
             limit $2
             """,
-            clean, limit,
-        ),
-    )
+            keyword_query, limit, restrict,
+        )
+
+    dense, keyword = await asyncio.gather(dense_rows, keyword_rows())
 
     # Reciprocal rank fusion: score by position in each list rather than by raw
     # score. Cosine similarity and ts_rank are not on the same scale and cannot

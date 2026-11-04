@@ -16,10 +16,13 @@ unchanged. A model is never asked for one and never gets the chance to assemble
 something plausible. A wrong government URL looks official and sends people
 somewhere real.
 
-**Trust is a property of the domain, not the content.** A page on a .gov.in host
-is Tier 1 and usable. Anything else lands as ``pending_verification``, which
-retrieval will not read, until an admin has looked at it. The point is that
-searching the web cannot silently widen what the system will assert.
+**Nothing fetched is answerable until an admin says so.** Every page lands as
+``pending_verification``, which retrieval will not read, and waits on
+/admin/sources. Trust used to be the domain alone -- a .gov.in page was Tier 1
+and answerable at once -- and public broadcasters' sports pages are .gov.in: a
+question comparing footballers stored two match reports as scheme guidance,
+and the assistant then cited them. The tier is still recorded, as a hint for
+the reviewer. News domains (``excluded_domains``) are not searched at all.
 """
 
 from __future__ import annotations
@@ -93,10 +96,23 @@ def tier_for(url: str) -> int:
     domain = _domain_of(url)
     if not domain:
         return 3
+    if is_excluded(domain):
+        return 3
     for trusted in get_settings().trusted_domain_list:
         if domain == trusted or domain.endswith("." + trusted):
             return 1
     return 3
+
+
+def is_excluded(domain_or_url: str) -> bool:
+    """A domain we never search or store, whatever its suffix."""
+    domain = (
+        _domain_of(domain_or_url) if "://" in domain_or_url else domain_or_url.lower()
+    )
+    return any(
+        domain == excluded or domain.endswith("." + excluded)
+        for excluded in get_settings().excluded_domain_list
+    )
 
 
 async def _cached(query: str) -> list[SearchResult] | None:
@@ -151,6 +167,9 @@ async def search(query: str, *, official_only: bool = True) -> list[SearchResult
 
     cached = await _cached(clean)
     if cached is not None:
+        # Filtered on the way out as well: the cache predates the exclusion,
+        # and still holds the match reports.
+        cached = [r for r in cached if not is_excluded(r.url)]
         return [r for r in cached if r.is_official] if official_only else cached
 
     settings = get_settings()
@@ -173,6 +192,7 @@ async def search(query: str, *, official_only: bool = True) -> list[SearchResult
         # Ask the API to stay on government domains rather than filtering
         # afterwards, so the result budget is not spent on pages we discard.
         "include_domains": settings.searchable_domain_list if official_only else [],
+        "exclude_domains": settings.excluded_domain_list,
     }
 
     try:
@@ -191,6 +211,8 @@ async def search(query: str, *, official_only: bool = True) -> list[SearchResult
         url = (entry.get("url") or "").strip()
         if not url.startswith(("http://", "https://")):
             # Never repaired into one. A URL we had to fix is a URL we invented.
+            continue
+        if is_excluded(url):
             continue
         results.append(
             SearchResult(
@@ -382,9 +404,11 @@ async def search_and_ingest(query: str, *, limit: int = 3) -> list[dict]:
             outcomes.append({**record, "status": "not_rendered", "chunks": 0})
             continue
 
-        # Tier 1 is answerable immediately; the domain is the trust signal.
-        # Anything else waits for an admin (PRD section 18).
-        status = "active" if result.is_official else "pending_verification"
+        # Everything waits for an admin (PRD section 18), Tier 1 included. A
+        # .gov.in domain says who published a page, not that it is about a
+        # scheme: the corpus held match reports, exam syllabi and a guide to
+        # search-engine optimisation, all Tier 1 and all answerable.
+        status = "pending_verification"
         try:
             _, chunks = await retrieval.ingest(
                 title=result.title,

@@ -141,15 +141,8 @@ def _c(language: str, key: str) -> str:
 
 
 # Intent keywords across the three languages. Deliberately shallow -- this is a
-# fallback for when there is no model, not an attempt to be one.
-# TODO: RAG integration. Questions about the scheme itself -- eligibility
-# rules, application procedure, what a component covers -- cannot be answered
-# from a single row, and keyword intents do not reach them either. The
-# retrieval layer on the `rag` branch (services/retrieval.py, scheme_qa.py)
-# answers those from the published guidelines with a citation, and refuses
-# when the corpus does not cover the question. Route here once it is merged:
-# an unmatched intent is the signal that the question is about the scheme
-# rather than about this listing.
+# fallback for when there is no model, not an attempt to be one, and a router
+# for questions about the listing on screen (see `answer`).
 INTENTS: dict[str, list[str]] = {
     "pay": ["salary", "pay", "wage", "money", "stipend", "how much", "सैलरी", "तनख्वाह",
             "पैसा", "वजीफ़ा", "कितना", "சம்பளம்", "salary என்ன", "பணம்", "எவ்வளவு"],
@@ -164,10 +157,32 @@ INTENTS: dict[str, list[str]] = {
                  "जगह", "दूर", "எங்கே", "இடம்", "தூரம்"],
     "type": ["training", "job", "course", "what is this", "प्रशिक्षण", "नौकरी", "कोर्स",
              "பயிற்சி", "வேலை", "படிப்பு"],
-    "privacy": ["voice", "audio", "recording", "privacy", "who hears", "data",
+    # "my data", not "data": "what data do I need to submit?" is about documents.
+    "privacy": ["voice", "audio", "recording", "privacy", "who hears", "my data",
+                "personal data",
                 "आवाज़", "आवाज", "रिकॉर्ड", "निजता", "குரல்", "பதிவு", "தனியுரிமை"],
     "why": ["why", "match", "fit", "suitable", "क्यों", "मेल", "ஏன்", "பொருந்த"],
 }
+
+
+def _says(keyword: str, lowered: str) -> bool:
+    """Whether a question contains a keyword, as a word.
+
+    English keywords match whole words only. As plain substrings they matched
+    inside other words and sent scheme questions to the wrong place: "far" in
+    "farmer" made "what does a farmer get under SMAM?" a question about
+    distance, "pay" in "repayment" made a loan question about wages, and "data"
+    matched "update". Tamil and Hindi keywords stay substrings, because those
+    languages attach endings to the word itself ("சம்பளம்" in "சம்பளமா").
+    """
+    if keyword.isascii():
+        # A plural or adverb ending is still the same word: "pays", "jobs",
+        # "certificates", "officially". Nothing longer -- "farmer" is not "far".
+        return re.search(
+            r"(?<![a-z0-9])" + re.escape(keyword) + r"(?:s|es|ly)?(?![a-z0-9])",
+            lowered,
+        ) is not None
+    return keyword in lowered
 
 
 def detect_intent(question: str) -> str | None:
@@ -176,7 +191,7 @@ def detect_intent(question: str) -> str | None:
         return None
     for intent, keywords in INTENTS.items():
         for keyword in keywords:
-            if keyword.lower() in lowered:
+            if _says(keyword.lower(), lowered):
                 return intent
     return None
 
@@ -201,11 +216,27 @@ async def answer(
     the listing path when it refuses is not a downgrade -- it is the honest
     ordering. Nothing here can reach matching: a retrieved document cannot
     move anyone up a ranking.
+
+    The listing answers first only when there is a listing to answer from and
+    the question is about it. With nothing on screen, "how much is the stipend
+    under PM Vishwakarma?" has no row to read a figure from, and keyword
+    intents used to route it there anyway and answer "not in the record". And a
+    question that names a scheme the documents cover is about that scheme,
+    even on a listing's page and even if it says "years" or "pay".
     """
-    if detect_intent(question) is None:
+    intent = detect_intent(question)
+    listing_first = intent == "privacy" or (
+        intent is not None
+        and context.scheme is not None
+        and not retrieval.named_schemes(question)
+    )
+
+    if not listing_first:
         try:
             if await retrieval.is_ready():
-                found = await scheme_qa.ask(question, language=language)
+                found = await scheme_qa.ask(
+                    question, language=language, in_view=_in_view(context.scheme)
+                )
                 if found.grounded:
                     return Answer(
                         answer_text=found.answer,
@@ -225,6 +256,13 @@ async def answer(
         except (llm.LLMUnavailable, llm.LLMResponseError) as exc:
             logger.warning("Assistant LLM unavailable (%s); using rule answers", exc)
     return answer_offline(question, context, language=language)
+
+
+def _in_view(scheme: Scheme | None) -> str | None:
+    """How the listing on screen is described to the guidelines step."""
+    if scheme is None:
+        return None
+    return f"{scheme.title} ({scheme.type}, {scheme.organization}, {scheme.location})"
 
 
 async def _answer_with_llm(

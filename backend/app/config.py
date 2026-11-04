@@ -125,6 +125,12 @@ class Settings(BaseSettings):
     # by another route -- but asking for them wastes the query.
     unreadable_domains: str = "myscheme.gov.in"
 
+    # Never searched, never stored, never trusted, whatever their suffix.
+    # Public broadcasters' news sites are .gov.in, so a domain-only trust rule
+    # made their sports pages Tier 1: a question comparing footballers fetched
+    # two match reports and stored them as scheme guidance.
+    excluded_domains: str = "ddnews.gov.in,newsonair.gov.in,prasarbharati.gov.in"
+
     # -- Nearby places (the map) ---------------------------------------------
     # Support offices near a person -- ITIs, employment offices, government
     # offices, banks -- come from OpenStreetMap. Searches around the towns the
@@ -258,6 +264,10 @@ class Settings(BaseSettings):
     @property
     def trusted_domain_list(self) -> list[str]:
         return [d.strip().lower() for d in self.trusted_domains.split(",") if d.strip()]
+
+    @property
+    def excluded_domain_list(self) -> list[str]:
+        return [d.strip().lower() for d in self.excluded_domains.split(",") if d.strip()]
 
     @property
     def searchable_domain_list(self) -> list[str]:
