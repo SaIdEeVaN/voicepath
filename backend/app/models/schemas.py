@@ -359,6 +359,10 @@ class HealthResponse(Base):
     providers: dict[str, str]
     degraded: list[str]
     database: dict[str, object]
+    # {"status": "ok" | "offline" | why it is not answering, "since", "until"}.
+    # "llm" is in `degraded` both when it is offline by configuration and
+    # while it is not answering; this says which, and until when.
+    llm: dict[str, str] = Field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------

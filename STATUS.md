@@ -3,7 +3,7 @@
 > **This file is the live todo list.** It is updated every time a task is completed.
 > Start at **To-do** — that is the working checklist. **Next up** carries the
 > detail behind the top items; everything below it is the record of the build.
-> Last updated: 2026-11-04 (experience can be corrected on /understanding)
+> Last updated: 2026-11-04 (/health says when Groq is not answering)
 
 **Project root:** `C:\Users\Sai Dixit\voicepath`
 **Sources:** `PRD_File_For_Project.md` (spec) · `VoicePath Mockups.html` (design canvas, unpacked)
@@ -53,11 +53,13 @@ twice is harmless. There is no cost to doing this in the safe order.
 - [x] **Experience cannot be corrected, only seen** — fixed 2026-11-04.
       *Not right? Change it* beside the number on `/understanding`; see *Done
       on 2026-11-04 — experience can be corrected*.
-- [ ] **Groq's daily allowance ran out on 2026-09-12** (200,000 tokens), and
-      everything silently fell back to the offline lexical pass — which finds
-      only named skills, not described ones. `/health` reports the *configured*
-      provider, so it looked healthy throughout. A daily ceiling is not the
-      per-minute limit already noted and needs its own answer.
+- [x] **`/health` looked healthy while Groq's allowance was spent** — fixed
+      2026-11-04: it now reports the model as degraded, says why and until
+      when, and the screens say so. See *Fixed on 2026-11-04 — /health said
+      the model was fine while it refused every call*.
+- [ ] **The daily allowance itself is still the ceiling.** Being honest about
+      running out is not the same as not running out: a larger Groq tier, or a
+      second provider to fall over to, is the answer to that.
 
 - [x] **Two live schemes had no required skills** — fixed 2026-09-12.
       `Pharma Business` now requires Retail Sales, `Plumbing Works` requires
@@ -272,7 +274,7 @@ Four approaches, in order of effort:
 | 2. Backend core (config, db, providers) | ✅ Done |
 | 3. Backend pipeline (extract → normalize → match → explain) | ✅ Done |
 | 4. Backend routes + rate limiting | ✅ Done |
-| 5. Backend tests | ✅ Done — **562 passing**, 13 skipped |
+| 5. Backend tests | ✅ Done — **579 passing**, 13 skipped |
 | 6. Frontend scaffold + design tokens | ✅ Done |
 | 7. Frontend screens | ✅ Done — all 8 |
 | 8. Admin (Phase 2) | ✅ Done |
@@ -450,7 +452,7 @@ frontend/
 - [x] `/api/admin/*` — server-side role check, sha256 tokens, bootstrap that self-disables
 - [x] Rate limiting on public routes · `GET /health` reporting every provider honestly
 
-### Phase 5 — Backend tests ✅ (562 passing, 13 skipped)
+### Phase 5 — Backend tests ✅ (579 passing, 13 skipped)
 - [x] `test_matching.py` — weights, determinism, each component, grounding
 - [x] `test_extraction.py` — evidence grounding in ta/hi/en, invention rejected
 - [x] `test_normalization.py` — alias matching across scripts, no silent upgrades
@@ -617,6 +619,45 @@ discards every response and the failure is indistinguishable from a dead server.
   resolves them correctly; only the display label is untranslated.
 - **Rate limiting is per-process.** Multiplies behind multiple instances; move
   the counter to Redis before scaling.
+
+---
+
+## Fixed on 2026-11-04 — /health said the model was fine while it refused every call
+
+On 2026-09-12 Groq's daily allowance ran out. Every extraction, explanation
+and answer fell back to its rule-based path -- named skills only, template
+explanations, quoted passages -- and `/health` went on reporting `llm: groq`
+with nothing degraded, because it reported what was *configured*. Nobody using
+the site was told why the answers had become thinner.
+
+**Now** `services/llm.py` remembers the last real outage: a rate limit, a spent
+daily allowance, a rejected key, a model Groq has retired, a server error, no
+connection. It holds for as long as Groq's `retry-after` says (or the "try
+again in 7m12s" in its message), five minutes when it says nothing, a day at
+most, and the next successful answer clears it at once. A 400 is about one
+request, not the service, and is not recorded. While it holds, `/health` lists
+`llm` as degraded and adds `"llm": {"status": "daily_limit", "since": …,
+"until": …}`; it is `{"status": "ok"}` when answering and `"offline"` when no
+model is configured, so the two kinds of degraded are told apart.
+
+**On screen**: a notice in the person's language -- the language service is
+not answering, busy or out of today's allowance; until it is back only named
+skills are read and answers are simpler -- with "back around 3:04" when the
+provider gave a time. It appears on `/understanding`, `/schemes` and, new, the
+scheme page where the assistant is. The frontend now re-reads `/health` every
+60 seconds while the tab is in view (and on returning to it), so a page opened
+before the limit was hit picks it up within a minute; a tab in the background
+does not poll, so it does not keep a free-tier server awake.
+
+`tests/test_llm_status.py`, 17 tests, against a mock Groq. Checked in a
+browser against a fake Groq answering 429 with a ten-minute `retry-after`:
+`/health` flipped to `daily_limit` with the right `until`, and the Tamil notice
+appeared on the open scheme page at the next refresh.
+
+**Also fixed on the way**: the scheme page was 458px wide on a 390px phone --
+the title, description and assistant all ran off the right edge -- because
+below the `lg` breakpoint its grid had no column template, and an implicit
+column cannot shrink below its widest content. `grid-cols-1` fixes it.
 
 ---
 

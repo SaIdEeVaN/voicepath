@@ -15,7 +15,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { AskVoicePath } from "@/components/AskVoicePath";
-import { ErrorNote } from "@/components/Notices";
+import { DegradedNote, ErrorNote } from "@/components/Notices";
 import { ApiError, api } from "@/lib/api";
 import { copyFor, payLabel, typeLabel } from "@/lib/i18n";
 import { useSession } from "@/lib/session";
@@ -95,6 +95,9 @@ export function SchemeView({
 
   return (
     <section className="mx-auto w-full max-w-[1080px] flex-1 px-[7vw] py-[clamp(2rem,5vw,3.5rem)] pb-20">
+      {/* The assistant is on this page, so this is where thinner answers
+          need explaining -- a model out of allowance, or none configured. */}
+      <DegradedNote />
       <button
         type="button"
         onClick={() => router.push("/schemes")}
@@ -106,7 +109,7 @@ export function SchemeView({
         {copy.back}
       </button>
 
-      <div className="grid items-start gap-11 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
+      <div className="grid grid-cols-1 items-start gap-11 lg:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)]">
         <div>
           <h1 className="vp-display text-[clamp(1.875rem,3.6vw,3rem)] leading-[1.04] tracking-[-0.035em]">
             {scheme.title}

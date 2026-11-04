@@ -81,6 +81,9 @@ def _degraded(settings) -> list[str]:
     degraded = list(settings.degraded_providers)
     if db.unreachable() is not None and "database" not in degraded:
         degraded.append("database")
+    # Configured but not answering: rate-limited, out of quota, or down.
+    if llm.recent_failure() is not None and "llm" not in degraded:
+        degraded.append("llm")
     return degraded
 
 
@@ -159,6 +162,7 @@ async def health() -> schemas.HealthResponse:
         },
         degraded=degraded,
         database=database,
+        llm=llm.status(),
     )
 
 

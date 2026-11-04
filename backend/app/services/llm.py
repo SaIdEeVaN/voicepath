@@ -21,6 +21,9 @@ from __future__ import annotations
 import json
 import logging
 import re
+import time
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -47,6 +50,137 @@ def is_available() -> bool:
 
 def provider_name() -> str:
     return get_settings().llm_provider
+
+
+# ---------------------------------------------------------------------------
+# Whether the configured model is actually answering
+# ---------------------------------------------------------------------------
+#
+# ``is_available()`` says a model is configured, which is not the same as
+# answering. On 2026-09-12 Groq's daily allowance (200,000 tokens) ran out:
+# every extraction, explanation and answer fell back to its rule-based path,
+# and /health went on reporting `llm: groq` with nothing degraded, so the
+# interface told nobody why the answers had become thinner.
+#
+# So the last real outage is remembered -- a rate limit, a spent quota, a
+# rejected key, a model Groq has retired, a server error, no connection --
+# with how long it should hold: Groq's own retry-after when it gives one,
+# five minutes otherwise. Any answer clears it at once. A 400 is a problem
+# with one request, not with the service, and is not recorded.
+#
+# Per process, like the rate limiter: two workers can disagree for a few
+# minutes, which is the right way to be wrong.
+
+_DEFAULT_HOLD_SECONDS = 300.0
+_MAX_HOLD_SECONDS = 24 * 3600.0
+
+# Patched by tests; nothing else should need to.
+_clock = time.time
+
+
+@dataclass
+class _Failure:
+    reason: str
+    since: float
+    until: float
+
+
+_failure: _Failure | None = None
+
+
+def _iso(seconds: float) -> str:
+    return datetime.fromtimestamp(seconds, tz=UTC).isoformat(timespec="seconds")
+
+
+def recent_failure() -> dict[str, str] | None:
+    """The outage still in force, or None when the model should be answering."""
+    failure = _failure
+    if failure is None or _clock() >= failure.until:
+        return None
+    return {
+        "reason": failure.reason,
+        "since": _iso(failure.since),
+        "until": _iso(failure.until),
+    }
+
+
+def status() -> dict[str, str]:
+    """What /health reports about the model: configured, and answering?"""
+    if not is_available():
+        return {"status": "offline"}
+    failure = recent_failure()
+    if failure is None:
+        return {"status": "ok"}
+    return {
+        "status": failure["reason"],
+        "since": failure["since"],
+        "until": failure["until"],
+    }
+
+
+def reset_status() -> None:
+    global _failure
+    _failure = None
+
+
+def _note_failure(reason: str, *, retry_after: float | None = None) -> None:
+    global _failure
+    now = _clock()
+    hold = retry_after if retry_after and retry_after > 0 else _DEFAULT_HOLD_SECONDS
+    hold = min(hold, _MAX_HOLD_SECONDS)
+    # An outage that is still going keeps the time it started.
+    since = _failure.since if _failure is not None and now < _failure.until else now
+    _failure = _Failure(reason=reason, since=since, until=now + hold)
+    logger.warning("LLM marked unavailable: %s for %.0fs", reason, hold)
+
+
+def _note_success() -> None:
+    global _failure
+    if _failure is not None:
+        logger.info("LLM answering again after %s", _failure.reason)
+    _failure = None
+
+
+_TRY_AGAIN = re.compile(
+    r"try again in\s+(?:(?P<h>\d+)h)?\s*(?:(?P<m>\d+)m)?\s*(?:(?P<s>[\d.]+)s)?",
+    re.IGNORECASE,
+)
+
+
+def _retry_after(headers: Any, body: str) -> float | None:
+    """Seconds until the provider says to try again, if it said."""
+    header = headers.get("retry-after") if headers is not None else None
+    if header:
+        try:
+            return float(header)
+        except ValueError:
+            pass
+    found = _TRY_AGAIN.search(body or "")
+    if found and any(found.group(k) for k in ("h", "m", "s")):
+        return (
+            int(found.group("h") or 0) * 3600
+            + int(found.group("m") or 0) * 60
+            + float(found.group("s") or 0)
+        )
+    return None
+
+
+def _outage_reason(status_code: int, body: str) -> str | None:
+    """Why a refused request means the service is not answering, if it does."""
+    if status_code == 429:
+        lowered = (body or "").lower()
+        if "per day" in lowered or "(tpd)" in lowered or "(rpd)" in lowered:
+            return "daily_limit"
+        if "quota" in lowered:
+            return "quota"
+        return "rate_limited"
+    if status_code in (401, 403):
+        return "rejected"
+    if status_code == 404:
+        return "model_missing"
+    if status_code >= 500:
+        return "server_error"
+    return None
 
 
 def _endpoint(settings: Any) -> tuple[str, dict[str, str], str]:
@@ -113,14 +247,24 @@ async def complete_text(
         async with httpx.AsyncClient(timeout=settings.llm_timeout_seconds) as client:
             response = await client.post(url, headers=headers, json=payload)
     except httpx.HTTPError as exc:
+        _note_failure("unreachable")
         raise LLMUnavailable(f"{settings.llm_provider} request failed: {exc}") from exc
 
     if response.status_code >= 400:
+        reason = _outage_reason(response.status_code, response.text)
+        if reason is not None:
+            _note_failure(
+                reason, retry_after=_retry_after(response.headers, response.text)
+            )
         # Body may carry the reason (bad key, quota); keep it short in the log.
         raise LLMUnavailable(
             f"{settings.llm_provider} returned {response.status_code}: "
             f"{response.text[:300]}"
         )
+
+    # It answered. Whether the answer is usable is a separate question, about
+    # this request rather than the service.
+    _note_success()
 
     data = response.json()
     try:

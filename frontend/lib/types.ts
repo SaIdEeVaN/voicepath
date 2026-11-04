@@ -188,6 +188,13 @@ export interface HealthResponse {
   providers: Record<string, string>;
   degraded: string[];
   database: Record<string, unknown>;
+  /**
+   * "ok", "offline" (no model configured), or why a configured one is not
+   * answering -- "rate_limited", "daily_limit", "quota", "rejected",
+   * "model_missing", "server_error", "unreachable" -- with when it should
+   * be back. Absent from a backend older than this field.
+   */
+  llm?: { status: string; since?: string; until?: string };
 }
 
 /** What typed text on the understanding screen turned out to be. */

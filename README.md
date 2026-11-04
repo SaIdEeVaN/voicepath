@@ -120,6 +120,12 @@ The app still runs. `LLM_PROVIDER` drops to `offline`, and extraction falls back
 to a lexical pass over the transcript. It never pretends: `/health`, every
 response body, and a banner in the UI all say which providers are offline.
 
+The same holds when a key is set but Groq stops answering -- a rate limit, the
+free tier's daily allowance, a retired model. `/health` lists `llm` as degraded
+with `"llm": {"status": "daily_limit", "until": …}` for as long as Groq says it
+will last, the screens say the answers are simpler for now, and the next
+successful call clears it.
+
 Offline extraction finds skills a person **names** ("welding") but not ones they
 only **describe** ("I join metal pipes"). That is a recall limit, never a
 precision one — no offline path can assert something the person did not say.
@@ -233,7 +239,7 @@ the database level and not only in application code.
 ## Tests
 
 ```bash
-cd backend && python -m pytest        # 562 tests
+cd backend && python -m pytest        # 579 tests
 cd frontend && npx tsc --noEmit && npx next build
 ```
 

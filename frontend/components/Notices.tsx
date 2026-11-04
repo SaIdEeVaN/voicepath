@@ -12,7 +12,7 @@
  * though it were the full one.
  */
 
-import { copyFor } from "@/lib/i18n";
+import { copyFor, localeFor } from "@/lib/i18n";
 import { useDegraded, useSession } from "@/lib/session";
 
 export function PrivacyNote({ className = "" }: { className?: string }) {
@@ -36,13 +36,35 @@ export function PrivacyNote({ className = "" }: { className?: string }) {
 
 export function DegradedNote() {
   const { language } = useSession();
-  const { language: languageOffline, storage } = useDegraded();
+  const {
+    language: languageOffline,
+    languageBusy,
+    languageBackAt,
+    storage,
+  } = useDegraded();
   const copy = copyFor(language);
+
+  // A model that is configured but not answering gets its own sentence: the
+  // answers have become thinner for a reason that will pass, and saying when
+  // (if the provider said) is the part a person can plan around.
+  let busyNotice: string | null = null;
+  if (languageBusy) {
+    busyNotice = copy.llmBusyNotice;
+    const back = languageBackAt ? new Date(languageBackAt) : null;
+    if (back && !Number.isNaN(back.getTime())) {
+      const time = new Intl.DateTimeFormat(localeFor(language), {
+        hour: "numeric",
+        minute: "2-digit",
+      }).format(back);
+      busyNotice = `${busyNotice} ${copy.llmBackAround.replace("{time}", time)}`;
+    }
+  }
 
   // Each is its own sentence: a person can be told both, and neither should
   // be folded into the other.
   const notices = [
     languageOffline ? copy.offlineNotice : null,
+    busyNotice,
     storage ? copy.storageOfflineNotice : null,
   ].filter((notice): notice is string => notice !== null);
   if (notices.length === 0) return null;

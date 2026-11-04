@@ -49,7 +49,7 @@ os.environ["LLM_API_KEY"] = ""
 os.environ["ADMIN_BOOTSTRAP_TOKEN"] = "test-bootstrap-token-not-a-real-one"
 
 from app.config import reload_settings  # noqa: E402
-from app.services import schemes, ratelimit, repository, taxonomy  # noqa: E402
+from app.services import llm, schemes, ratelimit, repository, taxonomy  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -57,8 +57,10 @@ def _clean_state():
     reload_settings()
     repository.reset_memory()
     ratelimit.reset()
+    llm.reset_status()
     yield
     repository.reset_memory()
+    llm.reset_status()
 
 
 @pytest.fixture(scope="session", autouse=True)

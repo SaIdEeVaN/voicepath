@@ -233,6 +233,8 @@ export interface Copy {
    */
   somethingWentWrong: string;
   offlineNotice: string;
+  llmBusyNotice: string;
+  llmBackAround: string;
   /**
    * The database is configured but did not answer, so the server is running
    * on memory. Matching still works; what is said may not be kept.
@@ -469,6 +471,9 @@ const en: Copy = {
     "Running without the speech and language services, so I am reading only what you name directly.",
   storageOfflineNotice:
     "Saving is paused right now, so your record may not be kept. Everything else works.",
+  llmBusyNotice:
+    "The language service is not answering right now: it is busy, or has used up today's allowance. Until it is back I read only the skills you name directly and give simpler answers.",
+  llmBackAround: "It should be back around {time}.",
 };
 
 const ta: Copy = {
@@ -703,6 +708,9 @@ const ta: Copy = {
     "பேச்சு மற்றும் மொழி சேவைகள் இல்லாமல் இயங்குகிறது, நீங்கள் நேரடியாகச் சொன்னதை மட்டுமே படிக்கிறேன்.",
   storageOfflineNotice:
     "இப்போது சேமிப்பு நிறுத்தப்பட்டுள்ளது, அதனால் உங்கள் பதிவு நிலைக்காமல் போகலாம். மற்றவை எல்லாம் வேலை செய்கின்றன.",
+  llmBusyNotice:
+    "மொழி சேவை இப்போது பதிலளிக்கவில்லை: அது பரபரப்பாக உள்ளது, அல்லது இன்றைய வரம்பை முடித்துவிட்டது. அது திரும்பும் வரை நீங்கள் நேரடியாகச் சொல்லும் திறன்களை மட்டுமே படித்து, எளிய பதில்களைத் தருகிறேன்.",
+  llmBackAround: "திரும்பும் நேரம்: சுமார் {time}.",
 };
 
 const hi: Copy = {
@@ -932,6 +940,9 @@ const hi: Copy = {
     "भाषा और आवाज़ की सेवाओं के बिना चल रहा है, इसलिए सिर्फ़ वही पढ़ रहा हूँ जो आपने सीधे कहा।",
   storageOfflineNotice:
     "अभी सहेजना रुका हुआ है, इसलिए हो सकता है आपका रिकॉर्ड न रहे। बाकी सब काम कर रहा है।",
+  llmBusyNotice:
+    "भाषा सेवा अभी जवाब नहीं दे रही: वह व्यस्त है, या आज की सीमा पूरी कर चुकी है। उसके लौटने तक मैं सिर्फ़ वही हुनर पढ़ूँगा जो आप सीधे बताएँ, और सरल जवाब दूँगा।",
+  llmBackAround: "लगभग {time} तक वापस आ जानी चाहिए।",
 };
 
 export const COPY: Record<Language, Copy> = { en, ta, hi };

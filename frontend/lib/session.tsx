@@ -33,6 +33,13 @@ const STORAGE_KEY = "voicepath.session.v1";
 /** How often to keep asking once the server has missed its quick retries. */
 const SLOW_RETRY_MS = 15000;
 
+/**
+ * How often to ask again once it has answered, while the tab is in view.
+ * The model behind it can run out of allowance mid-session, and a notice that
+ * only appears on the next page load appears too late to explain anything.
+ */
+const REFRESH_MS = 60000;
+
 interface StoredState {
   language: Language;
   sessionId: string | null;
@@ -141,6 +148,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     let answered = false;
     let slowTimer: ReturnType<typeof setTimeout> | null = null;
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
 
     const check = async (): Promise<boolean> => {
       try {
@@ -182,20 +190,36 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       return fast(remaining - 1, Math.min(delayMs * 1.6, 12000));
     };
 
+    // Once it has answered, keep the picture current: the model can be
+    // rate-limited or run out of its daily allowance at any point, and the
+    // backend says so in /health. Only while the tab is in view, so a page
+    // left open in the background does not keep a free-tier server awake. A
+    // failed refresh changes nothing -- the last answer stands until a
+    // request on the page itself fails.
+    const refresh = () => {
+      refreshTimer = setTimeout(async () => {
+        if (cancelled) return;
+        if (answered && document.visibilityState === "visible") await check();
+        refresh();
+      }, REFRESH_MS);
+    };
+
     // Coming back to the tab, or back online, is the moment someone looks --
     // ask now rather than at the next tick.
     const nudge = () => {
-      if (cancelled || answered || document.visibilityState !== "visible") return;
+      if (cancelled || document.visibilityState !== "visible") return;
       void check();
     };
 
     void fast(6, 2000);
+    refresh();
     document.addEventListener("visibilitychange", nudge);
     window.addEventListener("online", nudge);
 
     return () => {
       cancelled = true;
       if (slowTimer) clearTimeout(slowTimer);
+      if (refreshTimer) clearTimeout(refreshTimer);
       document.removeEventListener("visibilitychange", nudge);
       window.removeEventListener("online", nudge);
     };
@@ -311,13 +335,26 @@ export function useSession(): SessionContextValue {
  * then runs on memory, and a record may not survive. A database that was
  * never configured (local development) is not flagged: nothing was promised.
  */
-export function useDegraded(): { speech: boolean; language: boolean; storage: boolean } {
+export function useDegraded(): {
+  speech: boolean;
+  /** No language model configured: rule-based paths only, by design. */
+  language: boolean;
+  /** A model is configured but not answering: rate-limited, out of allowance, down. */
+  languageBusy: boolean;
+  /** When the backend expects it back, if the provider said. ISO 8601. */
+  languageBackAt: string | null;
+  storage: boolean;
+} {
   const { health } = useSession();
   const degraded = health?.degraded ?? [];
   const database = health?.database ?? {};
+  const llmStatus = health?.llm?.status;
+  const busy = llmStatus !== undefined && llmStatus !== "ok" && llmStatus !== "offline";
   return {
     speech: degraded.includes("stt"),
-    language: degraded.includes("llm"),
+    language: degraded.includes("llm") && !busy,
+    languageBusy: busy,
+    languageBackAt: busy ? (health?.llm?.until ?? null) : null,
     storage: database.configured === true && database.connected === false,
   };
 }
