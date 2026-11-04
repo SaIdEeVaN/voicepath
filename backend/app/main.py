@@ -19,6 +19,8 @@ from app.models import schemas
 from app.routes import admin, assistant, places, profile, query, schemes, sessions, speech
 from app.services import corpus_sync, db, embeddings, llm, ner, stt, tts, websearch
 from app.services import places as places_service
+from app import security
+from app.security import BodySizeLimitMiddleware, SecurityHeadersMiddleware
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +38,13 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     configure_logging()
     settings = get_settings()
     await db.init_pool()
+
+    # A short bootstrap token can be guessed, lockout or not.
+    if settings.admin_bootstrap_token and len(settings.admin_bootstrap_token) < 32:
+        logger.warning(
+            "ADMIN_BOOTSTRAP_TOKEN is shorter than 32 characters. Use a long random "
+            "value (python -c 'import secrets; print(secrets.token_urlsafe(32))')."
+        )
 
     degraded = _degraded(settings)
     if degraded:
@@ -110,7 +119,15 @@ async def _warm_voices(settings) -> None:
         logger.info("Speech voices ready: %s", ", ".join(loaded))
 
 
+_settings = get_settings()
+_docs = security.docs_enabled(_settings.app_env)
+
 app = FastAPI(
+    # Off on Render and in production: they listed every route, admin ones
+    # included, to anyone. Local development keeps them.
+    docs_url="/docs" if _docs else None,
+    redoc_url="/redoc" if _docs else None,
+    openapi_url="/openapi.json" if _docs else None,
     title="VoicePath API",
     description=(
         "Voice-first skill discovery and scheme matching for PM-AJAY "
@@ -121,15 +138,20 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-_settings = get_settings()
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_settings.cors_origin_list,
     allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["*"],
+    # Only the headers the frontend sends; "*" admitted anything.
+    allow_headers=["Content-Type", "Authorization", "X-VoicePath-Session"],
+    max_age=600,
 )
+# Added last so they run first: a body over its limit is refused before CORS
+# or a route sees it, and every response, refusals included, carries the
+# security headers.
+app.add_middleware(BodySizeLimitMiddleware, max_audio_bytes=_settings.max_audio_bytes)
+app.add_middleware(SecurityHeadersMiddleware)
 
 app.include_router(speech.router)
 app.include_router(profile.router)

@@ -17,12 +17,12 @@ import hmac
 import logging
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
 
 from app.config import get_settings
 from app.models import schemas
-from app.services import db, repository, schemes, pipeline, taxonomy
+from app.services import db, pipeline, ratelimit, repository, schemes, taxonomy
 
 logger = logging.getLogger(__name__)
 
@@ -41,8 +41,33 @@ def _hash_token(token: str) -> str:
 
 
 async def require_admin(
+    request: Request,
     authorization: Annotated[str | None, Header()] = None,
 ) -> AdminIdentity:
+    """The admin dependency: refuse while locked out, count wrong tokens.
+
+    A wrong token used to cost nothing, so one could be guessed as fast as
+    the network allowed. Ten wrong tokens from one address in fifteen
+    minutes, or a hundred from everywhere, and admin routes answer 429 until
+    the window passes (services/ratelimit.py). A correct token is never
+    counted, and a missing one (401) is not a guess.
+    """
+    wait = ratelimit.admin_locked_out(request)
+    if wait is not None:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many wrong admin tokens. Try again later.",
+            headers={"Retry-After": str(wait)},
+        )
+    try:
+        return await _resolve_admin(authorization)
+    except HTTPException as exc:
+        if exc.status_code == status.HTTP_403_FORBIDDEN:
+            ratelimit.record_admin_failure(request)
+        raise
+
+
+async def _resolve_admin(authorization: str | None) -> AdminIdentity:
     """Resolve the caller to an admin identity, or say why not.
 
     Order matters: the database is the source of truth, and the bootstrap
@@ -175,29 +200,29 @@ class SchemeWrite(BaseModel):
     title: str = Field(min_length=1, max_length=300)
     organization: str = Field(min_length=1, max_length=300)
     location: str = Field(min_length=1, max_length=200)
-    district: str | None = None
-    type: str
-    minimum_experience: float = 0
-    certifications_required: list[str] = Field(default_factory=list)
-    salary_min: int | None = None
-    salary_max: int | None = None
-    nsqf_level: str | None = None
-    source_reference: str | None = None
+    district: str | None = Field(default=None, max_length=100)
+    type: str = Field(max_length=60)
+    minimum_experience: float = Field(default=0, ge=0, le=60)
+    certifications_required: list[str] = Field(default_factory=list, max_length=20)
+    salary_min: int | None = Field(default=None, ge=0, le=10_000_000)
+    salary_max: int | None = Field(default=None, ge=0, le=10_000_000)
+    nsqf_level: str | None = Field(default=None, max_length=20)
+    source_reference: str | None = Field(default=None, max_length=200)
     # The government's own page for this scheme. Pattern-checked here as
     # well as in the database: rejected at the edge it names the field,
     # where a constraint violation would surface as a 500.
-    official_url: str | None = Field(default=None, pattern=r"^https?://\S+$")
-    description: str | None = None
+    official_url: str | None = Field(default=None, pattern=r"^https?://\S+$", max_length=500)
+    description: str | None = Field(default=None, max_length=5000)
     is_active: bool = True
-    skill_ids: list[int] = Field(default_factory=list)
+    skill_ids: list[int] = Field(default_factory=list, max_length=200)
 
 
 class TaxonomyWrite(BaseModel):
     code: str = Field(pattern=r"^SK\d{3,}$")
     name: str = Field(min_length=1, max_length=200)
     category: str = Field(min_length=1, max_length=100)
-    hint: str | None = None
-    aliases: list[str] = Field(default_factory=list)
+    hint: str | None = Field(default=None, max_length=500)
+    aliases: list[str] = Field(default_factory=list, max_length=60)
 
 
 # ---------------------------------------------------------------------------

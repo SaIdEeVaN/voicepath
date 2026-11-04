@@ -282,7 +282,7 @@ async def add_typed_skill(payload: schemas.AddSkillRequest) -> schemas.AddSkillR
     text = (payload.text or "").strip()
     if not text:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Nothing was typed.",
         )
 

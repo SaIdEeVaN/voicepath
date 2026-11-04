@@ -27,10 +27,13 @@ the reviewer. News domains (``excluded_domains``) are not searched at all.
 
 from __future__ import annotations
 
+import asyncio
+import ipaddress
 import logging
+import socket
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse, urlsplit
 
 import httpx
 
@@ -229,6 +232,61 @@ async def search(query: str, *, official_only: bool = True) -> list[SearchResult
     return [r for r in results if r.is_official] if official_only else results
 
 
+# ---------------------------------------------------------------------------
+# Fetching a page safely
+# ---------------------------------------------------------------------------
+#
+# The URLs fetched here come from search results -- data from outside, which
+# the server then requests from inside its own network. Until 2026-11-04 it
+# followed any URL and any redirect: a result, or a public page redirecting,
+# to http://169.254.169.254/ or http://10.0.0.1/ would have been fetched from
+# within the host and its text stored as a scheme document (server-side
+# request forgery). And the whole body was read into memory, whatever size.
+#
+# Now every hop is checked before it is requested: http(s) only, ports 80 and
+# 443, no credentials in the URL, and every address the host resolves to
+# must be public. Redirects are followed by hand so each target is checked
+# too, and the body is read in pieces up to a ceiling.
+
+MAX_PAGE_BYTES = 2 * 1024 * 1024
+MAX_REDIRECTS = 5
+_ALLOWED_PORTS = {None, 80, 443}
+
+
+def _is_public(address: str) -> bool:
+    try:
+        ip = ipaddress.ip_address(address.split("%", 1)[0])
+    except ValueError:
+        return False
+    if ip.version == 6 and ip.ipv4_mapped:
+        ip = ip.ipv4_mapped
+    return ip.is_global and not ip.is_multicast
+
+
+async def ensure_public_url(url: str) -> None:
+    """Refuse a URL that is not a public http(s) address."""
+    parts = urlsplit(url)
+    if parts.scheme not in ("http", "https") or not parts.hostname:
+        raise SearchUnavailable(f"Not a web address: {url[:80]}")
+    if parts.username or parts.password:
+        raise SearchUnavailable("A web address with credentials is not fetched")
+    try:
+        port = parts.port
+    except ValueError as exc:
+        raise SearchUnavailable("Invalid port") from exc
+    if port not in _ALLOWED_PORTS:
+        raise SearchUnavailable(f"Port {port} is not fetched")
+    try:
+        infos = await asyncio.to_thread(
+            socket.getaddrinfo, parts.hostname, port or 443, 0, socket.SOCK_STREAM
+        )
+    except (socket.gaierror, UnicodeError) as exc:
+        raise SearchUnavailable(f"Could not resolve {parts.hostname}") from exc
+    addresses = {info[4][0] for info in infos}
+    if not addresses or not all(_is_public(a) for a in addresses):
+        raise SearchUnavailable(f"{parts.hostname} is not a public address")
+
+
 async def fetch_page(url: str) -> str:
     """Readable text from a page.
 
@@ -237,18 +295,34 @@ async def fetch_page(url: str) -> str:
     than saying we do not have it.
     """
     settings = get_settings()
+    current = url
     try:
         async with httpx.AsyncClient(
-            timeout=settings.search_timeout_seconds, follow_redirects=True
+            timeout=settings.search_timeout_seconds, follow_redirects=False
         ) as client:
-            response = await client.get(url, headers={"User-Agent": "VoicePath/1.0"})
+            for _hop in range(MAX_REDIRECTS + 1):
+                await ensure_public_url(current)
+                async with client.stream(
+                    "GET", current, headers={"User-Agent": "VoicePath/1.0"}
+                ) as response:
+                    if response.is_redirect:
+                        location = response.headers.get("location")
+                        if not location:
+                            raise SearchUnavailable(f"{current} redirected nowhere")
+                        current = urljoin(current, location)
+                        continue
+                    if response.status_code >= 400:
+                        raise SearchUnavailable(f"{current} returned {response.status_code}")
+                    body = bytearray()
+                    async for chunk in response.aiter_bytes():
+                        body.extend(chunk)
+                        if len(body) > MAX_PAGE_BYTES:
+                            raise SearchUnavailable(f"{current} is larger than we read")
+                    encoding = response.encoding or "utf-8"
+                    return _readable(bytes(body).decode(encoding, errors="replace"))
+            raise SearchUnavailable(f"{url} redirected too many times")
     except httpx.HTTPError as exc:
         raise SearchUnavailable(f"Could not fetch {url}: {exc}") from exc
-
-    if response.status_code >= 400:
-        raise SearchUnavailable(f"{url} returned {response.status_code}")
-
-    return _readable(response.text)
 
 
 # Phrases that mean the page never rendered. A site that builds its content in

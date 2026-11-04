@@ -8,7 +8,8 @@ of them. VoicePath extracts the skills, normalizes them against a standard taxon
 matches them to real district-level openings and training, and explains every match in
 plain language — using only what the person actually said.
 
-**See `STATUS.md` for the live build state and task checklist.**
+**See `STATUS.md` for the live build state and task checklist, and `SECURITY.md`
+for what protects the site and how to report a vulnerability.**
 
 ---
 
@@ -29,7 +30,8 @@ cp .env.example .env
 uvicorn app.main:app --reload --port 8000
 ```
 
-`http://localhost:8000/docs` for the API, `/health` for what is actually live.
+`http://localhost:8000/docs` for the API (local only -- the docs are off on
+Render and when `APP_ENV=production`), `/health` for what is actually live.
 
 The first transcription after a restart spends ~60s loading Whisper into memory;
 it is cached from then on.
@@ -246,7 +248,7 @@ the database level and not only in application code.
 ## Tests
 
 ```bash
-cd backend && python -m pytest        # 688 tests
+cd backend && python -m pytest        # 719 tests
 cd frontend && npx tsc --noEmit && npx next build
 ```
 

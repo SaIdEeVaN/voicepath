@@ -3,7 +3,7 @@
 > **This file is the live todo list.** It is updated every time a task is completed.
 > Start at **To-do** — that is the working checklist. **Next up** carries the
 > detail behind the top items; everything below it is the record of the build.
-> Last updated: 2026-11-04 (embedder out of credits: the app degrades instead of failing)
+> Last updated: 2026-11-04 (security review and hardening; see SECURITY.md)
 
 **Project root:** `C:\Users\Sai Dixit\voicepath`
 **Sources:** `PRD_File_For_Project.md` (spec) · `VoicePath Mockups.html` (design canvas, unpacked)
@@ -331,7 +331,7 @@ Four approaches, in order of effort:
 | 2. Backend core (config, db, providers) | ✅ Done |
 | 3. Backend pipeline (extract → normalize → match → explain) | ✅ Done |
 | 4. Backend routes + rate limiting | ✅ Done |
-| 5. Backend tests | ✅ Done — **688 passing**, 7 skipped |
+| 5. Backend tests | ✅ Done — **719 passing**, 7 skipped |
 | 6. Frontend scaffold + design tokens | ✅ Done |
 | 7. Frontend screens | ✅ Done — all 8 |
 | 8. Admin (Phase 2) | ✅ Done |
@@ -509,7 +509,7 @@ frontend/
 - [x] `/api/admin/*` — server-side role check, sha256 tokens, bootstrap that self-disables
 - [x] Rate limiting on public routes · `GET /health` reporting every provider honestly
 
-### Phase 5 — Backend tests ✅ (688 passing, 7 skipped)
+### Phase 5 — Backend tests ✅ (719 passing, 7 skipped)
 - [x] `test_matching.py` — weights, determinism, each component, grounding
 - [x] `test_extraction.py` — evidence grounding in ta/hi/en, invention rejected
 - [x] `test_normalization.py` — alias matching across scripts, no silent upgrades
@@ -715,6 +715,48 @@ appeared on the open scheme page at the next refresh.
 the title, description and assistant all ran off the right edge -- because
 below the `lg` breakpoint its grid had no column template, and an implicit
 column cannot shrink below its widest content. `grid-cols-1` fixes it.
+
+---
+
+## Done on 2026-11-04 — security review and hardening
+
+Asked for: "implement cyber security to all the points and secure the website
+more". A review of the backend, frontend, database, deploys and dependencies
+found these, all fixed; `SECURITY.md` describes what is now in place.
+
+- **Critical: Next.js 16.3.4** was inside a critical advisory (remote code
+  execution via image optimisation, among nine) -- now 16.4.5; `sharp` and
+  `source-map-js` updated with it. **Starlette 0.41.3** carried eight
+  advisories -- now FastAPI 0.162 on Starlette 1.10; python-multipart 0.0.33;
+  pytest 9.2. `npm audit` and `pip-audit` both report nothing.
+- **Rate limits could be reset at will**: they were keyed on a header the
+  client chooses. Now per session, per address and per route for everyone, all
+  enforced.
+- **Server-side request forgery**: pages from search results were fetched
+  with any redirect followed, so a result could reach internal addresses.
+  Now public addresses only, every hop checked, 2 MB cap.
+- **Memory exhaustion**: request bodies and audio uploads were read whole
+  before any size check. Now capped as they stream in; uploads must be audio;
+  text fields have length limits.
+- **No security headers** on the site or the API. Now CSP (static policy,
+  checked page by page in a browser with zero violations, map included), HSTS,
+  frame denial, nosniff, referrer and permissions policies; `no-store` on API
+  responses; `X-Powered-By` removed.
+- **Admin tokens could be guessed endlessly**: now locked out after ten wrong
+  tokens per address (or a hundred overall) per 15 minutes, and a startup
+  warning for a short bootstrap token.
+- **API docs public in production**: off on Render and in production.
+- **CORS admitted any header**: now only the three the frontend sends.
+- **GitHub Actions** now pinned to commit SHAs (v6 releases, which also ends
+  the Node 20 deprecation warnings), plus a weekly read-only
+  `security-audit.yml`.
+
+Checked and fine as they were: no secrets in git history, no HTML rendered
+from data, every external link `noopener`, admin tokens stored hashed and
+compared in constant time, row-level security on every table. Left as is:
+Supabase's warning about pgvector in the `public` schema.
+
+`tests/test_security.py`, 31 tests: each finding's attack run against its fix.
 
 ---
 

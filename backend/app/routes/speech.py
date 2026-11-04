@@ -32,10 +32,21 @@ router = APIRouter(prefix="/api/speech", tags=["speech"])
 async def transcribe(
     request: Request,
     file: UploadFile = File(..., description="Recorded audio blob"),
-    language: str = Form("auto"),
+    language: str = Form("auto", max_length=16),
 ) -> schemas.TranscribeResponse:
     settings = get_settings()
 
+    # Only audio. The browser sends audio/webm or audio/ogg; anything else is
+    # not a recording, and is refused before it reaches the speech model.
+    content_type = (file.content_type or "audio/webm").split(";")[0].strip().lower()
+    if not (content_type.startswith("audio/") or content_type == "application/octet-stream"):
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="Only audio recordings can be sent here.",
+        )
+
+    # The request body is capped as it streams in (app/security.py), so this
+    # read is bounded; the check below gives the friendlier message.
     audio = await file.read()
     if not audio:
         raise HTTPException(
@@ -44,7 +55,7 @@ async def transcribe(
         )
     if len(audio) > settings.max_audio_bytes:
         raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             detail="That recording is too long. Try a shorter one.",
         )
 

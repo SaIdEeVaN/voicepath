@@ -47,7 +47,7 @@ class ClientTranscriptRequest(Base):
     """
 
     transcript: str = Field(min_length=1, max_length=20000)
-    language_detected: str = "auto"
+    language_detected: str = Field(default="auto", max_length=16)
     session_id: UUID | None = None
 
 
@@ -71,7 +71,7 @@ class SynthesizeResponse(Base):
 class ExtractRequest(Base):
     session_id: UUID | None = None
     # Optional: lets a caller extract from a transcript it already holds.
-    transcript: str | None = None
+    transcript: str | None = Field(default=None, max_length=20000)
     language: Language = "auto"
 
 
@@ -132,8 +132,8 @@ class SkillEdit(Base):
     """One user correction from the /understanding screen."""
 
     id: UUID | None = None
-    raw_name: str
-    evidence_phrase: str
+    raw_name: str = Field(max_length=200)
+    evidence_phrase: str = Field(max_length=2000)
     removed: bool = False
     # Set when the user picked an answer on the disambiguation screen.
     chosen_skill_id: int | None = None
@@ -141,7 +141,7 @@ class SkillEdit(Base):
 
 class NormalizeRequest(Base):
     session_id: UUID | None = None
-    skills: list[SkillEdit] | None = None
+    skills: list[SkillEdit] | None = Field(default=None, max_length=100)
 
 
 class NormalizeResponse(Base):
@@ -219,7 +219,7 @@ class AddSkillRequest(Base):
 
     session_id: UUID
     text: str = Field(min_length=1, max_length=300)
-    language: str = "auto"
+    language: str = Field(default="auto", max_length=16)
 
 
 class AddSkillResponse(Base):
@@ -276,8 +276,8 @@ class AssistantQueryRequest(Base):
 
 
 class QueryUnderstandRequest(Base):
-    text: str
-    language: str = "en"
+    text: str = Field(max_length=20000)
+    language: str = Field(default="en", max_length=16)
 
 
 class QueryUnderstandResponse(Base):

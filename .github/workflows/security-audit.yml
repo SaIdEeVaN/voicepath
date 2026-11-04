@@ -1,0 +1,70 @@
+name: Security audit
+
+# Known vulnerabilities in what the site runs on, checked every week and
+# whenever the dependency files change. A failure here emails the repository
+# owner -- the same way the keep-alive check reports a sleeping database.
+#
+# Added 2026-11-04, when a manual audit found a critical Next.js advisory
+# (remote code execution through image optimisation) and eight in the
+# backend's Starlette, all with fixes that had been out for weeks.
+#
+# * Python: pip-audit over the packages the backend deploys with. Fails on any
+#   known vulnerability -- PyPI advisories mostly carry no severity to filter on.
+# * JavaScript: npm audit over the frontend, failing at "high" or "critical".
+#
+# Read-only: it changes nothing and opens nothing. Actions are pinned to
+# commits, not tags, so a moved tag cannot change what runs here.
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Mondays, 04:17 UTC.
+    - cron: "17 4 * * 1"
+  push:
+    branches: [main]
+    paths:
+      - backend/requirements.txt
+      - backend/requirements-dev.txt
+      - frontend/package.json
+      - frontend/package-lock.json
+      - .github/workflows/security-audit.yml
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version-file: backend/.python-version
+
+      - name: Install pip-audit
+        run: pip install pip-audit==2.10.1
+
+      - name: Audit the backend's dependencies
+        working-directory: backend
+        run: pip-audit -r requirements.txt -r requirements-dev.txt --progress-spinner off
+
+  javascript:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 22
+
+      - name: Audit the frontend's dependencies
+        working-directory: frontend
+        # Reads package-lock.json; nothing is installed and no package script runs.
+        run: npm audit --audit-level=high

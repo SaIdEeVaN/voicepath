@@ -1,10 +1,14 @@
 # VoicePath backend -- core runtime.
 # The API runs fully on these. Embeddings fall back to the offline provider
 # unless you also install requirements-ml.txt.
-fastapi==0.115.6
-uvicorn[standard]==0.34.0
+#
+# Security: FastAPI 0.162 brings Starlette 1.x, which fixes the advisories
+# open against 0.41 (found by pip-audit on 2026-11-04); python-multipart
+# 0.0.33 likewise. .github/workflows/security-audit.yml re-checks weekly.
+fastapi==0.162.0
+uvicorn[standard]==0.54.0
 pydantic==2.10.4
 pydantic-settings==2.7.0
-python-multipart==0.0.20
+python-multipart==0.0.33
 httpx==0.28.1
 asyncpg==0.30.0
