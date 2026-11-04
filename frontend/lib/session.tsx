@@ -352,7 +352,9 @@ export function useDegraded(): {
   const busy = llmStatus !== undefined && llmStatus !== "ok" && llmStatus !== "offline";
   return {
     speech: degraded.includes("stt"),
-    language: degraded.includes("llm") && !busy,
+    // Embeddings down reads the same to a person: only skills they name
+    // directly are recognised. Either way this is the notice that says so.
+    language: (degraded.includes("llm") && !busy) || degraded.includes("embeddings"),
     languageBusy: busy,
     languageBackAt: busy ? (health?.llm?.until ?? null) : null,
     storage: database.configured === true && database.connected === false,

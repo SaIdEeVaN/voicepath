@@ -3,7 +3,7 @@
 > **This file is the live todo list.** It is updated every time a task is completed.
 > Start at **To-do** — that is the working checklist. **Next up** carries the
 > detail behind the top items; everything below it is the record of the build.
-> Last updated: 2026-11-04 (11 national schemes, 24 more skills, 13 official documents)
+> Last updated: 2026-11-04 (embedder out of credits: the app degrades instead of failing)
 
 **Project root:** `C:\Users\Sai Dixit\voicepath`
 **Sources:** `PRD_File_For_Project.md` (spec) · `VoicePath Mockups.html` (design canvas, unpacked)
@@ -108,6 +108,19 @@ twice is harmless. There is no cost to doing this in the safe order.
       still prerenders, and every rule degrades under `prefers-reduced-motion`
       — but no screenshot was taken, because this environment has no browser.
       Worth one look on a real phone before it is shown to anyone.
+
+### Embeddings — needs a decision
+
+- [ ] **The Hugging Face Inference API is out of credits** (402 Payment
+      Required since at least 2026-11-04 15:39 UTC). Until it is paid for or
+      replaced, skills are recognised only when said by name or alias, the
+      assistant searches documents by keyword only, and the 24 new skills and
+      13 new documents cannot be embedded. `/health` shows
+      `"embeddings": {"status": "payment_required"}`. Options: buy HF
+      pre-paid credits or PRO; or move to a provider that serves the same
+      `multilingual-e5-base` model, so stored vectors stay valid. A different
+      model means re-embedding the taxonomy and re-ingesting every document.
+      The startup catch-up finishes the embedding on its own once it answers.
 
 ### Safety
 
@@ -289,7 +302,7 @@ Four approaches, in order of effort:
 | 2. Backend core (config, db, providers) | ✅ Done |
 | 3. Backend pipeline (extract → normalize → match → explain) | ✅ Done |
 | 4. Backend routes + rate limiting | ✅ Done |
-| 5. Backend tests | ✅ Done — **661 passing**, 13 skipped |
+| 5. Backend tests | ✅ Done — **668 passing**, 13 skipped |
 | 6. Frontend scaffold + design tokens | ✅ Done |
 | 7. Frontend screens | ✅ Done — all 8 |
 | 8. Admin (Phase 2) | ✅ Done |
@@ -467,7 +480,7 @@ frontend/
 - [x] `/api/admin/*` — server-side role check, sha256 tokens, bootstrap that self-disables
 - [x] Rate limiting on public routes · `GET /health` reporting every provider honestly
 
-### Phase 5 — Backend tests ✅ (661 passing, 13 skipped)
+### Phase 5 — Backend tests ✅ (668 passing, 13 skipped)
 - [x] `test_matching.py` — weights, determinism, each component, grounding
 - [x] `test_extraction.py` — evidence grounding in ta/hi/en, invention rejected
 - [x] `test_normalization.py` — alias matching across scripts, no silent upgrades
@@ -673,6 +686,32 @@ appeared on the open scheme page at the next refresh.
 the title, description and assistant all ran off the right edge -- because
 below the `lg` breakpoint its grid had no column template, and an implicit
 column cannot shrink below its widest content. `grid-cols-1` fixes it.
+
+---
+
+## Fixed on 2026-11-04 — the embedder ran out of credits and every skill was a 500
+
+Found while checking the national-schemes deploy: the Hugging Face Inference
+API answered **402 Payment Required** ("Purchase pre-paid credits to continue
+using Inference Providers"). Normalization embeds every skill a person
+describes, nothing caught the error, and `/api/profile/extract` returned 500
+-- the main flow, from describing your work to seeing a result, was down.
+`/health` still said `embeddings: hf_api`.
+
+Now the outage costs recall, not the request:
+
+- **Normalization** falls back to exact names and aliases (in all three
+  languages). "Welding" still becomes Welding; "I join metal pipes with heat"
+  stays an unplaced skill with its evidence, as any unplaceable skill does.
+- **Matching** runs without fresh vectors; an unplaced skill earns nothing,
+  which is what it earns anyway.
+- **Document search** falls back to keyword search alone.
+- **`/health`** lists `embeddings` as degraded with the reason
+  (`payment_required`, `rate_limited`, `unreachable`...), the way it now does
+  for Groq, and the screens show the "reading only what you name" notice.
+
+`tests/test_embedding_outage.py`, 7 tests. Restoring full recall needs the
+decision in the to-do above.
 
 ---
 

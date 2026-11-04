@@ -68,14 +68,29 @@ async def normalize_many(
 
     settings = get_settings()
     texts = [raw for raw, _ in skills]
-    vectors = await asyncio.to_thread(embeddings.embed_queries, texts)
+    try:
+        vectors: list[list[float] | None] = list(
+            await asyncio.to_thread(embeddings.embed_queries, texts)
+        )
+    except embeddings.EmbeddingUnavailable as exc:
+        # The embedder is down -- out of credits, rate-limited, unreachable.
+        # A skill said by its own name or an alias still normalizes below;
+        # one only described stays unnormalized with its evidence, which is
+        # what happens to any skill the taxonomy cannot place. Recall drops;
+        # the request does not fail. It used to be a 500.
+        logger.warning("Embeddings unavailable (%s); exact names only", exc)
+        vectors = [None] * len(texts)
 
     results: list[NormalizedSkill] = []
     needs_assist: list[NormalizedSkill] = []
 
     for (raw_name, evidence), vector in zip(skills, vectors):
-        candidates = await taxonomy.search_by_vector(
-            vector, limit=max(settings.normalization_candidate_count, 3)
+        candidates = (
+            await taxonomy.search_by_vector(
+                vector, limit=max(settings.normalization_candidate_count, 3)
+            )
+            if vector is not None
+            else []
         )
         entry = NormalizedSkill(
             raw_name=raw_name,

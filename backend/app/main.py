@@ -90,6 +90,8 @@ def _degraded(settings) -> list[str]:
     # Configured but not answering: rate-limited, out of quota, or down.
     if llm.recent_failure() is not None and "llm" not in degraded:
         degraded.append("llm")
+    if embeddings.recent_failure() is not None and "embeddings" not in degraded:
+        degraded.append("embeddings")
     return degraded
 
 
@@ -169,6 +171,7 @@ async def health() -> schemas.HealthResponse:
         degraded=degraded,
         database=database,
         llm=llm.status(),
+        embeddings=embeddings.status(),
     )
 
 

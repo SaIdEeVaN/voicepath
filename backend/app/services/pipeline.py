@@ -179,10 +179,16 @@ async def rows_to_normalized(rows: list[repository.SkillRow]) -> list[Normalized
     ]
     fresh: dict[str, list[float]] = {}
     if needs_embedding:
-        vectors = await asyncio.to_thread(
-            embeddings.embed_queries, [r.raw_name for r in needs_embedding]
-        )
-        fresh = {r.raw_name: v for r, v in zip(needs_embedding, vectors)}
+        try:
+            vectors = await asyncio.to_thread(
+                embeddings.embed_queries, [r.raw_name for r in needs_embedding]
+            )
+            fresh = {r.raw_name: v for r, v in zip(needs_embedding, vectors)}
+        except embeddings.EmbeddingUnavailable as exc:
+            # Only unnormalized skills need this, and only for partial credit
+            # by similarity. Without it they earn nothing -- which is what an
+            # unplaceable skill earns anyway -- and matching still runs.
+            logger.warning("Embeddings unavailable (%s); matching without them", exc)
 
     out: list[NormalizedSkill] = []
     for row in rows:

@@ -28,6 +28,8 @@ import logging
 import math
 import re
 import threading
+import time
+from datetime import UTC, datetime
 from typing import Any, Sequence
 
 from app.config import get_settings
@@ -154,6 +156,79 @@ def embed_queries(texts: Sequence[str]) -> list[list[float]]:
     return _embed(list(texts), is_query=True)
 
 
+# ---------------------------------------------------------------------------
+# Whether the hosted embedder is answering
+# ---------------------------------------------------------------------------
+#
+# On 2026-11-04 the Hugging Face Inference API began answering 402 Payment
+# Required -- the account's free credits were spent -- and every skill a
+# person described turned into a 500 at /api/profile/extract, because
+# normalization could not embed it. /health still said "embeddings: hf_api".
+#
+# Remembered like llm.py remembers Groq refusing: reported in /health and
+# cleared by the next answer. Callers now catch EmbeddingUnavailable and fall
+# back -- normalization to exact names and aliases, retrieval to keyword
+# search -- so the outage costs recall rather than the whole request.
+
+_HOLD_SECONDS = 600.0
+_clock = time.time
+_failure: tuple[str, float, float] | None = None  # (reason, since, until)
+
+
+def _iso(seconds: float) -> str:
+    return datetime.fromtimestamp(seconds, tz=UTC).isoformat(timespec="seconds")
+
+
+def recent_failure() -> dict[str, str] | None:
+    failure = _failure
+    if failure is None or _clock() >= failure[2]:
+        return None
+    reason, since, until = failure
+    return {"reason": reason, "since": _iso(since), "until": _iso(until)}
+
+
+def status() -> dict[str, str]:
+    """What /health reports about embeddings: configured, and answering?"""
+    if get_settings().embedding_provider == "offline":
+        return {"status": "offline"}
+    failure = recent_failure()
+    if failure is None:
+        return {"status": "ok"}
+    return {"status": failure["reason"], "since": failure["since"], "until": failure["until"]}
+
+
+def reset_status() -> None:
+    global _failure
+    _failure = None
+
+
+def _note_failure(reason: str) -> None:
+    global _failure
+    now = _clock()
+    since = _failure[1] if _failure is not None and now < _failure[2] else now
+    _failure = (reason, since, now + _HOLD_SECONDS)
+    logger.warning("Embeddings marked unavailable: %s", reason)
+
+
+def _note_success() -> None:
+    global _failure
+    _failure = None
+
+
+def _outage_reason(status_code: int) -> str:
+    if status_code == 402:
+        return "payment_required"
+    if status_code == 429:
+        return "rate_limited"
+    if status_code in (401, 403):
+        return "rejected"
+    if status_code == 404:
+        return "model_missing"
+    if status_code >= 500:
+        return "server_error"
+    return "refused"
+
+
 def _embed_hf_api(prepared: list[str]) -> list[list[float]]:
     """Embed through the Hugging Face Inference API.
 
@@ -181,12 +256,15 @@ def _embed_hf_api(prepared: list[str]) -> list[list[float]]:
                 json={"inputs": prepared, "options": {"wait_for_model": True}},
             )
     except httpx.HTTPError as exc:
+        _note_failure("unreachable")
         raise EmbeddingUnavailable(f"Embedding request failed: {exc}") from exc
 
     if response.status_code >= 400:
+        _note_failure(_outage_reason(response.status_code))
         raise EmbeddingUnavailable(
             f"Embedding API returned {response.status_code}: {response.text[:200]}"
         )
+    _note_success()
 
     payload = response.json()
     if not isinstance(payload, list) or len(payload) != len(prepared):

@@ -448,7 +448,14 @@ async def search(
     if not clean:
         return []
 
-    vector = await asyncio.to_thread(embeddings.embed_query, clean)
+    try:
+        vector: list[float] | None = await asyncio.to_thread(embeddings.embed_query, clean)
+    except embeddings.EmbeddingUnavailable as exc:
+        # Keyword search alone: it finds a passage that uses the question's
+        # words and misses one that only means the same thing. Better than no
+        # answer from the documents at all.
+        logger.warning("Embeddings unavailable (%s); keyword search only", exc)
+        vector = None
     restrict = list(sources) if sources else None
 
     # Content words, ORed. ts_rank still puts passages holding more of them
@@ -456,23 +463,26 @@ async def search(
     terms = content_terms(clean)
     keyword_query = " OR ".join(terms)
 
-    dense_rows = db.fetch(
-        """
-        select c.id as chunk_id, d.title as document_title, d.source,
-               d.source_url, c.heading, c.content,
-               1 - (c.embedding <=> $1::vector) as similarity
-        from document_chunks c
-        join scheme_documents d on d.id = c.document_id
-        -- A source awaiting verification, or rejected outright, must not be
-        -- reachable by either route.
-        where d.status = 'active'
-          and c.embedding is not null
-          and ($3::text[] is null or d.source = any($3::text[]))
-        order by c.embedding <=> $1::vector
-        limit $2
-        """,
-        db.vector_literal(vector), limit, restrict,
-    )
+    async def dense_rows() -> list:
+        if vector is None:
+            return []
+        return await db.fetch(
+            """
+            select c.id as chunk_id, d.title as document_title, d.source,
+                   d.source_url, c.heading, c.content,
+                   1 - (c.embedding <=> $1::vector) as similarity
+            from document_chunks c
+            join scheme_documents d on d.id = c.document_id
+            -- A source awaiting verification, or rejected outright, must not be
+            -- reachable by either route.
+            where d.status = 'active'
+              and c.embedding is not null
+              and ($3::text[] is null or d.source = any($3::text[]))
+            order by c.embedding <=> $1::vector
+            limit $2
+            """,
+            db.vector_literal(vector), limit, restrict,
+        )
 
     async def keyword_rows() -> list:
         if not terms:
@@ -493,7 +503,7 @@ async def search(
             keyword_query, limit, restrict,
         )
 
-    dense, keyword = await asyncio.gather(dense_rows, keyword_rows())
+    dense, keyword = await asyncio.gather(dense_rows(), keyword_rows())
 
     # Reciprocal rank fusion: score by position in each list rather than by raw
     # score. Cosine similarity and ts_rank are not on the same scale and cannot
