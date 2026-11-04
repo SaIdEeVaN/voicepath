@@ -130,7 +130,8 @@ twice is harmless. There is no cost to doing this in the safe order.
       when the tab is looked at again or the network returns) and recovers by
       itself. The message no longer tells a beneficiary to "start the backend".
 
-- [ ] **Confirm the keep-alive runs.** Actions → *Keep the backend and
+- [x] **Confirm the keep-alive runs** — its first scheduled run, 2026-11-04,
+      passed. Actions → *Keep the backend and
       database awake* → *Run workflow* once by hand. It should go green and
       print `"connected": true`. Supabase's exact definition of "inactive" is
       theirs; if the project pauses anyway, the job goes red and emails you.
@@ -151,12 +152,10 @@ twice is harmless. There is no cost to doing this in the safe order.
 - [ ] **Create the first offices snapshot.** It could not be fetched from
       the build sandbox: its network blocks `overpass-api.de`, and the one
       mirror it could reach timed out on every attempt. Run **Actions → Refresh
-      the offices snapshot → Run workflow** (GitHub's network is open), then
-      merge the pull request it opens. Until then every office search goes live
-      and usually comes back "could not be loaded". The workflow needs
-      **Settings → Actions → General → Allow GitHub Actions to create and
-      approve pull requests**, or it pushes the branch and logs a link instead.
-      It then runs monthly on its own.
+      the offices snapshot → Run workflow** (GitHub's network is open). It
+      checks the file and commits it straight to `main`, which redeploys the
+      backend. Until then every office search goes live and usually comes back
+      "could not be loaded". It then runs monthly on its own.
 - [ ] **Openings are pinned at their town's centre.** The catalogue records a
       town, never an address, so that is all the map can honestly show — and it
       says so. Real coordinates need `latitude`/`longitude` on `schemes` (a

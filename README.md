@@ -142,7 +142,8 @@ name where OpenStreetMap has no translation.
   -- a device location far from those towns -- asks the Overpass API live, and
   the screen says plainly when that could not be loaded. Refresh the snapshot
   from **Actions → Refresh the offices snapshot → Run workflow**, which fetches
-  on GitHub's network and opens a pull request (it also runs monthly), or
+  on GitHub's network, checks the file and commits it to `main` (it also
+  runs monthly), or
   locally with `cd backend && python -m app.scripts.fetch_support_places` (add
   `--towns salem,erode` to refetch only some).
 - **Location** is the town the person mentioned, a town they pick, or -- only
