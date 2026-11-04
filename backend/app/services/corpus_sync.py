@@ -156,11 +156,26 @@ async def catch_up() -> dict[str, int]:
             "must never be written into the corpus"
         )
         return {}
-    done = {
-        "skills_embedded": await embed_missing_skills(),
-        "documents_ingested": await ingest_missing_documents(),
-        "urls_filled": await fill_missing_urls(),
-    }
+    # Each step on its own: one failing must not stop the others. URLs first,
+    # because they need no embedder -- on 2026-11-04 the embedder was out of
+    # credits, and a catch-up that stopped at the first error filled nothing.
+    done: dict[str, int] = {}
+    for name, step in (
+        ("urls_filled", fill_missing_urls),
+        ("skills_embedded", embed_missing_skills),
+        ("documents_ingested", ingest_missing_documents),
+    ):
+        if name != "urls_filled" and embeddings.recent_failure() is not None:
+            # The embedder just refused; every remaining step would too.
+            done[name] = 0
+            continue
+        try:
+            done[name] = await step()
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:  # noqa: BLE001 - retried on next start
+            logger.warning("Corpus catch-up: %s failed (%s)", name, exc)
+            done[name] = 0
     if any(done.values()):
         logger.info("Corpus catch-up: %s", done)
     return done

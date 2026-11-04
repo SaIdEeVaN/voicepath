@@ -45,10 +45,26 @@ twice is harmless. There is no cost to doing this in the safe order.
 
 ### Now — correctness, and the largest spec gaps
 
-- [ ] **No scheme document has a URL recorded yet.** `sources.json` lists all
-      twenty PDFs with empty values, so citations still name the document
-      alone. Paste the address each was downloaded from and re-run the ingest.
-      Nothing invents one, so an empty entry is safe, just not useful.
+- [ ] **Most of the original twenty PDFs still have no URL.** Checked
+      2026-11-04; only a link whose file is byte-identical to ours was
+      recorded, and the API fills it in on its next start:
+      `NULM-SUH-Guidelines.pdf` → nulm.gov.in. Three more are very likely
+      right but their sites refused this environment, so confirm them by
+      opening each and comparing before pasting into `sources.json`:
+      `NLMGuidelinesJan2025.pdf` → dahd.gov.in/sites/default/files/2026-04/NLMGuidelinesJan2025.pdf
+      (same file name); `PM_SETU_ITI_Upgradation_Guidelines.pdf` →
+      dgt.gov.in/sites/default/files/2025-10/PM-SETU-Guidelines-Component-I-Upgradation-of-ITIs.pdf
+      (same title, 2.64 MB); `PMGSY_RCPLWE_Road_Connectivity_Guidelines_2017.pdf`
+      → pmgsy.nic.in/sites/default/files/RCPLWEA22feb17.pdf. PM-AJAY's
+      `Guidelines.pdf` (May 2023) is listed on socialjustice.gov.in/schemes/104.
+- [ ] **Nine of the twenty PDFs are not government documents.** Every file
+      named `*_Detailed_Scheme_Information.pdf` or `*_Information_Summary.pdf`
+      (Fund of Funds, Khadi, NMDFC, NSSH, PM Fishermen, UNNATI, SCDCs, SFURTI,
+      SMAM) was generated with ReportLab -- a summary someone wrote, not a
+      file a ministry published -- yet the assistant cites it like one. They
+      have no official URL to record. Decide whether to keep them, mark them
+      as summaries, or replace each with the scheme's official release (as
+      was done for the national schemes).
 
 - [x] **Experience cannot be corrected, only seen** — fixed 2026-11-04.
       *Not right? Change it* beside the number on `/understanding`; see *Done

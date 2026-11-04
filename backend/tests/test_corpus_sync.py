@@ -174,6 +174,31 @@ class TestSafety:
         monkeypatch.setattr(corpus_sync.db, "is_available", lambda: False)
         assert await corpus_sync.catch_up() == {}
 
+    async def test_urls_are_filled_even_when_the_embedder_is_down(
+        self, fake_db, monkeypatch, real_embeddings
+    ):
+        from app.services import embeddings
+
+        async def refuse():
+            embeddings._note_failure("payment_required")
+            raise embeddings.EmbeddingUnavailable("402")
+
+        async def ingest(*args, **kwargs):
+            raise AssertionError("no point ingesting while the embedder refuses")
+
+        filled = []
+
+        async def fill():
+            filled.append(True)
+            return 3
+
+        monkeypatch.setattr(corpus_sync, "fill_missing_urls", fill)
+        monkeypatch.setattr(corpus_sync, "embed_missing_skills", refuse)
+        monkeypatch.setattr(corpus_sync, "ingest_missing_documents", ingest)
+        done = await corpus_sync.catch_up()
+        assert filled and done["urls_filled"] == 3
+        assert done["skills_embedded"] == 0 and done["documents_ingested"] == 0
+
     async def test_a_failure_never_reaches_the_api(self, fake_db, monkeypatch, real_embeddings):
         async def boom():
             raise RuntimeError("database went away")
