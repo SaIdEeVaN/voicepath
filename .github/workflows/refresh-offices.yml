@@ -2,23 +2,22 @@ name: Refresh the offices snapshot
 
 # The map's "Places that can help" -- ITIs and training centres, employment and
 # government offices, banks -- are served from backend/app/data/support_places.json
-# for every search around a town the map knows. The public Overpass servers are
-# volunteer-run and were unreachable from both the deployed backend and the
-# build sandbox on 2026-11-03, so the data is fetched here, on GitHub's
-# network, and committed straight to main -- the same way every other change
-# lands here. Pushing to main redeploys the backend, which then serves it.
+# for every search around a town the map knows.
+#
+# Built from a Geofabrik extract of OpenStreetMap, not the Overpass query
+# servers. The first runs queried Overpass and on 2026-11-04 spent their full
+# 150 minutes fetching nothing: from GitHub's network overpass-api.de timed out
+# on every connection and its mirror answered every query with 504. An extract
+# is the same data under the same licence, downloaded as one file and filtered
+# here with osmium -- no volunteer server has to answer anything.
 #
 # Nothing unchecked reaches main: the snapshot must pass
 # tests/test_bundled_snapshot.py with REQUIRE_SNAPSHOT=1 (and the map's own
 # tests) before it is committed, and an unchanged snapshot is not committed.
+# Pushing to main redeploys the backend, which then serves it.
 
 on:
   workflow_dispatch:
-    inputs:
-      towns:
-        description: "Comma-separated towns to refetch (empty = every town the map knows)"
-        required: false
-        default: ""
   schedule:
     # 02:41 UTC on the 3rd of each month. Offices move rarely; monthly is plenty.
     - cron: "41 2 3 * *"
@@ -32,11 +31,13 @@ concurrency:
 
 jobs:
   refresh:
-    # Pinned: ubuntu-latest became 26.04 in November 2026, which has no
-    # build of Python 3.11.9 -- the version in backend/.python-version and
-    # the one Render runs. The first run failed in setup-python on that.
+    # Pinned: ubuntu-latest became 26.04 in November 2026, which has no build
+    # of Python 3.11.9 -- the version in backend/.python-version and the one
+    # Render runs.
     runs-on: ubuntu-24.04
-    timeout-minutes: 150
+    # A download and a filter. If it takes longer than this, something is
+    # wrong, and waiting longer will not fix it.
+    timeout-minutes: 30
     defaults:
       run:
         working-directory: backend
@@ -50,40 +51,77 @@ jobs:
           cache-dependency-path: backend/requirements-dev.txt
 
       - name: Install
-        run: pip install -r requirements-dev.txt
-
-      - name: Fetch offices from OpenStreetMap
-        id: fetch
-        env:
-          TOWNS: ${{ inputs.towns }}
-          DATABASE_URL: ""
-          PLACES_PROVIDER: overpass
         run: |
-          set +e
-          if [ -n "$TOWNS" ]; then
-            python -m app.scripts.fetch_support_places --towns "$TOWNS"
-          else
-            python -m app.scripts.fetch_support_places
-          fi
-          status=$?
-          # Exit 1 means some towns could not be fetched. They are recorded as
-          # not fetched, and the API does not claim to cover them, so a partial
-          # snapshot is still worth proposing -- the PR says which are missing.
-          if [ "$status" -gt 1 ]; then exit "$status"; fi
-          echo "partial=$([ "$status" -eq 1 ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+          pip install -r requirements-dev.txt
+          sudo apt-get update -q
+          sudo apt-get install -y -q osmium-tool
+          osmium --version | head -1
+
+      - name: Download the OpenStreetMap extract
+        id: extract
+        env:
+          # Southern India first (Tamil Nadu is in it, and it is small); all of
+          # India if that file is ever renamed or missing.
+          EXTRACTS: >-
+            https://download.geofabrik.de/asia/india/southern-zone-latest.osm.pbf
+            https://download.geofabrik.de/asia/india-latest.osm.pbf
+        run: |
+          set -euo pipefail
+          out="$RUNNER_TEMP/region.osm.pbf"
+          for url in $EXTRACTS; do
+            if curl -fsSL --retry 3 --retry-delay 20 \
+                 -A "VoicePath offices refresh (github.com/saideevan/voicepath)" \
+                 -o "$out" "$url"; then
+              echo "Downloaded $url ($(du -h "$out" | cut -f1))"
+              echo "url=$url" >> "$GITHUB_OUTPUT"
+              break
+            fi
+            echo "Could not download $url"
+            rm -f "$out"
+          done
+          test -s "$out"
+          # The date the extract's data is from, which is what the map shows.
+          stamp=$(osmium fileinfo -g header.option.osmosis_replication_timestamp "$out" 2>/dev/null || true)
+          day="${stamp:0:10}"
+          if [ -z "$day" ]; then day=$(date -u +%F); fi
+          echo "Data as of $day"
+          echo "as_of=$day" >> "$GITHUB_OUTPUT"
+
+      - name: Keep only the offices the map shows, around its towns
+        run: |
+          set -euo pipefail
+          t="$RUNNER_TEMP"
+          bbox=$(python -m app.scripts.build_support_places --bbox)
+          filters=$(python -m app.scripts.build_support_places --filters)
+          echo "Area: $bbox"
+          echo "Tags: $filters"
+          osmium extract --bbox "$bbox" "$t/region.osm.pbf" -o "$t/area.osm.pbf" --overwrite
+          # shellcheck disable=SC2086 -- the filters are separate arguments
+          osmium tags-filter "$t/area.osm.pbf" $filters -o "$t/filtered.osm.pbf" --overwrite
+          osmium export "$t/filtered.osm.pbf" -f geojsonseq --add-unique-id=type_id \
+            -o "$t/features.geojsonseq" --overwrite
+          echo "$(wc -l < "$t/features.geojsonseq") features to sort through"
+
+      - name: Build the snapshot
+        env:
+          AS_OF: ${{ steps.extract.outputs.as_of }}
+        run: |
+          python -m app.scripts.build_support_places \
+            --features "$RUNNER_TEMP/features.geojsonseq" --as-of "$AS_OF"
 
       - name: Check the snapshot before committing it
         env:
           REQUIRE_SNAPSHOT: "1"
-        run: python -m pytest -q tests/test_bundled_snapshot.py tests/test_nearby.py
+        run: python -m pytest -q tests/test_bundled_snapshot.py tests/test_nearby.py tests/test_build_support_places.py
 
       - name: Commit the snapshot to main if anything changed
         env:
-          PARTIAL: ${{ steps.fetch.outputs.partial }}
           BRANCH: ${{ github.event.repository.default_branch }}
+          EXTRACT_URL: ${{ steps.extract.outputs.url }}
         run: |
           set -euo pipefail
           file=app/data/support_places.json
+          git add -N "$file"
           if [ -z "$(git status --porcelain -- "$file")" ]; then
             echo "The snapshot is unchanged; nothing to commit."
             exit 0
@@ -93,24 +131,18 @@ jobs:
           import json
           d = json.load(open("app/data/support_places.json", encoding="utf-8"))
           towns = d["towns"]
-          done = sorted(k for k, v in towns.items() if v.get("fetched"))
-          missing = sorted(k for k, v in towns.items() if not v.get("fetched"))
-          print(f"{len(d['elements'])} offices, as of {d['as_of']}.")
-          print(f"Towns fetched ({len(done)}/{len(towns)}): {', '.join(done) or 'none'}.")
-          if missing:
-              print(f"Not fetched (searches there still go live): {', '.join(missing)}.")
+          counts = ", ".join(f"{k} {len(v['ids'])}" for k, v in sorted(towns.items()))
+          print(f"{len(d['elements'])} offices, as of {d['as_of']}, around {len(towns)} towns.")
+          print(f"Per town (within {d['radius_km']} km): {counts}.")
           EOF
           )
-
-          title="Refresh the offices snapshot from OpenStreetMap"
-          [ "$PARTIAL" = "true" ] && title="$title (some towns missing)"
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add "$file"
-          git commit -m "$title" -m "$summary" \
-            -m "Fetched by the 'Refresh the offices snapshot' workflow. OpenStreetMap data, ODbL, (c) OpenStreetMap contributors. Checked by tests/test_bundled_snapshot.py with REQUIRE_SNAPSHOT=1."
-          # main may have moved while the fetch ran (it takes a while).
+          git commit -m "Refresh the offices snapshot from OpenStreetMap" -m "$summary" \
+            -m "Built by the 'Refresh the offices snapshot' workflow from $EXTRACT_URL, filtered with osmium. OpenStreetMap data, ODbL, (c) OpenStreetMap contributors. Checked by tests/test_bundled_snapshot.py with REQUIRE_SNAPSHOT=1."
+          # main may have moved while the job ran.
           git pull --rebase origin "$BRANCH"
           git push origin "HEAD:$BRANCH"
           echo "$summary"

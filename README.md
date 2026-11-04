@@ -152,11 +152,13 @@ name where OpenStreetMap has no translation.
   volunteer server being up; the page shows the snapshot's date. Anywhere else
   -- a device location far from those towns -- asks the Overpass API live, and
   the screen says plainly when that could not be loaded. Refresh the snapshot
-  from **Actions → Refresh the offices snapshot → Run workflow**, which fetches
-  on GitHub's network, checks the file and commits it to `main` (it also
-  runs monthly), or
-  locally with `cd backend && python -m app.scripts.fetch_support_places` (add
-  `--towns salem,erode` to refetch only some).
+  from **Actions → Refresh the offices snapshot → Run workflow** (it also runs
+  monthly): it downloads Geofabrik's OpenStreetMap extract of southern India,
+  filters it with `osmium` to the offices around the map's towns
+  (`app/scripts/build_support_places.py`), checks the file and commits it to
+  `main`. No Overpass server is involved -- they did not answer GitHub's
+  network either. `python -m app.scripts.fetch_support_places --towns salem`
+  still refetches a town from Overpass by hand where those servers answer.
 - **Location** is the town the person mentioned, a town they pick, or -- only
   if they press *Use my location* -- the device, rounded to about a kilometre
   in the browser before it is sent, and never stored.

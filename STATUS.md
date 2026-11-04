@@ -201,13 +201,14 @@ twice is harmless. There is no cost to doing this in the safe order.
       the offices ship with the app*. Live lookups remain for searches the
       snapshot does not cover, and will fail the same way while those servers
       do.
-- [ ] **Create the first offices snapshot.** It could not be fetched from
-      the build sandbox: its network blocks `overpass-api.de`, and the one
-      mirror it could reach timed out on every attempt. Run **Actions → Refresh
-      the offices snapshot → Run workflow** (GitHub's network is open). It
-      checks the file and commits it straight to `main`, which redeploys the
-      backend. Until then every office search goes live and usually comes back
-      "could not be loaded". It then runs monthly on its own.
+- [ ] **Create the first offices snapshot.** Two Overpass-based runs failed
+      on 2026-11-04: the first on Python 3.11.9 missing from Ubuntu 26.04
+      (runner pinned to 24.04), the second ran its full 150 minutes and got
+      nothing -- from GitHub's network overpass-api.de timed out on every
+      connection and the mail.ru mirror answered every query with 504. The
+      workflow now builds the snapshot from a Geofabrik extract filtered with
+      osmium (`build_support_places.py`; checked against real osmium output),
+      with a 30-minute limit. Tick this when its first run commits the file.
 - [ ] **Openings are pinned at their town's centre.** The catalogue records a
       town, never an address, so that is all the map can honestly show — and it
       says so. Real coordinates need `latitude`/`longitude` on `schemes` (a

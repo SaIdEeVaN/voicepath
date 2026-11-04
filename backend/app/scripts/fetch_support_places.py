@@ -3,6 +3,10 @@
     python -m app.scripts.fetch_support_places
     python -m app.scripts.fetch_support_places --towns salem,erode
 
+The monthly workflow no longer uses this: it builds the snapshot from a
+Geofabrik extract (``build_support_places.py``), because these servers did not
+answer GitHub's network either. This stays for refetching a town by hand.
+
 The public Overpass servers are volunteer-run, and on 2026-11-03 neither the
 main one nor its mirror would answer the deployed backend in time: the map
 showed openings but no offices. So the offices around every town the map knows
@@ -48,6 +52,8 @@ RADIUS_KM = 25
 # four small ones get through.
 SERVER_TIMEOUT_SECONDS = 60
 ATTEMPTS = 6
+# Consecutive towns that may fail, with none fetched, before the run stops.
+GIVE_UP_AFTER_TOWNS = 3
 
 # Only what the API reads. Everything else a mapper tagged stays on OSM.
 _KEEP_EXACT = {"name", "amenity", "office", "government", "opening_hours"}
@@ -159,12 +165,24 @@ async def main(towns: list[str]) -> int:
     async with httpx.AsyncClient(
         timeout=timeout, headers={"User-Agent": places.USER_AGENT}
     ) as client:
+        failed_in_a_row = 0
         for key in towns:
+            # Every town so far failed and none succeeded: the servers are
+            # down, not slow. On 2026-11-04 this loop spent its whole 150
+            # minutes retrying 22 towns against servers that never answered.
+            # The rest are recorded as not fetched and keep what they had.
+            if failed_in_a_row >= GIVE_UP_AFTER_TOWNS:
+                logger.error("%s: skipped, the servers are not answering", key)
+                town_status.setdefault(key, {"fetched": False, "ids": []})
+                continue
             raw = await _fetch_town(client, key)
             if raw is None:
                 town_status[key] = {"fetched": False, "ids": []}
                 contributed[key] = set()
+                if not any(s.get("fetched") for s in town_status.values()):
+                    failed_in_a_row += 1
                 continue
+            failed_in_a_row = 0
             ids: set[str] = set()
             for element in raw:
                 flat = _flatten(element)
