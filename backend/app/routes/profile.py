@@ -13,6 +13,7 @@ from app.services import (
     normalization,
     pipeline,
     repository,
+    safety,
     taxonomy,
 )
 from app.services.ratelimit import default_limit
@@ -230,6 +231,15 @@ async def add_typed_skill(payload: schemas.AddSkillRequest) -> schemas.AddSkillR
     if session is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="That session was not found."
+        )
+
+    if safety.detect_distress(text):
+        # Before extraction: "my boss beats me, I am a welder" would otherwise
+        # come back as one welding skill and nothing else. Handed on as a
+        # question so the screen asks the assistant, which answers with 112.
+        # Nothing is stored; they can add the work again afterwards.
+        return schemas.AddSkillResponse(
+            accepted=False, kind="question", question=text, urgent=True
         )
 
     language = payload.language

@@ -119,4 +119,7 @@ class TestRankingIsolation:
             "provider",
             "answered_from_data",
             "citations",
+            # A yes/no that the answer is the emergency numbers
+            # (services/safety.py). It says nothing about any scheme.
+            "urgent",
         }

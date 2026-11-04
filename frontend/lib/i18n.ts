@@ -98,6 +98,13 @@ export interface Copy {
   nothingHeard: string;
   nothingHeardSub: string;
   answeredQuestion: string;
+  /* Shown when someone says they, or a person near them, is in danger. */
+  safetyTitle: string;
+  safety112: string;
+  safety181: string;
+  safety1098: string;
+  safety14416: string;
+  safetyCannotSend: string;
   askedNotTold: string;
   /* Disambiguation */
   whichOne: string;
@@ -322,6 +329,12 @@ const en: Copy = {
   nothingHeard: "I did not catch any work you have done.",
   nothingHeardSub: "Tell me again, and say the kind of work in your own words.",
   answeredQuestion: "You asked a question, so here is the answer.",
+  safetyTitle: "If you or someone near you is in danger, call now. It is free.",
+  safety112: "Emergency: police, ambulance, fire. Any language, day and night.",
+  safety181: "Women's helpline",
+  safety1098: "For a child",
+  safety14416: "If you are thinking of ending your life",
+  safetyCannotSend: "VoicePath cannot send help itself. These numbers can.",
   askedNotTold: "To find work for you, tell me what you have done instead.",
   whichOne: "Which one did you mean?",
   resay: "Say it again",
@@ -542,6 +555,12 @@ const ta: Copy = {
   nothingHeard: "நீங்கள் செய்த வேலை எதுவும் எனக்குப் புரியவில்லை.",
   nothingHeardSub: "மீண்டும் சொல்லுங்கள், எந்த வேலை என்பதை உங்கள் வார்த்தையில் சொல்லுங்கள்.",
   answeredQuestion: "நீங்கள் ஒரு கேள்வி கேட்டீர்கள், பதில் இதோ.",
+  safetyTitle: "நீங்களோ அருகில் உள்ள ஒருவரோ ஆபத்தில் இருந்தால், இப்போதே அழையுங்கள். இலவசம்.",
+  safety112: "அவசரம்: காவல், ஆம்புலன்ஸ், தீயணைப்பு. தமிழில் பேசலாம், இரவும் பகலும்.",
+  safety181: "பெண்கள் உதவி எண்",
+  safety1098: "குழந்தைகளுக்கு",
+  safety14416: "உயிரை மாய்த்துக்கொள்ள நினைத்தால்",
+  safetyCannotSend: "VoicePath தானே உதவி அனுப்ப முடியாது. இந்த எண்கள் முடியும்.",
   askedNotTold: "உங்களுக்கு வேலை தேட, நீங்கள் செய்த வேலையைச் சொல்லுங்கள்.",
   whichOne: "எதைச் சொன்னீர்கள்?",
   resay: "மீண்டும் சொல்லுங்கள்",
@@ -760,6 +779,12 @@ const hi: Copy = {
   nothingHeard: "आपने जो काम किया, वह मुझे समझ नहीं आया।",
   nothingHeardSub: "फिर से बताइए, और किस तरह का काम है वह अपने शब्दों में कहिए।",
   answeredQuestion: "आपने सवाल पूछा, उसका जवाब यह है।",
+  safetyTitle: "अगर आप या आपके पास कोई ख़तरे में है, तो अभी कॉल कीजिए। यह मुफ़्त है।",
+  safety112: "आपातकाल: पुलिस, एम्बुलेंस, दमकल। हिंदी में बात कीजिए, दिन-रात।",
+  safety181: "महिला हेल्पलाइन",
+  safety1098: "बच्चों के लिए",
+  safety14416: "अगर आप अपनी जान लेने की सोच रहे हैं",
+  safetyCannotSend: "VoicePath ख़ुद मदद नहीं भेज सकता। ये नंबर भेज सकते हैं।",
   askedNotTold: "आपके लिए काम ढूँढ़ने के लिए, आपने जो काम किया है वह बताइए।",
   whichOne: "आपका मतलब किससे था?",
   resay: "फिर से बोलिए",

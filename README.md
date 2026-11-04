@@ -160,6 +160,16 @@ versions drew Tamil without reordering its vowel signs (சேலம் came out
 சலேம்). Its web worker is copied into `frontend/public/maplibre/` on every
 `npm run dev` and `npm run build`.
 
+### Someone in danger
+
+A question, a typed line or a spoken transcript that says someone is in
+danger, being hurt or thinking of ending their life is answered with the
+emergency numbers -- **112**, then 181 (women), 1098 (children) and 14416
+(mental health) -- as tap-to-call links, instead of an answer about schemes.
+It is decided by fixed patterns in English, Tamil and Hindi
+(`backend/app/services/safety.py`), before retrieval or the LLM, so it works
+when Groq is down. VoicePath cannot send help itself, and says so.
+
 ### Known limit: Tamil speech recognition
 
 Whisper's Hindi is excellent and its Tamil is not. It mishears English loanwords
@@ -223,7 +233,7 @@ the database level and not only in application code.
 ## Tests
 
 ```bash
-cd backend && python -m pytest        # 499 tests
+cd backend && python -m pytest        # 550 tests
 cd frontend && npx tsc --noEmit && npx next build
 ```
 

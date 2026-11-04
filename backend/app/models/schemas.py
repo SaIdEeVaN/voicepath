@@ -229,6 +229,9 @@ class AddSkillResponse(Base):
     # Present when the text was a question, in the person's own words.
     question: str | None = None
     provider: str = "offline"
+    # The text said someone is in danger. kind is "question" and question is
+    # the text, so the screen asks the assistant, which answers with 112.
+    urgent: bool = False
 
 
 class MatchRequest(Base):
@@ -281,6 +284,10 @@ class QueryUnderstandResponse(Base):
     # Their words, never a rephrasing. Null when they asked nothing.
     question: str | None = None
     provider: str
+    # Someone is in danger, said in so many words. Decided by fixed patterns
+    # (app/services/safety.py), not the classifier, so it holds when the LLM
+    # is down. The caller then asks the assistant, which answers with 112.
+    urgent: bool = False
 
 
 class AssistantQueryResponse(Base):
@@ -294,6 +301,10 @@ class AssistantQueryResponse(Base):
     # names the document and the passage, so the claim can be checked against
     # the government's own text rather than taken on the system's word.
     citations: list[dict] = Field(default_factory=list)
+    # The question said someone is in danger. answer_text is then the
+    # emergency numbers (112, 181, 1098, 14416) and nothing else, and the
+    # screen shows it first, with numbers that can be tapped to call.
+    urgent: bool = False
 
 
 class AssistantQueryLog(Base):

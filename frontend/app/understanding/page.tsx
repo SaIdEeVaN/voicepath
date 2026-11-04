@@ -14,6 +14,7 @@ import { useRouter } from "next/navigation";
 
 import { DegradedNote, ErrorNote } from "@/components/Notices";
 import { MicIcon } from "@/components/MicIcon";
+import { SafetyNotice } from "@/components/SafetyNotice";
 import { AddSkillByTyping } from "@/components/AddSkillByTyping";
 import { SkillCard } from "@/components/SkillCard";
 import { ApiError, api } from "@/lib/api";
@@ -55,6 +56,14 @@ export default function UnderstandingPage() {
   const askedIn = useRef<Language | null>(null);
 
   useEffect(() => setHydrated(true), []);
+
+  // The emergency numbers render at the top of the page, but typed text is
+  // entered near the bottom; bring them to the person rather than hope they
+  // scroll up.
+  const safetyRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (answer?.urgent) safetyRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [answer]);
 
   // Extraction runs once per session. Re-entering the screen after an edit
   // reads what is already in state rather than re-extracting, which would
@@ -114,14 +123,21 @@ export default function UnderstandingPage() {
     api
       .understand(transcript, language)
       .then((intent) => {
-        if (cancelled || !intent.asks_question || !intent.question) return;
-        const question = intent.describes_work ? transcript : intent.question;
+        if (cancelled) return;
+        // Someone in danger is asked about whatever else they said: the
+        // assistant answers the whole transcript with the emergency numbers.
+        const urgent = intent.urgent === true;
+        if (!urgent && (!intent.asks_question || !intent.question)) return;
+        const question =
+          urgent || intent.describes_work ? transcript : (intent.question ?? transcript);
         return api
           .ask({ sessionId, schemeId: null, question, language })
           .then((result) => {
-            // Shown only when a document backs it. An uncited answer would be
-            // the model talking about a scheme it has not read.
-            if (!cancelled && (result.citations?.length ?? 0) > 0) setAnswer(result);
+            // Shown only when a document backs it, or when it is the
+            // emergency numbers. Any other uncited answer would be the model
+            // talking about a scheme it has not read.
+            if (cancelled) return;
+            if (result.urgent || (result.citations?.length ?? 0) > 0) setAnswer(result);
           });
       })
       .catch(() => {
@@ -196,7 +212,7 @@ export default function UnderstandingPage() {
           question: result.question ?? text,
           language,
         });
-        if ((answered.citations?.length ?? 0) > 0) setAnswer(answered);
+        if (answered.urgent || (answered.citations?.length ?? 0) > 0) setAnswer(answered);
         else setTypedError(copy.notWork);
         return;
       }
@@ -237,6 +253,13 @@ export default function UnderstandingPage() {
   return (
     <section className="mx-auto w-full max-w-[1180px] flex-1 px-[7vw] py-[clamp(2rem,5vw,3.5rem)] pb-20">
       <DegradedNote />
+
+      {/* First on the page, above what we heard: nothing below matters more. */}
+      {answer?.urgent && (
+        <div ref={safetyRef} className="mb-10 max-w-[44em] scroll-mt-24">
+          <SafetyNotice language={language} />
+        </div>
+      )}
 
       <div className="mb-10 flex flex-wrap items-end justify-between gap-10">
         <div>
@@ -340,7 +363,7 @@ export default function UnderstandingPage() {
       {/* Shown whenever a document answered them, skills or not. Someone who
           said "I do welding, is there a scheme for that?" gets both: the
           answer to what they asked, and the skills from what they told us. */}
-      {answer && (
+      {answer && !answer.urgent && (
         <div className="mb-10 flex flex-col gap-5">
           <div>
             <h2 className="vp-display text-[clamp(1.375rem,2.4vw,1.75rem)]" lang={language}>

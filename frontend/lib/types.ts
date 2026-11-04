@@ -136,6 +136,8 @@ export interface QueryUnderstandResponse {
   /** Their words, never a rephrasing. Null when they asked nothing. */
   question: string | null;
   provider: string;
+  /** They said someone is in danger. Ask the assistant; it answers with 112. */
+  urgent?: boolean;
 }
 
 export interface Citation {
@@ -162,6 +164,8 @@ export interface AssistantQueryResponse {
   answered_from_data: boolean;
   /** Present only when the answer came from a scheme document. */
   citations?: Citation[];
+  /** The answer is the emergency numbers; show SafetyNotice, not a reply. */
+  urgent?: boolean;
 }
 
 export interface SessionSummary {
@@ -193,6 +197,8 @@ export interface AddSkillResponse {
   skills: ExtractedSkill[];
   question: string | null;
   provider: string;
+  /** The text said someone is in danger; kind is then "question". */
+  urgent?: boolean;
 }
 
 /* -- Near you (the map) -------------------------------------------------- */

@@ -18,7 +18,7 @@ import re
 from dataclasses import dataclass, field
 
 from app.prompts import ASSISTANT_SYSTEM, ASSISTANT_USER_TEMPLATE
-from app.services import llm, retrieval, scheme_qa
+from app.services import llm, retrieval, safety, scheme_qa
 from app.services.schemes import Scheme
 
 logger = logging.getLogger(__name__)
@@ -35,6 +35,9 @@ class Answer:
     # Populated only when the answer came from the scheme guidelines. A row
     # answer cites nothing because its source is the listing already on screen.
     citations: list[dict] = field(default_factory=list)
+    # Someone said they, or a person near them, is in danger. The answer is
+    # the emergency numbers, and the screen shows them before anything else.
+    urgent: bool = False
 
 
 @dataclass
@@ -224,6 +227,19 @@ async def answer(
     question that names a scheme the documents cover is about that scheme,
     even on a listing's page and even if it says "years" or "pay".
     """
+    if safety.detect_distress(question):
+        # Before retrieval, the model and every listing rule: a plea for help
+        # is answered with who can help, whatever is on screen, and without a
+        # network call that could be rate-limited or slow. The production log
+        # holds one that was answered three times with a privacy notice.
+        return Answer(
+            answer_text=safety.helpline_answer(language),
+            source_note=safety.source_note(language),
+            provider="offline",
+            answered_from_data=True,
+            urgent=True,
+        )
+
     intent = detect_intent(question)
     listing_first = intent == "privacy" or (
         intent is not None

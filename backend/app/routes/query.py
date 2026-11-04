@@ -15,7 +15,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.models import schemas
-from app.services import intent
+from app.services import intent, safety
 from app.services.ratelimit import default_limit
 
 router = APIRouter(prefix="/api/query", tags=["query"])
@@ -42,4 +42,5 @@ async def understand(
         asks_question=result.asks_question,
         question=result.question,
         provider=result.provider,
+        urgent=safety.detect_distress(text),
     )

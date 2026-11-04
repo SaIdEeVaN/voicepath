@@ -100,4 +100,5 @@ async def query(payload: schemas.AssistantQueryRequest) -> schemas.AssistantQuer
         provider=result.provider,
         answered_from_data=result.answered_from_data,
         citations=result.citations,
+        urgent=result.urgent,
     )

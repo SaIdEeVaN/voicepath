@@ -3,7 +3,7 @@
 > **This file is the live todo list.** It is updated every time a task is completed.
 > Start at **To-do** — that is the working checklist. **Next up** carries the
 > detail behind the top items; everything below it is the record of the build.
-> Last updated: 2026-11-04 (the scheme Q&A answers from the right documents, and only them)
+> Last updated: 2026-11-04 (a plea for help is answered with 112)
 
 **Project root:** `C:\Users\Sai Dixit\voicepath`
 **Sources:** `PRD_File_For_Project.md` (spec) · `VoicePath Mockups.html` (design canvas, unpacked)
@@ -107,6 +107,18 @@ twice is harmless. There is no cost to doing this in the safe order.
       still prerenders, and every rule degrades under `prefers-reduced-motion`
       — but no screenshot was taken, because this environment has no browser.
       Worth one look on a real phone before it is shown to anyone.
+
+### Safety
+
+- [x] **A plea for help was answered with a privacy notice** — fixed
+      2026-11-04. See *Fixed on 2026-11-04 — a plea for help got a privacy
+      notice*.
+- [ ] **The distress patterns are a fixed list.** Phrasing it does not know
+      falls through to the assistant, whose prompt carries the same
+      instruction (it needs Groq to be up). Add new phrasings to
+      `backend/app/services/safety.py` -- with a test in `tests/test_safety.py`
+      for each, and one for the nearest everyday sentence that must *not*
+      match -- as they turn up in the question log.
 
 ### Scheme Q&A (RAG) — after the 2026-11-04 fixes
 
@@ -261,7 +273,7 @@ Four approaches, in order of effort:
 | 2. Backend core (config, db, providers) | ✅ Done |
 | 3. Backend pipeline (extract → normalize → match → explain) | ✅ Done |
 | 4. Backend routes + rate limiting | ✅ Done |
-| 5. Backend tests | ✅ Done — **499 passing**, 13 skipped |
+| 5. Backend tests | ✅ Done — **550 passing**, 13 skipped |
 | 6. Frontend scaffold + design tokens | ✅ Done |
 | 7. Frontend screens | ✅ Done — all 8 |
 | 8. Admin (Phase 2) | ✅ Done |
@@ -439,7 +451,7 @@ frontend/
 - [x] `/api/admin/*` — server-side role check, sha256 tokens, bootstrap that self-disables
 - [x] Rate limiting on public routes · `GET /health` reporting every provider honestly
 
-### Phase 5 — Backend tests ✅ (499 passing, 13 skipped)
+### Phase 5 — Backend tests ✅ (550 passing, 13 skipped)
 - [x] `test_matching.py` — weights, determinism, each component, grounding
 - [x] `test_extraction.py` — evidence grounding in ta/hi/en, invention rejected
 - [x] `test_normalization.py` — alias matching across scripts, no silent upgrades
@@ -606,6 +618,47 @@ discards every response and the failure is indistinguishable from a dead server.
   resolves them correctly; only the display label is untranslated.
 - **Rate limiting is per-process.** Multiplies behind multiple instances; move
   the counter to Redis before scaling.
+
+---
+
+## Fixed on 2026-11-04 — a plea for help got a privacy notice
+
+The production question log held "என் பக்கத்தில் ஒரு படிக்கு தெரியாத பெண்ணு
+இருக்கு, பிள்ளீஸ் காப்பாற்றுங்கள்" -- there is an illiterate woman next to me,
+please save her -- asked three times. Each time the assistant explained that
+their voice had not been recorded.
+
+**Now**, a question, a typed line or a spoken transcript that says someone is
+in danger, being hurt or thinking of ending their life is answered with
+**112** first (free from any phone, day and night, in any of the three
+languages), then **181** (women), **1098** (children) and **14416**
+(Tele-MANAS, mental health), and the plain statement that VoicePath cannot
+send help itself. On screen the numbers are tap-to-call links, in a panel that
+replaces the answer rather than sitting beside it: at the top of
+`/understanding`, and in the assistant on a scheme page.
+
+**Deterministic, not the model's call** (`backend/app/services/safety.py`):
+fixed patterns in English, Tamil and Hindi, checked before retrieval, before
+the LLM and before every listing rule, so it answers when Groq is rate-limited
+or down. The assistant's prompt carries the same instruction for phrasing the
+patterns miss.
+
+**Tuned against the people it serves**, whose work descriptions use the same
+words. Tested as *not* matching: "குடும்பத்தை காப்பாற்ற வேலை வேண்டும்" (I need a
+job to support my family -- only the pleading form of காப்பாற்று counts),
+"பெயிண்ட் அடிக்கிறேன்" (I paint) and "டைப் அடிப்பேன்" (I type) -- beating counts
+only with a person as its object -- "my job is in danger", "can you help me
+find a job?", "क्या मदद मिलेगी?". A false alarm costs one helpline message; a
+miss costs more, so borderline forms lean towards matching.
+
+**Where it is wired**: `/api/assistant/query` returns `urgent: true` and the
+helpline answer; `/api/query/understand` flags `urgent` whatever the
+classifier says, and the understanding screen then asks the assistant with
+the whole transcript; `/api/profile/skills` checks before extraction, so "my
+boss beats me, I am a welder" does not come back as one welding skill and
+nothing else. Nothing is dialled, reported or stored beyond the question log
+that already existed. `tests/test_safety.py`, 51 tests; checked in a browser
+on all three paths.
 
 ---
 

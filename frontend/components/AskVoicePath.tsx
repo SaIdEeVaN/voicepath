@@ -15,6 +15,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { MicIcon } from "@/components/MicIcon";
+import { SafetyNotice } from "@/components/SafetyNotice";
 import { ApiError, api } from "@/lib/api";
 import {
   canRecogniseOnDevice,
@@ -45,6 +46,8 @@ interface Exchange {
    * screen reader mispronounce it -- so each line carries its own tag.
    */
   askedIn: Language;
+  /** They said someone is in danger; the answer is who to call. */
+  urgent: boolean;
 }
 
 export function AskVoicePath({ schemeId }: { schemeId: number }) {
@@ -113,6 +116,7 @@ export function AskVoicePath({ schemeId }: { schemeId: number }) {
             fromData: result.answered_from_data,
             citations: result.citations ?? [],
             askedIn: language as Language,
+            urgent: result.urgent === true,
           },
         ]);
 
@@ -205,6 +209,9 @@ export function AskVoicePath({ schemeId }: { schemeId: number }) {
             >
               {exchange.question}
             </p>
+            {exchange.urgent ? (
+              <SafetyNotice language={exchange.askedIn} />
+            ) : (
             <p
               className="max-w-[92%] self-start rounded-[14px_14px_14px_4px] px-4 py-3 text-[14.5px] leading-relaxed"
               style={{ background: "var(--paper-05)" }}
@@ -212,6 +219,8 @@ export function AskVoicePath({ schemeId }: { schemeId: number }) {
             >
               {exchange.answer}
             </p>
+            )}
+            {!exchange.urgent && (
             <p
               className="font-mono flex items-center gap-2 self-start text-[10.5px] tracking-[0.05em]"
               style={{
@@ -231,6 +240,7 @@ export function AskVoicePath({ schemeId }: { schemeId: number }) {
               />
               {exchange.sourceNote}
             </p>
+            )}
 
             {/* What the answer was drawn from. The point of retrieval here is
                 not that the machine sounds authoritative -- it is that the
