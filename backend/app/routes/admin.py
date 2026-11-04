@@ -347,7 +347,14 @@ async def list_sources(
         """
         select d.id, d.title, d.source, d.source_url, d.source_domain,
                d.trust_tier, d.status, d.retrieved_at, d.last_verified,
-               count(c.id) as chunks
+               count(c.id) as chunks,
+               -- Enough of the opening passage to judge a page by: a match
+               -- report or an exam syllabus is obvious in two lines, and a
+               -- reviewer should not have to open every link to see it.
+               (select left(regexp_replace(c2.content, '\\s+', ' ', 'g'), 280)
+                  from document_chunks c2
+                 where c2.document_id = d.id
+                 order by c2.ordinal limit 1) as excerpt
         from scheme_documents d
         left join document_chunks c on c.document_id = d.id
         where ($1::text is null or d.status = $1)

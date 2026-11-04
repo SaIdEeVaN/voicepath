@@ -23,6 +23,7 @@ const TABS = [
   { href: "/admin/schemes", label: "Schemes" },
   { href: "/admin/taxonomy", label: "Skill taxonomy" },
   { href: "/admin/sessions", label: "Sessions" },
+  { href: "/admin/sources", label: "Sources" },
 ];
 
 export default function AdminLayout({ children }: { children: ReactNode }) {

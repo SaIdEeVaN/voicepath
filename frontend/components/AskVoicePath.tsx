@@ -83,12 +83,11 @@ export function AskVoicePath({ schemeId }: { schemeId: number }) {
     };
   }, []);
 
-  // TODO: RAG integration. This asks about one scheme, and the backend
-  // answers from that row alone -- deliberately, so it cannot invent an
-  // eligibility rule. Questions about the scheme itself ("do I qualify if
-  // my income is above the limit?") need the published guidelines, which
-  // the retrieval layer on the `rag` branch answers with a citation.
-  // Route there when a question is not about this listing.
+  // The backend decides where an answer comes from: a question about this
+  // listing (pay, distance, certificates) is read from its row; a question
+  // about a scheme ("who is eligible for PM-AJAY?") is answered from the
+  // published guidelines with a citation, or refused when they do not say.
+  // See services/assistant.py `answer`.
   const ask = useCallback(
     async (question: string) => {
       const clean = question.trim();

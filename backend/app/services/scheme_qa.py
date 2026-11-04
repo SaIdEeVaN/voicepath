@@ -20,6 +20,7 @@ What this module may not do:
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from dataclasses import dataclass, field
 
@@ -46,6 +47,12 @@ class SchemeAnswer:
     citations: list[dict] = field(default_factory=list)
     grounded: bool = False
     provider: str = "offline"
+    # The model's judgement of whether the question is about schemes at all.
+    # None when no model read it. Only a definite True may send the question
+    # to web search: "who is better, Mbappe or Yamal" searched gov.in, found
+    # sports news on a public broadcaster's .gov.in site, and stored it as
+    # scheme guidance.
+    about_schemes: bool | None = None
 
 
 _SYSTEM = """\
@@ -58,22 +65,33 @@ Absolute rules:
 from elsewhere. If the passages do not contain the answer, say exactly that. \
 A person may travel to a district office on the strength of your answer.
 
-2. CITE. Every claim must be attributable to one of the numbered passages. \
+2. THE RIGHT SCHEME. If the question names a scheme and the passages are about \
+a different one, the passages do not answer it -- even if they look similar. \
+Never describe one scheme's rules as another's.
+
+3. CITE. Every claim must be attributable to one of the numbered passages. \
 Refer to them as [1], [2] and so on.
 
-3. DO NOT PROMISE ELIGIBILITY. The passages describe rules in general. They \
+4. DO NOT PROMISE ELIGIBILITY. The passages describe rules in general. They \
 cannot tell you whether this particular person qualifies. Say what the rule is \
 and who decides, never "you are eligible".
 
-4. ANSWER IN THE LANGUAGE OF THE QUESTION. If the question is in Tamil, answer \
+5. ANSWER IN THE LANGUAGE OF THE QUESTION. If the question is in Tamil, answer \
 in Tamil; Hindi, answer in Hindi. The passages are usually in English -- \
 translate what they say, do not switch the person to English.
 
-5. BE SHORT. Three sentences at most. The person is listening to this, not \
+6. BE SHORT. Three sentences at most. The person is listening to this, not \
 reading it.
 
-Reply as JSON: {"answer": "...", "used": [1, 2]}
-`used` lists only the passages you actually relied on.\
+Reply as JSON:
+{"answer": "...", "used": [1, 2], "answerable": true, "about_schemes": true}
+
+- `answerable`: true only if the passages actually answer this question, about \
+the scheme it asks about. If you are explaining that they do not, it is false.
+- `used`: only the passages you actually relied on. Empty when not answerable.
+- `about_schemes`: true if the question is about government schemes, welfare, \
+benefits, loans, subsidies, training, jobs or how to apply for them; false for \
+anything else (sport, trivia, small talk), whatever the passages say.\
 """
 
 
@@ -88,38 +106,46 @@ def _refusal(language: str) -> str:
                     "Social Welfare Office.")
 
 
-async def ask(question: str, *, language: str = "en") -> SchemeAnswer:
-    """Answer from the corpus; widen it once if the corpus falls short.
+async def ask(
+    question: str, *, language: str = "en", in_view: str | None = None
+) -> SchemeAnswer:
+    """Answer from the corpus, or refuse -- and queue a search if it is worth one.
 
-    The trigger is the model reporting it could not answer, not an empty
-    retrieval. Retrieval is never empty: e5 scores every passage in a narrow
-    high band, so a question about a scheme we hold nothing on still comes back
-    with five confident-looking neighbours about a different one. The only
-    reliable signal that the corpus does not cover a question is the step that
-    read the passages saying so.
+    The trigger for looking further is the model reporting it could not answer,
+    not an empty retrieval. Retrieval is never empty: e5 scores every passage in
+    a narrow high band, so a question about a scheme we hold nothing on still
+    comes back with five confident-looking neighbours about a different one.
+    The only reliable signal that the corpus does not cover a question is the
+    step that read the passages saying so.
 
-    Widening happens once. A second miss is an answer we do not have.
+    A web search no longer answers the question that triggered it. Fetched
+    pages wait for an admin before anything can be said from them, so there is
+    nothing to gain by keeping the person waiting through a search, a fetch and
+    an embedding: the refusal is returned at once, and the search runs in the
+    background to put candidate pages in front of a reviewer -- and only when
+    the model judged the question to be about schemes at all.
     """
     clean = (question or "").strip()
     if not clean:
         raise ValueError("Nothing was asked")
 
-    answer = await _answer_from_corpus(clean, language=language)
-    if answer.grounded:
-        return answer
-
-    from app.services import websearch
-
-    if not websearch.is_available():
-        return answer
-    if not await _widen_corpus(clean):
-        return answer
-
-    return await _answer_from_corpus(clean, language=language)
+    answer = await _answer_from_corpus(clean, language=language, in_view=in_view)
+    if not answer.grounded and answer.about_schemes is True:
+        _queue_search(clean)
+    return answer
 
 
-async def _answer_from_corpus(clean: str, *, language: str) -> SchemeAnswer:
-    passages = await retrieval.search(clean, limit=TOP_K)
+async def _answer_from_corpus(
+    clean: str, *, language: str, in_view: str | None = None
+) -> SchemeAnswer:
+    # A named scheme narrows the search to its own documents. If those do not
+    # hold the answer, no other scheme's passage is allowed to stand in for it:
+    # a question about PM-AJAY was answered from an e-Shram help page that way.
+    sources = retrieval.named_sources(clean)
+    if sources:
+        passages = await retrieval.search(clean, limit=TOP_K, sources=sources)
+    else:
+        passages = await retrieval.search(clean, limit=TOP_K)
     usable = [p for p in passages if p.similarity >= MIN_USABLE_SIMILARITY]
 
     # Keyword-only hits carry no similarity score, so keep them when dense
@@ -150,7 +176,17 @@ async def _answer_from_corpus(clean: str, *, language: str) -> SchemeAnswer:
         + f")\n{p.content.strip()}"
         for i, p in enumerate(usable)
     )
+    # The listing on screen, when there is one. It is a local opening, not a
+    # scheme these passages describe, so "who can apply for this?" asked on its
+    # page must not be answered from some central scheme's rules.
+    viewing = (
+        f"The person is looking at a local listing: {in_view}. The passages do "
+        "not describe that listing. A question about it -- \"this\", \"it\", "
+        "\"this job\" -- is not answerable from them.\n\n"
+        if in_view else ""
+    )
     prompt = (
+        f"{viewing}"
         f"Question ({language}): {clean}\n\n"
         f"Passages:\n\n{numbered}\n\n"
         "Answer using only these passages."
@@ -177,12 +213,33 @@ async def _answer_from_corpus(clean: str, *, language: str) -> SchemeAnswer:
         # call fails, the honest answer is that nothing could be answered right
         # now -- and a retry will usually succeed, which a false assertion
         # forecloses.
+        #
+        # One exception, and it is not a judgement retrieval makes: the person
+        # named the scheme, and the passage comes from that scheme's own
+        # document because the search was restricted to it. "sigaram thodu
+        # scheme" was refused outright while Groq was rate-limited, although
+        # thirteen passages of its own EOI were sitting in the corpus. Quoting
+        # the best of them, with its citation, says nothing the document does
+        # not say.
+        if sources:
+            logger.warning(
+                "Scheme answer unavailable (%s); quoting the named scheme's document",
+                exc,
+            )
+            return _quote(usable[0])
         logger.warning("Scheme answer unavailable (%s); refusing", exc)
         return SchemeAnswer(answer=_refusal(language), citations=[], grounded=False)
 
-    answer = str((payload or {}).get("answer") or "").strip()
+    payload = payload if isinstance(payload, dict) else {}
+    about = payload.get("about_schemes")
+    about_schemes = about if isinstance(about, bool) else None
+
+    answer = str(payload.get("answer") or "").strip()
     if not answer:
-        return SchemeAnswer(answer=_refusal(language), citations=[], grounded=False)
+        return SchemeAnswer(
+            answer=_refusal(language), citations=[], grounded=False,
+            about_schemes=about_schemes,
+        )
 
     # Cite only what the model said it used. An index it invented is dropped
     # rather than followed, so a citation always points at a real passage.
@@ -192,14 +249,18 @@ async def _answer_from_corpus(clean: str, *, language: str) -> SchemeAnswer:
         if isinstance(i, int) and 1 <= i <= len(usable)
     ]
 
-    # No passage used means the model answered from nothing -- usually because
-    # it is telling the person the documents do not cover this. Attaching a
-    # citation anyway would be the exact failure this module exists to prevent:
-    # a source shown beside an answer that did not come from it.
-    if not used:
+    # Grounded needs both: the model says the passages answer the question,
+    # and it names the passages it used. Either alone is not enough.
+    #
+    # `used` alone was the old test, and it let through answers that cite a
+    # passage in order to say it does not help: "the passages do not mention
+    # PM-KISAN; they describe e-Shram [1]" was shown as an answer "from the
+    # scheme guidelines". So was "the passages do not compare Mbappe and
+    # Yamal". Missing or not a boolean counts as no.
+    if payload.get("answerable") is not True or not used:
         return SchemeAnswer(
-            answer=answer, citations=[], grounded=False,
-            provider=llm.provider_name(),
+            answer=_refusal(language), citations=[], grounded=False,
+            provider=llm.provider_name(), about_schemes=about_schemes,
         )
 
     return SchemeAnswer(
@@ -207,38 +268,58 @@ async def _answer_from_corpus(clean: str, *, language: str) -> SchemeAnswer:
         citations=[_cite(p) for p in used],
         grounded=True,
         provider=llm.provider_name(),
+        about_schemes=about_schemes,
     )
 
 
-async def _widen_corpus(question: str) -> bool:
-    """Fetch official pages for a question the corpus cannot answer.
+def _quote(passage: retrieval.Retrieved) -> SchemeAnswer:
+    """The passage itself as the answer, with its citation."""
+    return SchemeAnswer(
+        answer=passage.content.strip()[:600],
+        citations=[_cite(passage)],
+        grounded=True,
+        provider="offline",
+    )
 
-    True when something new became answerable. False for every other outcome --
-    no provider, nothing found, pages that would not load -- and the caller
-    then refuses, which is the honest end of this path.
 
-    Only Tier 1 pages become answerable. Anything else is stored waiting for
-    review, so a search cannot quietly widen what the system will assert.
+# Background searches, held so asyncio does not collect them mid-flight (it
+# keeps only a weak reference to a task nobody awaits).
+_pending_searches: set[asyncio.Task] = set()
+
+
+def _queue_search(question: str) -> None:
+    """Look for official pages for an unanswered scheme question, later.
+
+    Whatever is found is stored for review, never made answerable directly
+    (websearch.search_and_ingest), so this cannot change what the person is
+    told -- now or next time -- until an admin has looked.
     """
     from app.services import websearch
 
     if not websearch.is_available():
-        return False
+        return
+    task = asyncio.create_task(_search_for_review(question))
+    _pending_searches.add(task)
+    task.add_done_callback(_pending_searches.discard)
+
+
+async def _search_for_review(question: str) -> None:
+    from app.services import websearch
+
     try:
         outcomes = await websearch.search_and_ingest(question, limit=3)
     except websearch.SearchUnavailable as exc:
-        # Section 20: an unreachable search falls back to what is already
-        # stored, which is exactly what the caller does next.
-        logger.info("Search unavailable (%s); answering from the corpus alone", exc)
-        return False
-
-    added = [o for o in outcomes if o.get("status") == "active" and o.get("chunks")]
-    if added:
+        logger.info("Search unavailable (%s); nothing queued for review", exc)
+        return
+    except Exception as exc:  # noqa: BLE001 - a background search must not crash anything
+        logger.warning("Background search failed for %r: %s", question[:60], exc)
+        return
+    queued = [o for o in outcomes if o.get("chunks")]
+    if queued:
         logger.info(
-            "Widened the corpus for %r: %s",
-            question[:60], ", ".join(o["domain"] for o in added),
+            "Queued %d page(s) for review after %r: %s",
+            len(queued), question[:60], ", ".join(o["domain"] for o in queued),
         )
-    return bool(added)
 
 
 def _cite(passage: retrieval.Retrieved) -> dict:

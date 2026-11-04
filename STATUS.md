@@ -3,7 +3,7 @@
 > **This file is the live todo list.** It is updated every time a task is completed.
 > Start at **To-do** — that is the working checklist. **Next up** carries the
 > detail behind the top items; everything below it is the record of the build.
-> Last updated: 2026-11-03 (a paused database no longer takes the API down)
+> Last updated: 2026-11-04 (the scheme Q&A answers from the right documents, and only them)
 
 **Project root:** `C:\Users\Sai Dixit\voicepath`
 **Sources:** `PRD_File_For_Project.md` (spec) · `VoicePath Mockups.html` (design canvas, unpacked)
@@ -107,6 +107,19 @@ twice is harmless. There is no cost to doing this in the safe order.
       still prerenders, and every rule degrades under `prefers-reduced-motion`
       — but no screenshot was taken, because this environment has no browser.
       Worth one look on a real phone before it is shown to anyone.
+
+### Scheme Q&A (RAG) — after the 2026-11-04 fixes
+
+- [ ] **Review web pages at `/admin/sources`.** Pages the assistant finds by
+      web search now wait there as *Waiting for review* and say nothing until
+      approved. Approve only pages that describe a scheme's rules, benefits or
+      how to apply.
+- [ ] **Groq's daily allowance still bounds the assistant.** When it runs out,
+      a question that names a covered scheme is answered by quoting that
+      scheme's own passage; anything else is refused until it resets.
+- [ ] **Scheme names live in `backend/app/data/scheme_names.py`.** Add a
+      document's scheme names there when you ingest it, or questions that
+      name it are searched across everything instead of its own text.
 
 ### After the 2026-11-03 outage
 
@@ -248,7 +261,7 @@ Four approaches, in order of effort:
 | 2. Backend core (config, db, providers) | ✅ Done |
 | 3. Backend pipeline (extract → normalize → match → explain) | ✅ Done |
 | 4. Backend routes + rate limiting | ✅ Done |
-| 5. Backend tests | ✅ Done — **445 passing**, 7 skipped |
+| 5. Backend tests | ✅ Done — **499 passing**, 13 skipped |
 | 6. Frontend scaffold + design tokens | ✅ Done |
 | 7. Frontend screens | ✅ Done — all 8 |
 | 8. Admin (Phase 2) | ✅ Done |
@@ -426,7 +439,7 @@ frontend/
 - [x] `/api/admin/*` — server-side role check, sha256 tokens, bootstrap that self-disables
 - [x] Rate limiting on public routes · `GET /health` reporting every provider honestly
 
-### Phase 5 — Backend tests ✅ (445 passing, 7 skipped)
+### Phase 5 — Backend tests ✅ (499 passing, 13 skipped)
 - [x] `test_matching.py` — weights, determinism, each component, grounding
 - [x] `test_extraction.py` — evidence grounding in ta/hi/en, invention rejected
 - [x] `test_normalization.py` — alias matching across scripts, no silent upgrades
@@ -593,6 +606,61 @@ discards every response and the failure is indistinguishable from a dead server.
   resolves them correctly; only the display label is untranslated.
 - **Rate limiting is per-process.** Multiplies behind multiple instances; move
   the counter to Redis before scaling.
+
+---
+
+## Fixed on 2026-11-04 — the scheme Q&A cited football news
+
+Found in the production question log (`assistant_queries`), not by a test:
+
+| Asked | What it did |
+|---|---|
+| "kylian mbappe or lamine yamal" | Answered "from the scheme guidelines", citing match reports |
+| PM-AJAY, misheard in Tamil | Answered about **e-Shram**, labelled as guidelines |
+| "PM-KISAN" | "The passages do not mention PM-KISAN" — still labelled guidelines, with a citation |
+| "பி.எ.ம்.ஸ்கி." | Raw scraped markup: `India image](https://…jpg) ![Empl…` |
+| "sigaram thodu scheme" | "Not in the record" — with thirteen of its passages in the corpus |
+
+**The corpus.** Web search had made every `.gov.in` page it fetched answerable
+at once, and public broadcasters' news sites are `.gov.in`. 34 of 56 active
+documents were fetched pages: match reports, exam syllabi, an election FAQ, an
+SEO guide, a tea-plantation RTI, portal menus. Eighteen were set `rejected`
+(reversible, and a re-fetch cannot revive them); PM Vishwakarma and the MSME
+schemes page stay. The corpus is now 22 documents, 1,098 passages.
+
+**Web search.** It now runs only when the model judges the question to be
+about schemes; never fetches `excluded_domains` (news sites); and stores every
+page `pending_verification`, Tier 1 included, for review on the new
+`/admin/sources` page (with an excerpt of each page, and Approve / Reject).
+Since a pending page cannot answer the question that triggered it, the search
+runs in the background instead of keeping the person waiting through it.
+
+**Grounding.** The model now returns `answerable` and `about_schemes` beside
+its answer. An answer counts as grounded only if it is answerable *and* names
+the passages it used — `used` alone let "the passages do not say" through with
+a citation. The prompt also forbids describing one scheme's rules as
+another's, and is told which local listing is on screen so "who can apply for
+this?" is not answered from a central scheme.
+
+**Named schemes.** `app/data/scheme_names.py` maps scheme names (English, Tamil,
+Hindi) to their documents — the PM-AJAY guidelines are stored as "Guidelines".
+A question that names one is searched in that scheme's documents only.
+Measured why it matters: with a Sigaram Thodu question vector, unrelated PM-AJAY
+passages still score 0.85, above the 0.74 usable floor. When Groq fails, a
+question naming a scheme is answered by quoting that scheme's own passage, with
+its citation; anything else is still refused.
+
+**Routing.** Listing keywords (pay, distance, certificates…) matched as
+substrings: "far" in "farmer", "pay" in "repayment", "data" in any document
+question. They now match whole words, and decide the route only when a listing
+is on screen and the question names no covered scheme.
+
+**Keyword search.** It required every word of the question, stop words
+included: four natural questions matched 0 passages each against the live
+corpus. It now ORs the content words (14–247 candidates each) and lets the
+rank fusion order them.
+
+`tests/test_rag_fixes.py` has a test for each of these. Backend: 499 passed.
 
 ---
 
