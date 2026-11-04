@@ -31,3 +31,6 @@ Thumbs.db
 # backend/app/models/, which is source code.
 .cache/
 backend/models/
+
+# Copied from node_modules by frontend/scripts/copy-maplibre-worker.mjs on every build.
+/frontend/public/maplibre/

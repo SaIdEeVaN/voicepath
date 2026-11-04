@@ -3,10 +3,16 @@
 /**
  * The map on "Near you".
  *
- * Leaflet over OpenStreetMap tiles: free, keyless, and open data -- the same
- * reasoning as every other component in the stack. Leaflet touches `window`
- * the moment it is imported, so it is loaded inside an effect and never
- * during the server render.
+ * MapLibre GL drawing OpenFreeMap's "Liberty" style: vector tiles built from
+ * current OpenStreetMap data, free, keyless, sharp at every zoom. It replaced
+ * Leaflet over the standard OpenStreetMap tiles, which were just as current
+ * but looked like a map from another decade, and could only label places in
+ * whatever language the local `name` tag happened to be in.
+ *
+ * Labels follow the interface language: Tamil names on a Tamil page, Hindi on
+ * a Hindi page, falling back to the local name where OpenStreetMap has no
+ * translation. That needs MapLibre 6.15 or later -- earlier versions drew
+ * Tamil without reordering its vowel signs, so சேலம் came out as சலேம்.
  *
  * Two kinds of marker, styled differently on purpose:
  *
@@ -21,7 +27,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import type * as Leaflet from "leaflet";
+import type * as MapLibre from "maplibre-gl";
 
 import type {
   Language,
@@ -72,19 +78,32 @@ interface Props {
   onOpenScheme(id: number): void;
 }
 
-const TILE_URL =
-  process.env.NEXT_PUBLIC_MAP_TILE_URL ??
-  "https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+const STYLE_URL =
+  process.env.NEXT_PUBLIC_MAP_STYLE_URL ?? "https://tiles.openfreemap.org/styles/liberty";
 
-const TILE_ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+/** Served by scripts/copy-maplibre-worker.mjs; see the note there. */
+const WORKER_URL = "/maplibre/maplibre-gl-worker.mjs";
 
-/** Roughly: the search circle fills the map. */
-function zoomFor(radiusKm: number): number {
-  if (radiusKm <= 5) return 13;
-  if (radiusKm <= 10) return 12;
-  return 11;
-}
+/**
+ * Plain OpenStreetMap tiles, used only if the vector style cannot be loaded.
+ * A dated-looking map is better than a blank grey box with pins floating on it.
+ */
+const FALLBACK_STYLE: MapLibre.StyleSpecification = {
+  version: 8,
+  sources: {
+    osm: {
+      type: "raster",
+      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+      tileSize: 256,
+      maxzoom: 19,
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    },
+  },
+  layers: [{ id: "osm", type: "raster", source: "osm" }],
+};
+
+const RADIUS_SOURCE = "vp-radius";
 
 export function townMarkerId(key: string): string {
   return `town:${key}`;
@@ -118,6 +137,80 @@ function externalLink(text: string, href: string): HTMLAnchorElement {
   return link;
 }
 
+/** A circle as a polygon, for the search radius. */
+function circle(lat: number, lng: number, km: number, steps = 72): GeoJSON.Feature {
+  const ring: [number, number][] = [];
+  const dLat = km / 110.574;
+  const dLng = km / (111.32 * Math.cos((lat * Math.PI) / 180));
+  for (let i = 0; i <= steps; i += 1) {
+    const t = (i / steps) * 2 * Math.PI;
+    ring.push([lng + dLng * Math.cos(t), lat + dLat * Math.sin(t)]);
+  }
+  return { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [ring] } };
+}
+
+function bounds(lat: number, lng: number, km: number): [[number, number], [number, number]] {
+  const dLat = km / 110.574;
+  const dLng = km / (111.32 * Math.cos((lat * Math.PI) / 180));
+  return [
+    [lng - dLng, lat - dLat],
+    [lng + dLng, lat + dLat],
+  ];
+}
+
+/**
+ * A design token as a colour MapLibre can parse.
+ *
+ * The tokens are oklch(), which MapLibre's colour parser does not read, and
+ * hardcoding a hex here would fork the palette. Painting one pixel with the
+ * token and reading it back gives the browser's own conversion.
+ */
+function token(name: string, fallback: string): string {
+  try {
+    const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    if (!value) return fallback;
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 1;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return fallback;
+    ctx.fillStyle = value;
+    ctx.fillRect(0, 0, 1, 1);
+    const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
+    return `rgb(${r}, ${g}, ${b})`;
+  } catch {
+    return fallback;
+  }
+}
+
+/**
+ * Point every place-name label at the reader's language.
+ *
+ * Only labels built from a name are touched: road numbers on shields, house
+ * numbers and the like keep their own fields. The original expressions are
+ * kept so the choice is always made from the style's own, never from a label
+ * this function already rewrote.
+ */
+function applyLanguage(
+  map: MapLibre.Map,
+  language: Language,
+  originals: Map<string, unknown>,
+): void {
+  const label: MapLibre.ExpressionSpecification =
+    language === "en"
+      ? ["coalesce", ["get", "name:en"], ["get", "name:latin"], ["get", "name"]]
+      : ["coalesce", ["get", `name:${language}`], ["get", "name"]];
+
+  for (const layer of map.getStyle()?.layers ?? []) {
+    if (layer.type !== "symbol") continue;
+    if (!originals.has(layer.id)) {
+      originals.set(layer.id, map.getLayoutProperty(layer.id, "text-field"));
+    }
+    const original = originals.get(layer.id);
+    if (!original || !JSON.stringify(original).includes("name")) continue;
+    map.setLayoutProperty(layer.id, "text-field", label);
+  }
+}
+
 export function NearbyMap({
   centre,
   radiusKm,
@@ -130,11 +223,16 @@ export function NearbyMap({
   onOpenScheme,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const leafletRef = useRef<typeof Leaflet | null>(null);
-  const mapRef = useRef<Leaflet.Map | null>(null);
-  const layerRef = useRef<Leaflet.LayerGroup | null>(null);
-  const markersRef = useRef<Map<string, Leaflet.Marker>>(new Map());
+  const libRef = useRef<typeof MapLibre | null>(null);
+  const mapRef = useRef<MapLibre.Map | null>(null);
+  const markersRef = useRef<Map<string, MapLibre.Marker>>(new Map());
+  const originalsRef = useRef<Map<string, unknown>>(new Map());
+  // The marker most recently clicked on the map, until its selection lands.
+  const clickedRef = useRef<string | null>(null);
   const [ready, setReady] = useState(false);
+  // Bumped whenever a style finishes loading, so the radius and the labels
+  // are put back after a style swap (the fallback) wipes them.
+  const [styleEpoch, setStyleEpoch] = useState(0);
 
   // Callbacks change identity every render; the markers should not be rebuilt
   // for that, so they read the latest ones through a ref.
@@ -151,119 +249,172 @@ export function NearbyMap({
   useEffect(() => {
     let cancelled = false;
     const markers = markersRef.current;
-    void import("leaflet").then((module) => {
-      const L = (module as unknown as { default?: typeof Leaflet }).default ?? module;
+    const originals = originalsRef.current;
+
+    void import("maplibre-gl").then((lib) => {
       if (cancelled || !containerRef.current) return;
-      leafletRef.current = L;
-      const map = L.map(containerRef.current, {
-        // Scrolling the page past the map should scroll the page.
-        scrollWheelZoom: false,
+      libRef.current = lib;
+      lib.setWorkerUrl(WORKER_URL);
+
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const map = new lib.Map({
+        container: containerRef.current,
+        style: STYLE_URL,
+        center: [centre.longitude, centre.latitude],
+        zoom: 11,
+        // Scrolling the page past the map should scroll the page; a two-finger
+        // drag should not tilt or spin a map nobody needs tilted.
+        scrollZoom: false,
+        dragRotate: false,
+        pitchWithRotate: false,
+        touchPitch: false,
+        fadeDuration: reduceMotion ? 0 : 300,
+        attributionControl: { compact: true },
       });
-      L.tileLayer(TILE_URL, { maxZoom: 19, attribution: TILE_ATTRIBUTION }).addTo(map);
-      layerRef.current = L.layerGroup().addTo(map);
+      map.touchZoomRotate.disableRotation();
+      map.addControl(new lib.NavigationControl({ showCompass: false }), "top-left");
+
+      // The vector style is served by a free community service. If the style
+      // itself cannot be fetched, swap to plain OpenStreetMap tiles once,
+      // rather than leave pins floating over nothing.
+      //
+      // Only a failure *before* the style has loaded counts. A single tile
+      // timing out later is normal and must not throw the whole map over --
+      // and map.isStyleLoaded() cannot tell the two apart, because it stays
+      // false while any tile is still downloading.
+      let styleLoaded = false;
+      let fellBack = false;
+      map.on("error", (event) => {
+        if (fellBack || styleLoaded) return;
+        fellBack = true;
+        console.warn("Map style unavailable; using plain OpenStreetMap tiles", event.error);
+        originals.clear();
+        map.setStyle(FALLBACK_STYLE);
+      });
+      map.on("style.load", () => {
+        styleLoaded = true;
+        setStyleEpoch((n) => n + 1);
+      });
+      map.once("load", () => {
+        if (!cancelled) setReady(true);
+      });
+
       mapRef.current = map;
-      setReady(true);
     });
+
     return () => {
       cancelled = true;
+      for (const marker of markers.values()) marker.remove();
+      markers.clear();
+      originals.clear();
       mapRef.current?.remove();
       mapRef.current = null;
-      layerRef.current = null;
-      markers.clear();
       setReady(false);
     };
+    // Created once. The centre it opens on is only a first guess; the view
+    // effect below moves it whenever the centre or radius changes.
   }, []);
+
+  // Labels in the reader's language. Re-applied after a style (re)load.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map) return;
+    applyLanguage(map, language, originalsRef.current);
+  }, [ready, language, styleEpoch]);
+
+  // The search circle, in the product's own accent. Re-added after a style
+  // swap, which removes every source and layer the old style carried.
+  //
+  // Gated on the style having loaded (styleEpoch), not on map.isStyleLoaded():
+  // that stays false while tiles are still downloading, and the circle was
+  // silently skipped on the vector map and never retried.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!ready || !map || styleEpoch === 0) return;
+    const shape = circle(centre.latitude, centre.longitude, radiusKm);
+    const existing = map.getSource(RADIUS_SOURCE) as MapLibre.GeoJSONSource | undefined;
+    if (existing) {
+      existing.setData(shape);
+      return;
+    }
+    const accent = token("--color-accent", "rgb(86, 128, 74)");
+    map.addSource(RADIUS_SOURCE, { type: "geojson", data: shape });
+    map.addLayer({
+      id: `${RADIUS_SOURCE}-fill`,
+      type: "fill",
+      source: RADIUS_SOURCE,
+      paint: { "fill-color": accent, "fill-opacity": 0.06 },
+    });
+    map.addLayer({
+      id: `${RADIUS_SOURCE}-line`,
+      type: "line",
+      source: RADIUS_SOURCE,
+      paint: { "line-color": accent, "line-opacity": 0.55, "line-width": 1.5, "line-dasharray": [3, 3] },
+    });
+  }, [ready, styleEpoch, centre.latitude, centre.longitude, radiusKm]);
 
   // Move the view only when where we are looking changes -- not when a
   // category is toggled or the language switched, which would throw away
   // wherever the person had panned to.
   useEffect(() => {
-    if (!ready) return;
-    mapRef.current?.setView([centre.latitude, centre.longitude], zoomFor(radiusKm));
+    const map = mapRef.current;
+    if (!ready || !map) return;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    map.fitBounds(bounds(centre.latitude, centre.longitude, radiusKm), {
+      padding: 24,
+      duration: reduceMotion ? 0 : 600,
+    });
   }, [ready, centre.latitude, centre.longitude, radiusKm]);
 
-  // Draw (and redraw) everything the props describe.
+  // Draw (and redraw) every marker the props describe.
   useEffect(() => {
-    const L = leafletRef.current;
-    const layer = layerRef.current;
-    if (!ready || !L || !layer) return;
+    const lib = libRef.current;
+    const map = mapRef.current;
+    if (!ready || !lib || !map) return;
 
-    layer.clearLayers();
+    for (const marker of markersRef.current.values()) marker.remove();
     markersRef.current.clear();
 
-    const here: [number, number] = [centre.latitude, centre.longitude];
-    L.circle(here, {
-      radius: radiusKm * 1000,
-      className: "vp-map-radius",
-      interactive: false,
-    }).addTo(layer);
+    const add = (
+      id: string | null,
+      element: HTMLElement,
+      at: [number, number],
+      popup: HTMLElement | null,
+      maxWidth = "280px",
+    ) => {
+      const marker = new lib.Marker({ element, anchor: "center" }).setLngLat(at);
+      if (popup) {
+        marker.setPopup(new lib.Popup({ offset: 18, maxWidth, closeButton: true }).setDOMContent(popup));
+      }
+      if (id) {
+        element.addEventListener("click", () => {
+          // MapLibre opens this marker's own popup when the click reaches the
+          // map. Note that it came from here, so the selection effect does not
+          // toggle the same popup a second time -- which closed it.
+          clickedRef.current = id;
+          handlers.current.onSelect(id);
+        });
+        markersRef.current.set(id, marker);
+      }
+      marker.addTo(map);
+    };
 
     // Only when the device said where the person is. A spoken town tells us
     // the town, not the street: a "you" dot at its centre would claim a
     // precision we do not have, so the circle alone marks the area.
     if (centre.source === "gps") {
-      L.marker(here, {
-        icon: L.divIcon({ className: "vp-map-you", iconSize: [18, 18] }),
-        title: labels.you,
-        keyboard: false,
-        interactive: false,
-      }).addTo(layer);
-    }
-
-    for (const { place, openings } of towns) {
-      if (openings.length === 0) continue;
-      const townName = place.names[language] ?? place.names.en ?? place.key;
-      const marker = L.marker([place.latitude, place.longitude], {
-        icon: L.divIcon({
-          className: "vp-map-pin-wrap",
-          html: el("span", "vp-map-pin", String(openings.length)),
-          iconSize: [34, 34],
-          iconAnchor: [17, 17],
-        }),
-        title: townName,
-        zIndexOffset: 500,
-      });
-
-      const popup = el("div", "vp-map-popup");
-      popup.lang = language;
-      popup.append(
-        el("strong", "", townName),
-        el("span", "vp-map-popup-meta", labels.count.replace("{count}", String(openings.length))),
-      );
-      const list = el("ul");
-      for (const opening of openings) {
-        const item = el("li");
-        const link = el("a", "", opening.title);
-        link.href = `/schemes/${opening.id}`;
-        link.addEventListener("click", (event) => {
-          event.preventDefault();
-          handlers.current.onOpenScheme(opening.id);
-        });
-        item.append(link);
-        if (opening.score) item.append(el("span", "vp-map-popup-score", opening.score));
-        list.append(item);
-      }
-      popup.append(list, el("p", "vp-map-popup-note", labels.approx));
-
-      marker.bindPopup(popup, { maxWidth: 280 });
-      marker.on("click", () => handlers.current.onSelect(townMarkerId(place.key)));
-      marker.addTo(layer);
-      markersRef.current.set(townMarkerId(place.key), marker);
+      const you = el("div", "vp-map-you");
+      you.setAttribute("aria-label", labels.you);
+      you.setAttribute("role", "img");
+      add(null, you, [centre.longitude, centre.latitude], null);
     }
 
     for (const office of offices) {
       const name = office.names[language] ?? office.name;
-      const dot = el("span", "vp-map-dot");
+      const dot = el("button", "vp-map-dot");
+      dot.type = "button";
       dot.dataset.cat = office.category;
-      const marker = L.marker([office.latitude, office.longitude], {
-        icon: L.divIcon({
-          className: "vp-map-dot-wrap",
-          html: dot,
-          iconSize: [16, 16],
-          iconAnchor: [8, 8],
-        }),
-        title: name,
-      });
+      dot.setAttribute("aria-label", name);
 
       const popup = el("div", "vp-map-popup");
       popup.lang = language;
@@ -286,28 +437,68 @@ export function NearbyMap({
       );
       popup.append(links);
 
-      marker.bindPopup(popup, { maxWidth: 260 });
-      marker.on("click", () => handlers.current.onSelect(officeMarkerId(office.id)));
-      marker.addTo(layer);
-      markersRef.current.set(officeMarkerId(office.id), marker);
+      add(officeMarkerId(office.id), dot, [office.longitude, office.latitude], popup, "260px");
     }
 
-    // Redrawing closes every popup. Offices arrive a few seconds after the
+    // Openings last, so their pins sit above the office dots.
+    for (const { place, openings } of towns) {
+      if (openings.length === 0) continue;
+      const townName = place.names[language] ?? place.names.en ?? place.key;
+      const pin = el("button", "vp-map-pin", String(openings.length));
+      pin.type = "button";
+      pin.setAttribute("aria-label", `${townName}: ${labels.count.replace("{count}", String(openings.length))}`);
+
+      const popup = el("div", "vp-map-popup");
+      popup.lang = language;
+      popup.append(
+        el("strong", "", townName),
+        el("span", "vp-map-popup-meta", labels.count.replace("{count}", String(openings.length))),
+      );
+      const list = el("ul");
+      for (const opening of openings) {
+        const item = el("li");
+        const link = el("a", "", opening.title);
+        link.href = `/schemes/${opening.id}`;
+        link.addEventListener("click", (event) => {
+          event.preventDefault();
+          handlers.current.onOpenScheme(opening.id);
+        });
+        item.append(link);
+        if (opening.score) item.append(el("span", "vp-map-popup-score", opening.score));
+        list.append(item);
+      }
+      popup.append(list, el("p", "vp-map-popup-note", labels.approx));
+
+      add(townMarkerId(place.key), pin, [place.longitude, place.latitude], popup);
+    }
+
+    // Redrawing removes every popup. Offices arrive a few seconds after the
     // openings, so without this the one the person just opened would vanish
     // under them. Re-opened in place -- the view is theirs, not ours.
     const current = selectedRef.current;
-    if (current) markersRef.current.get(current.id)?.openPopup();
-  }, [ready, centre, radiusKm, towns, offices, language, labels]);
+    const reopen = current ? markersRef.current.get(current.id) : undefined;
+    if (reopen && !reopen.getPopup()?.isOpen()) reopen.togglePopup();
+  }, [ready, centre, towns, offices, language, labels]);
 
-  // Picking something in a list shows it on the map. Runs after the draw
+  // Picking something in a list shows it on the map. Runs after the marker
   // effect above (declaration order), so the marker it looks for exists.
   useEffect(() => {
-    if (!ready || !selected) return;
     const map = mapRef.current;
+    if (!ready || !map || !selected) return;
+    // Picked on the map itself: MapLibre has opened its popup already, and
+    // the person is looking right at it -- nothing to move or open.
+    if (clickedRef.current === selected.id) {
+      clickedRef.current = null;
+      return;
+    }
     const marker = markersRef.current.get(selected.id);
-    if (!map || !marker) return;
-    map.panTo(marker.getLatLng());
-    marker.openPopup();
+    if (!marker) return;
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    map.easeTo({ center: marker.getLngLat(), duration: reduceMotion ? 0 : 500 });
+    for (const other of markersRef.current.values()) {
+      if (other !== marker && other.getPopup()?.isOpen()) other.togglePopup();
+    }
+    if (!marker.getPopup()?.isOpen()) marker.togglePopup();
   }, [ready, selected]);
 
   return (

@@ -126,9 +126,12 @@ precision one — no offline path can assert something the person did not say.
 
 ### Near you: the map
 
-`/nearby` shows the openings near a person on an OpenStreetMap map (Leaflet),
-and the offices that can help them act on one: training centres and ITIs,
-employment and government offices, banks. No key and no cost.
+`/nearby` shows the openings near a person on a current OpenStreetMap map --
+OpenFreeMap's "Liberty" vector style, drawn with MapLibre GL -- and the offices
+that can help them act on one: training centres and ITIs, employment and
+government offices, banks. No key and no cost. Place names on the map follow
+the interface language (Tamil, Hindi or English), falling back to the local
+name where OpenStreetMap has no translation.
 
 - **Openings** come from the catalogue, pinned at their town's centre because
   the record has no street address -- and the screen says so.
@@ -148,8 +151,13 @@ employment and government offices, banks. No key and no cost.
 - **Distance never ranks anything.** `matching.py` does not import the places
   service; the ranked list on `/schemes` is unchanged.
 
-Map tiles come from OpenStreetMap's own server, which is meant for light use.
-Set `NEXT_PUBLIC_MAP_TILE_URL` to a tile provider before real traffic.
+The map style is `https://tiles.openfreemap.org/styles/liberty`, free with no
+limits or key; set `NEXT_PUBLIC_MAP_STYLE_URL` to use another MapLibre style.
+If the style cannot be loaded the map falls back to plain OpenStreetMap tiles
+rather than showing nothing. MapLibre must stay at 6.15 or later: earlier
+versions drew Tamil without reordering its vowel signs (சேலம் came out as
+சலேம்). Its web worker is copied into `frontend/public/maplibre/` on every
+`npm run dev` and `npm run build`.
 
 ### Known limit: Tamil speech recognition
 

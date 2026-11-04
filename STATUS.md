@@ -161,8 +161,9 @@ twice is harmless. There is no cost to doing this in the safe order.
       town, never an address, so that is all the map can honestly show — and it
       says so. Real coordinates need `latitude`/`longitude` on `schemes` (a
       migration — mind the deploy order above) and a field in the admin form.
-- [ ] **OpenStreetMap's own tile server is for light use.** Fine for a demo;
-      set `NEXT_PUBLIC_MAP_TILE_URL` to a tile provider before real traffic.
+- [x] **OpenStreetMap's own tile server is for light use** — resolved
+      2026-11-04: the map now uses OpenFreeMap, which is built for free public
+      use with no limits. OSM's server is only the fallback if it is down.
 - [ ] **The gazetteer is 22 towns around Salem and Erode.** A spoken place
       outside it falls back to "where the openings are", which is honest but
       not useful. Extend `backend/app/data/places.py` alongside
@@ -609,6 +610,46 @@ discards every response and the failure is indistinguishable from a dead server.
 
 ---
 
+## Done on 2026-11-04 — a current-looking map, labelled in the reader's language
+
+"The map is not the current map." The data was current -- OpenStreetMap's own
+tiles are rendered from live data -- but the standard style looks like a map
+from another decade, and it can only label a place in whatever language its
+local `name` tag happens to be.
+
+The Near you map now draws OpenFreeMap's **Liberty** vector style with
+**MapLibre GL 6.15** (Leaflet removed): current OpenStreetMap data, free, no
+key, no usage limits, sharp at every zoom. Chosen from four styles rendered
+side by side over central Salem; CARTO's Voyager was ruled out because it now
+needs an API key.
+
+**Labels follow the interface language** -- `name:ta` on a Tamil page,
+`name:hi` on a Hindi one, the local name where there is no translation. Most
+places around Salem have Tamil names in OpenStreetMap; few have Hindi ones, so
+a Hindi map is mostly English. **The version matters**: MapLibre 4 drew Tamil
+without reordering its vowel signs, so சேலம் rendered as சலேம் and கோட்டை
+was scrambled. 6.15 includes the fix for Brahmic scripts and was checked in a
+browser: சேலம், ஓமலூர், அயோத்தியாப்பட்டினம், இளம்பிள்ளை all render correctly.
+
+**Kept from before**: one pin per town, office dots by kind, popups built with
+`textContent`, the dashed search circle (now drawn by MapLibre, in the accent
+token converted through a canvas because MapLibre cannot parse `oklch()`), no
+"you" dot unless the device gave a location, list picks pan and open a popup,
+popups survive the offices arriving late.
+
+**Two bugs caught in testing, both fixed**: a pin clicked on the map toggled
+its popup twice (React's selection and MapLibre's own click), so it never
+opened; and the search circle waited on `isStyleLoaded()`, which stays false
+while any tile is downloading, so it was never drawn.
+
+**If OpenFreeMap is down** the map swaps once to plain OpenStreetMap tiles
+rather than showing pins over nothing -- but only when the style itself fails,
+not when a single tile times out. MapLibre's worker is copied into
+`public/maplibre/` before every dev and build run (`scripts/copy-maplibre-worker.mjs`),
+because inside a Next.js bundle MapLibre cannot find it on its own.
+
+---
+
 ## Fixed on 2026-11-04 — the scheme Q&A cited football news
 
 Found in the production question log (`assistant_queries`), not by a test:
@@ -754,7 +795,8 @@ two things, kept visibly apart because they deserve different trust:
   Directions link (a keyless Google Maps URL, which opens the Maps app on most
   phones) and a link to the OpenStreetMap record.
 
-Stack: Leaflet 1.9.4 over OpenStreetMap tiles. Free, no key, open data — the
+Stack (as first built): Leaflet 1.9.4 over OpenStreetMap tiles — replaced on
+2026-11-04 by MapLibre GL and OpenFreeMap; see below. Free, no key, open data — the
 same reasoning as the rest of the stack.
 
 **Where the map centres**, in order of what is actually known: the device

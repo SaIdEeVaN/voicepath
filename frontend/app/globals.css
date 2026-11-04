@@ -314,7 +314,7 @@
 /* ---------------------------------------------------------------------------
    The map (Near you)
 
-   Outside the layers on purpose, and scoped under .vp-map: Leaflet ships its
+   Outside the layers on purpose, and scoped under .vp-map: MapLibre ships its
    own unlayered stylesheet, which would beat anything inside a layer, and the
    order the two arrive in is not ours to fix.
 
@@ -347,8 +347,8 @@
   background: var(--cat, var(--ink-45));
 }
 
-/* Leaflet's panes sit at z-index 400 and up; without a stacking context of
-   its own the map would slide over the sticky header when scrolled. */
+/* The map's markers and popups carry their own z-indexes; without a stacking
+   context of its own the map could slide over the sticky header. */
 .vp-map-frame {
   position: relative;
   z-index: 0;
@@ -361,20 +361,14 @@
   font-family: var(--font-sans);
 }
 
-.vp-map .vp-map-radius {
-  fill: var(--color-accent);
-  fill-opacity: 0.05;
-  stroke: var(--color-accent);
-  stroke-opacity: 0.45;
-  stroke-width: 1.5;
-  stroke-dasharray: 5 6;
+.vp-map-you {
+  width: 18px;
+  height: 18px;
 }
 
-.vp-map-pin-wrap,
-.vp-map-dot-wrap,
-.vp-map-you {
-  background: none;
-  border: none;
+.vp-map-pin,
+.vp-map-dot {
+  cursor: pointer;
 }
 
 .vp-map-pin {
@@ -424,24 +418,49 @@
     0 0 0 9px rgb(var(--ink-rgb) / 0.12);
 }
 
-.vp-map .leaflet-popup-content-wrapper {
+.vp-map .maplibregl-popup-content {
   border-radius: 14px;
   background: var(--color-surface);
   color: var(--color-ink);
   box-shadow: 0 6px 24px rgb(var(--ink-rgb) / 0.18);
-}
-
-.vp-map .leaflet-popup-tip {
-  background: var(--color-surface);
-}
-
-.vp-map .leaflet-popup-content {
-  margin: 14px 16px;
+  padding: 14px 30px 14px 16px;
+  font-family: var(--font-sans);
   font-size: 13.5px;
   line-height: 1.45;
 }
 
-.vp-map .leaflet-popup-content p {
+/* The tip is a CSS triangle whose coloured side depends on which way the
+   popup opens, so each anchor is named. */
+.vp-map .maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
+.vp-map .maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+.vp-map .maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip {
+  border-top-color: var(--color-surface);
+}
+.vp-map .maplibregl-popup-anchor-top .maplibregl-popup-tip,
+.vp-map .maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+.vp-map .maplibregl-popup-anchor-top-right .maplibregl-popup-tip {
+  border-bottom-color: var(--color-surface);
+}
+.vp-map .maplibregl-popup-anchor-left .maplibregl-popup-tip {
+  border-right-color: var(--color-surface);
+}
+.vp-map .maplibregl-popup-anchor-right .maplibregl-popup-tip {
+  border-left-color: var(--color-surface);
+}
+
+.vp-map .maplibregl-popup-close-button {
+  padding: 4px 9px;
+  font-size: 18px;
+  color: var(--ink-45);
+  border-radius: 0 14px 0 8px;
+}
+
+.vp-map .maplibregl-popup-close-button:hover {
+  background: var(--ink-04);
+  color: var(--color-ink);
+}
+
+.vp-map .maplibregl-popup-content p {
   margin: 6px 0 0;
 }
 
@@ -495,16 +514,24 @@
   gap: 14px;
 }
 
-.vp-map .leaflet-control-attribution {
+.vp-map .maplibregl-ctrl-attrib {
   background: rgb(var(--paper-rgb) / 0.86);
   color: var(--ink-55);
   font-size: 10.5px;
 }
 
-.vp-map .leaflet-bar a {
+.vp-map .maplibregl-ctrl-attrib a {
+  color: var(--ink-62);
+}
+
+.vp-map .maplibregl-ctrl-group {
   background: var(--color-surface);
-  color: var(--color-ink);
-  border-bottom-color: var(--ink-09);
+  border-radius: 10px;
+  box-shadow: 0 1px 4px rgb(var(--ink-rgb) / 0.18);
+}
+
+.vp-map .maplibregl-ctrl-group button + button {
+  border-top-color: var(--ink-09);
 }
 
 /* ---------------------------------------------------------------------------
