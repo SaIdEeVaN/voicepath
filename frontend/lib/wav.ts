@@ -30,14 +30,6 @@ function audioContextConstructor(): AudioContextConstructor | null {
   return w.AudioContext ?? w.webkitAudioContext ?? null;
 }
 
-export function canConvertToWav(): boolean {
-  return (
-    audioContextConstructor() !== null &&
-    typeof window !== "undefined" &&
-    typeof window.OfflineAudioContext !== "undefined"
-  );
-}
-
 /**
  * Decode a recorded blob and re-encode it as WAV.
  *

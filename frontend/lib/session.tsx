@@ -312,16 +312,3 @@ export function useDegraded(): { speech: boolean; language: boolean; storage: bo
     storage: database.configured === true && database.connected === false,
   };
 }
-
-/** Retry helper for screens that need a session but were opened cold. */
-export function useRequireSession(): { sessionId: string | null; ready: boolean } {
-  const { sessionId } = useSession();
-  const [ready, setReady] = useState(false);
-  useEffect(() => setReady(true), []);
-  return { sessionId, ready };
-}
-
-export const useSessionCallbacks = () => {
-  const session = useSession();
-  return useCallback(() => session, [session]);
-};

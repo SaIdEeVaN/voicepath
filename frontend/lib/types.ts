@@ -4,7 +4,6 @@
  */
 
 export type Language = "ta" | "hi" | "en";
-export type LanguageOrAuto = Language | "auto";
 
 export interface SkillCandidate {
   id: number;
