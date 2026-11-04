@@ -256,6 +256,8 @@ export interface NearbyResponse {
   scheme_places: NearbySchemePlace[];
   /** Openings whose town the map does not know. Listed, never dropped. */
   unplaced_schemes: NearbySchemeRef[];
+  /** National schemes, open wherever the person is. Absent from older backends. */
+  nationwide_schemes?: NearbySchemeRef[];
 }
 
 /** An office from OpenStreetMap. Passed through, never invented. */

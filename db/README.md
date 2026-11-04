@@ -28,6 +28,14 @@ python -m app.scripts.embed_taxonomy
 | `002_functions.sql` | `match_skill_taxonomy` (vector search), `scheme_skill_vectors` (N+1 avoidance), `purge_expired_audio` (privacy safety net) |
 | `003_seed.sql` | 43 taxonomy skills + 16 Salem/Erode schemes. Idempotent. |
 | `004_policies.sql` | RLS. Catalogues are public-read; every personal-data table is unreachable by anon keys. |
+| `005`–`009` | Documents corpus, the schemes rename, match language, document URLs. |
+| `010_national_schemes.sql` | `schemes.skill_match`; 24 more skills (PM Vishwakarma's trades, street vending, sanitation work…); 11 national schemes quoted from their official releases. Generated from `backend/app/data/catalogue.py`. Idempotent. |
+
+New skills have no embedding until one is computed. The API does that itself
+on startup (`services/corpus_sync.py`), along with ingesting any new text file
+in `backend/data/scheme_docs` and filling document URLs newly recorded in
+`sources.json` -- so after applying a seed file, restarting the API is enough.
+`embed_taxonomy` and `ingest_documents` still work by hand.
 
 ## Notes
 

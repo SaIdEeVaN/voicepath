@@ -1,5 +1,5 @@
-"""``db/003_seed.sql`` and ``app/data/catalogue.py`` describe the same
-catalogue. Nothing enforces that at runtime -- one is SQL and one is Python --
+"""``db/003_seed.sql`` (plus ``db/010_national_schemes.sql``) and
+``app/data/catalogue.py`` describe the same catalogue. Nothing enforces that at runtime -- one is SQL and one is Python --
 so this test does, and fails loudly when the two drift apart."""
 
 from __future__ import annotations
@@ -11,35 +11,39 @@ import pytest
 
 from app.data.catalogue import SCHEMES, TAXONOMY
 
-SEED = Path(__file__).resolve().parents[2] / "db" / "003_seed.sql"
+DB = Path(__file__).resolve().parents[2] / "db"
+# Every file that seeds catalogue rows. 010 adds the national schemes and the
+# trades they name.
+SEEDS = [DB / "003_seed.sql", DB / "010_national_schemes.sql"]
 
 
 @pytest.fixture(scope="module")
 def seed_sql() -> str:
-    if not SEED.exists():
-        pytest.skip(f"{SEED} not found")
-    return SEED.read_text(encoding="utf-8")
+    missing = [p for p in SEEDS if not p.exists()]
+    if missing:
+        pytest.skip(f"{missing[0]} not found")
+    return "\n".join(p.read_text(encoding="utf-8") for p in SEEDS)
 
 
 def test_every_python_skill_code_is_in_the_sql(seed_sql: str):
     sql_codes = set(re.findall(r"'(SK\d{3,})'", seed_sql))
     python_codes = {e["code"] for e in TAXONOMY}
     missing = python_codes - sql_codes
-    assert not missing, f"In catalogue.py but not in 003_seed.sql: {sorted(missing)}"
+    assert not missing, f"In catalogue.py but not in the seed SQL: {sorted(missing)}"
 
 
 def test_every_sql_skill_code_is_in_python(seed_sql: str):
     sql_codes = set(re.findall(r"\('(SK\d{3,})', '", seed_sql))
     python_codes = {e["code"] for e in TAXONOMY}
     missing = sql_codes - python_codes
-    assert not missing, f"In 003_seed.sql but not in catalogue.py: {sorted(missing)}"
+    assert not missing, f"In the seed SQL but not in catalogue.py: {sorted(missing)}"
 
 
 def test_scheme_source_references_match(seed_sql: str):
-    sql_refs = set(re.findall(r"'((?:OGD|PMAJAY)/[A-Z0-9/]+)'", seed_sql))
+    sql_refs = set(re.findall(r"'((?:OGD|PMAJAY|GOI)/[A-Z0-9/-]+)'", seed_sql))
     python_refs = {o["source_reference"] for o in SCHEMES}
     assert python_refs <= sql_refs, (
-        f"In catalogue.py but not in 003_seed.sql: {sorted(python_refs - sql_refs)}"
+        f"In catalogue.py but not in the seed SQL: {sorted(python_refs - sql_refs)}"
     )
 
 

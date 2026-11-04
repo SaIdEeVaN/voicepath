@@ -17,7 +17,7 @@ from fastapi.responses import JSONResponse
 from app.config import get_settings
 from app.models import schemas
 from app.routes import admin, assistant, places, profile, query, schemes, sessions, speech
-from app.services import db, embeddings, llm, ner, stt, tts, websearch
+from app.services import corpus_sync, db, embeddings, llm, ner, stt, tts, websearch
 from app.services import places as places_service
 
 logger = logging.getLogger(__name__)
@@ -64,9 +64,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # nobody holds can be collected mid-read.
     warming = asyncio.create_task(_warm_voices(settings))
 
+    # Whatever this release ships that the database lacks: embeddings for new
+    # skills, bundled documents not yet in the corpus, document URLs now on
+    # record. Background, idempotent, and a no-op once caught up.
+    syncing = asyncio.create_task(corpus_sync.catch_up_safely())
+
     yield
 
     warming.cancel()
+    syncing.cancel()
     await db.close_pool()
 
 

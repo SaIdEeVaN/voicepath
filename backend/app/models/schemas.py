@@ -453,6 +453,10 @@ class NearbyResponse(Base):
     # Openings whose town is not on the map yet. Listed, not dropped: a
     # scheme missing from the map is still a scheme.
     unplaced_schemes: list[NearbySchemeRef] = Field(default_factory=list)
+    # National schemes, open wherever the person is. Not pinned -- there is no
+    # one place to pin them -- and not "unplaced", which would read as a gap
+    # in the map rather than as available everywhere.
+    nationwide_schemes: list[NearbySchemeRef] = Field(default_factory=list)
 
 
 class SupportRequest(Base):

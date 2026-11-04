@@ -19,6 +19,11 @@ from app.services import db, taxonomy
 logger = logging.getLogger(__name__)
 
 
+# How a national scheme's location and district are written. Matching reads
+# the same constant (matching.NATIONWIDE).
+NATIONWIDE = "All India"
+
+
 @dataclass(frozen=True)
 class RequiredSkill:
     skill_id: int
@@ -53,6 +58,9 @@ class Scheme:
     # deactivated one rather than showing both as though they were the same.
     is_active: bool = True
     required_skills: list[RequiredSkill] = field(default_factory=list)
+    # "all": the work needs every listed skill, weighted. "any": one listed
+    # trade is enough (PM Vishwakarma's eighteen). See matching.skill_similarity.
+    skill_match: str = "all"
 
 
 _memory_cache: list[Scheme] | None = None
@@ -111,6 +119,7 @@ async def _memory_schemes() -> list[Scheme]:
                     official_url=entry.get("official_url"),
                     description=entry["description"],
                     required_skills=required,
+                    skill_match=entry.get("skill_match", "all"),
                 )
             )
         _memory_cache = built
@@ -120,7 +129,7 @@ async def _memory_schemes() -> list[Scheme]:
 _SELECT = """
 select id, title, organization, location, district, type, minimum_experience,
        certifications_required, salary_min, salary_max, nsqf_level,
-       source_reference, official_url, description, is_active
+       source_reference, official_url, description, is_active, skill_match
 from schemes
 """
 
@@ -142,20 +151,25 @@ def _row_to_scheme(row) -> Scheme:
         official_url=row["official_url"],
         description=row["description"],
         is_active=row["is_active"],
+        skill_match=row["skill_match"] or "all",
     )
 
 
 async def list_active(district: str | None = None) -> list[Scheme]:
     """The full active catalogue, with required skills and their embeddings."""
+    # A national scheme is open in every district, so a district filter keeps
+    # it. Filtering it out would hide PMKVY from everyone who asked "what is
+    # there in Salem?".
     if not db.is_available():
         items = await _memory_schemes()
         if district:
-            return [o for o in items if o.district == district]
+            return [o for o in items if o.district in (district, NATIONWIDE)]
         return list(items)
 
     if district:
         rows = await db.fetch(
-            _SELECT + " where is_active and district = $1 order by id", district
+            _SELECT + " where is_active and district in ($1, $2) order by id",
+            district, NATIONWIDE,
         )
     else:
         rows = await db.fetch(_SELECT + " where is_active order by id")
@@ -164,11 +178,13 @@ async def list_active(district: str | None = None) -> list[Scheme]:
     if not schemes:
         return []
 
+    # Every scheme's skills, then keep the ones in hand: the SQL function
+    # filters by district alone, which would drop the national schemes'.
     skill_rows = await db.fetch(
         "select scheme_id, skill_id, skill_code, skill_name, weight, "
         "is_essential, embedding::text as embedding "
         "from scheme_skill_vectors($1)",
-        district,
+        None,
     )
     for row in skill_rows:
         target = schemes.get(row["scheme_id"])

@@ -46,6 +46,8 @@ TEMPLATES: dict[str, dict[str, str]] = {
         "experience_none_needed": "No previous experience is asked for.",
         "same_place": "It is in {place}, where you are.",
         "different_place": "This is in {place}, away from where you are.",
+        "nationwide": "It is a national scheme, open across India.",
+        "any_trade": "It is open to many trades, not one in particular.",
         "cert_missing": "They ask for {certs}. You did not mention having it.",
         "training": "This is training, not a job — it gives a certificate for work you already do.",
         "stipend": "It comes with a stipend of ₹{amount} a month.",
@@ -63,6 +65,8 @@ TEMPLATES: dict[str, dict[str, str]] = {
         "experience_none_needed": "पहले का कोई अनुभव नहीं माँगा गया है।",
         "same_place": "यह {place} में ही है, जहाँ आप हैं।",
         "different_place": "यह {place} में है, आपकी जगह से दूर।",
+        "nationwide": "यह राष्ट्रीय योजना है, पूरे भारत में लागू।",
+        "any_trade": "यह किसी एक काम तक सीमित नहीं, कई कामों के लिए खुली है।",
         "cert_missing": "वे {certs} माँगते हैं। आपने बताया नहीं कि आपके पास है।",
         "training": "यह नौकरी नहीं, प्रशिक्षण है — जो काम आप करते हैं उसी का प्रमाणपत्र मिलता है।",
         "stipend": "इसमें हर महीने ₹{amount} वजीफ़ा मिलता है।",
@@ -80,6 +84,8 @@ TEMPLATES: dict[str, dict[str, str]] = {
         "experience_none_needed": "முன் அனுபவம் எதுவும் கேட்கவில்லை.",
         "same_place": "இது {place}லேயே இருக்கிறது, நீங்கள் இருக்கும் இடத்தில்.",
         "different_place": "இது {place}ல் இருக்கிறது, உங்கள் ஊரிலிருந்து தூரம்.",
+        "nationwide": "இது தேசியத் திட்டம், இந்தியா முழுவதும் உள்ளது.",
+        "any_trade": "இது ஒரு தொழிலுக்கு மட்டும் அல்ல, பல தொழில்களுக்கும் உரியது.",
         "cert_missing": "அவர்கள் {certs} கேட்கிறார்கள். உங்களிடம் இருப்பதாக நீங்கள் சொல்லவில்லை.",
         "training": "இது வேலை அல்ல, பயிற்சி — நீங்கள் ஏற்கனவே செய்யும் வேலைக்கு சான்றிதழ் தருகிறது.",
         "stipend": "மாதம் ₹{amount} உதவித்தொகை உண்டு.",
@@ -181,6 +187,11 @@ async def _explain_with_llm(match: ScoredMatch, *, language: str) -> Explanation
         location_score=f"{match.location_score:.2f}",
         matched_skills=_join(list(grounding.get("matched_skill_names") or []), "en")
         or "none",
+        trades=(
+            "open to any trade -- it was not made for theirs in particular"
+            if grounding.get("open_to_any_trade")
+            else "the trades or skills listed for it"
+        ),
     )
 
     system = EXPLANATION_SYSTEM.format(
@@ -248,6 +259,10 @@ def explain_offline(match: ScoredMatch, *, language: str = "en") -> Explanation:
         bullets.append(
             _t(language, key).format(skills=_join(matched_names[:2], language))
         )
+    elif grounding.get("open_to_any_trade") and match.skill_evidence:
+        # PMKVY, Mudra: it fits because it takes any trade. Saying "you do
+        # welding, that is what this work is" would claim it was made for them.
+        bullets.append(_t(language, "any_trade"))
 
     minimum = float(scheme.minimum_experience or 0)
     years = grounding.get("experience_years")
@@ -288,7 +303,9 @@ def explain_offline(match: ScoredMatch, *, language: str = "en") -> Explanation:
             )
         )
 
-    if grounding.get("same_place"):
+    if grounding.get("nationwide"):
+        bullets.append(_t(language, "nationwide"))
+    elif grounding.get("same_place"):
         bullets.append(_t(language, "same_place").format(place=scheme.location))
     elif match.location_score <= 0.5:
         bullets.append(

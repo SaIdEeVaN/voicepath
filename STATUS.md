@@ -3,7 +3,7 @@
 > **This file is the live todo list.** It is updated every time a task is completed.
 > Start at **To-do** — that is the working checklist. **Next up** carries the
 > detail behind the top items; everything below it is the record of the build.
-> Last updated: 2026-11-04 (/health says when Groq is not answering)
+> Last updated: 2026-11-04 (11 national schemes, 24 more skills, 13 official documents)
 
 **Project root:** `C:\Users\Sai Dixit\voicepath`
 **Sources:** `PRD_File_For_Project.md` (spec) · `VoicePath Mockups.html` (design canvas, unpacked)
@@ -191,8 +191,23 @@ twice is harmless. There is no cost to doing this in the safe order.
 - [ ] **Audio retention is three-quarters wired.** Opt-in, check constraint and
       purge function exist; nothing uploads a clip, so the passport's "Play" has
       nothing to play.
-- [ ] **Only 16 schemes, seeded.** data.gov.in publishes district catalogues
-      under GODL-India, and the schema plus admin importer already fit.
+- [x] **Only 16 schemes, seeded** — 11 national schemes added 2026-11-04, each
+      quoted from its official release; see *Done on 2026-11-04 — national
+      schemes, more skills, official documents*. District openings are still
+      the 16 seeded ones: data.gov.in publishes district catalogues under
+      GODL-India, and the schema plus admin importer already fit.
+- [ ] **National scheme figures date.** Each scheme quotes a dated release
+      (its `source_reference` ends in the date). When a ministry announces new
+      amounts or extends a scheme, fetch the new release, replace the file in
+      `backend/data/scheme_docs`, update the quote in `catalogue.py`, and
+      regenerate `db/010`. `tests/test_national_schemes.py` fails if a quote
+      and its release disagree.
+- [ ] **Stand-Up India was left out** on purpose: its last official extension
+      ran to 2025 and no release confirms it is open now. Add it when one does.
+- [ ] **Listings 18–20 look like test entries** made through the admin form
+      ("Pharma Business / REC", "Plumbing Works", "Carpentry / BlockChain
+      Innovation Club"), with github.com, vercel.com and rajalakshmi.org as
+      their "official" links. Deactivate them at `/admin/schemes` if so.
 - [ ] **Retrieval still cannot reach matching.**
       `tests/test_assistant_routing.py` asserts the separation by reading
       `matching.py`'s source rather than its imports, which is weaker than it
@@ -274,7 +289,7 @@ Four approaches, in order of effort:
 | 2. Backend core (config, db, providers) | ✅ Done |
 | 3. Backend pipeline (extract → normalize → match → explain) | ✅ Done |
 | 4. Backend routes + rate limiting | ✅ Done |
-| 5. Backend tests | ✅ Done — **579 passing**, 13 skipped |
+| 5. Backend tests | ✅ Done — **661 passing**, 13 skipped |
 | 6. Frontend scaffold + design tokens | ✅ Done |
 | 7. Frontend screens | ✅ Done — all 8 |
 | 8. Admin (Phase 2) | ✅ Done |
@@ -452,7 +467,7 @@ frontend/
 - [x] `/api/admin/*` — server-side role check, sha256 tokens, bootstrap that self-disables
 - [x] Rate limiting on public routes · `GET /health` reporting every provider honestly
 
-### Phase 5 — Backend tests ✅ (579 passing, 13 skipped)
+### Phase 5 — Backend tests ✅ (661 passing, 13 skipped)
 - [x] `test_matching.py` — weights, determinism, each component, grounding
 - [x] `test_extraction.py` — evidence grounding in ta/hi/en, invention rejected
 - [x] `test_normalization.py` — alias matching across scripts, no silent upgrades
@@ -658,6 +673,67 @@ appeared on the open scheme page at the next refresh.
 the title, description and assistant all ran off the right edge -- because
 below the `lg` breakpoint its grid had no column template, and an implicit
 column cannot shrink below its widest content. `grid-cols-1` fixes it.
+
+---
+
+## Done on 2026-11-04 — national schemes, more skills, official documents
+
+Asked for: more schemes and openings, official links, more skills, more scheme
+documents -- real sources only, national schemes.
+
+**Eleven national schemes**, each open across India: PM Vishwakarma, PMKVY
+4.0, PM-NAPS, Jan Shikshan Sansthan, DDU-GKY, RSETIs, PMEGP, PM SVANidhi,
+PMMY (Mudra), NAMASTE and PM-DAKSH. Every description is sentences copied
+exactly from the most recent official release found -- PIB and ministry
+releases from 2023 to July 2026 -- because the explanation layer may ground
+itself only in that text. `tests/test_national_schemes.py` checks all 44
+sentences against copies of the releases. Each scheme's link is the release
+quoted, or the portal that release names (Skill India Digital Hub for PMKVY,
+the PM Vishwakarma portal). No monthly pay is recorded for any of them: a
+₹500-a-day stipend or a loan is not a wage. Stand-Up India was left out
+because no release confirms it runs past 2025.
+
+Most scheme sites (pmkvyofficial.org, kviconline.gov.in, standupmitra.in...)
+were unreachable from the build environment, and myScheme serves its content
+only to its own scripts; PIB's releases were reachable and are the
+government's own publication, so they are the source throughout.
+
+**Matching had to learn two things** (`services/matching.py`):
+
+- *One trade is enough* (`schemes.skill_match = 'any'`). PM Vishwakarma covers
+  eighteen trades; scored as coverage of all of them a tailor earned 1/18 and
+  never saw it. Now the best single trade counts, weighted by how squarely
+  the scheme names it: 1.0 for a trade its release names, 0.4 for "open to
+  any trade" (PMKVY, Mudra). Only named trades are claimed in an explanation;
+  the rest say "open to many trades, not one in particular".
+- *Open everywhere.* "All India" scores as the person's own district (0.85).
+
+And one guard, found by testing: the first version let seven generic schemes
+tie at 0.785 for everyone and push a welder's own local job off the first
+page. Generic schemes now score below a partial match in the person's own
+trade (0.685 against 0.74), and at most three appear in a result list; all of
+them are on `/nearby` under *Open anywhere in India*.
+
+**24 more skills** (68 in all), with Tamil and Hindi names and the words
+people use: PM Vishwakarma's trades not already present (a new *Traditional
+Crafts* category -- boat making, blacksmithing, goldsmithing, pottery,
+cobbling, garland making, fishing nets...), barbering, laundry, sanitation
+work, waste collection, domestic work, street vending, handloom, solar
+installation, fishing, food processing.
+
+**13 official documents** for the assistant, in `backend/data/scheme_docs` as
+text with each release's address in `sources.json`, and scheme names for each
+in `scheme_names.py` so a question naming PMEGP searches PMEGP's own text.
+
+**The API now catches up on startup** (`services/corpus_sync.py`): it embeds
+skills that have no vector, ingests bundled text documents not yet in the
+corpus, and fills document URLs newly recorded in `sources.json` -- only what
+is missing, never re-opening a rejected document or overwriting a URL, and
+nothing at all if embeddings are offline. Before this, each of those needed a
+script run by hand against production with its password.
+
+Applied to production with `db/010_national_schemes.sql`; every scheme and
+skill row was checked against the catalogue by checksum afterwards.
 
 ---
 

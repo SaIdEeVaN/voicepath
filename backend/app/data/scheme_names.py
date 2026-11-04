@@ -56,7 +56,65 @@ SCHEME_NAMES: dict[str, SchemeName] = {
     },
     "pm-vishwakarma": {
         "names": ["vishwakarma", "விஸ்வகர்மா", "विश्वकर्मा"],
-        "sources": ["https://pmvishwakarma.gov.in/"],
+        "sources": ["https://pmvishwakarma.gov.in/",
+                    "PIB_PM_Vishwakarma_Salient_Features_2023-09-20.md",
+                    "PIB_MSME_Grassroots_Economy_PMEGP_PM_Vishwakarma_2026-05-14.md"],
+    },
+    # -- National schemes added 2026-11-04, from official PIB releases ------
+    "pmkvy": {
+        "names": ["pmkvy", "pmkvy 4.0", "kaushal vikas", "pradhan mantri kaushal",
+                  "recognition of prior learning", "skill india programme",
+                  "கௌஷல் விகாஸ்", "कौशल विकास"],
+        "sources": ["PIB_Skill_India_Programme_PMKVY_NAPS_JSS_2025-02-07.md"],
+    },
+    "naps": {
+        "names": ["naps", "pm-naps", "apprenticeship promotion", "national apprenticeship",
+                  "அப்ரண்டிஸ்", "अप्रेंटिसशिप"],
+        "sources": ["PIB_National_Apprenticeship_Schemes_NAPS_2026-02-11.md",
+                    "PIB_Skill_India_Programme_PMKVY_NAPS_JSS_2025-02-07.md"],
+    },
+    "jss": {
+        "names": ["jan shikshan", "shikshan sansthan", "ஜன் ஷிக்ஷன்", "जन शिक्षण"],
+        "sources": ["PIB_Jan_Shikshan_Sansthan_2025-12-01.md",
+                    "PIB_Skill_India_Programme_PMKVY_NAPS_JSS_2025-02-07.md"],
+    },
+    "ddu-gky": {
+        "names": ["ddu-gky", "ddugky", "ddu gky", "grameen kaushalya", "kaushalya yojana",
+                  "दीनदयाल उपाध्याय ग्रामीण कौशल्य", "கிராமீன் கௌஷல்யா"],
+        "sources": ["PIB_DDU-GKY_and_RSETI_2026-01-01.md"],
+    },
+    "rseti": {
+        "names": ["rseti", "rsetis", "rural self employment training",
+                  "ஆர்செட்டி", "आरसेटी"],
+        "sources": ["PIB_DDU-GKY_and_RSETI_2026-01-01.md"],
+    },
+    "pmegp": {
+        "names": ["pmegp", "employment generation programme", "employment generation program",
+                  "பிஎம்இஜிபி", "पीएमईजीपी"],
+        "sources": ["PIB_PMEGP_15th_Finance_Commission_Cycle_2026-05-07.md",
+                    "PIB_MSME_Grassroots_Economy_PMEGP_PM_Vishwakarma_2026-05-14.md",
+                    "PIB_PMEGP_and_Mudra_for_SC_Beneficiaries_2025-08-21.md"],
+    },
+    "pm-svanidhi": {
+        "names": ["svanidhi", "street vendor", "street vendors", "ஸ்வநிதி", "स्वनिधि"],
+        "sources": ["PIB_PM_SVANidhi_FAQ_2026-05-30.md"],
+    },
+    "mudra": {
+        "names": ["mudra", "pmmy", "shishu loan", "kishor loan", "tarun loan",
+                  "முத்ரா", "मुद्रा"],
+        "sources": ["PIB_PM_Mudra_Yojana_11_Years_2026-04-08.md",
+                    "PIB_PMEGP_and_Mudra_for_SC_Beneficiaries_2025-08-21.md"],
+    },
+    "namaste": {
+        "names": ["namaste scheme", "namaste yojana", "mechanised sanitation",
+                  "நமஸ்தே திட்டம்", "नमस्ते योजना"],
+        "sources": ["PIB_NAMASTE_Sanitation_Workers_2026-07-20.md"],
+    },
+    "pm-daksh": {
+        "names": ["pm-daksh", "pm daksh", "pmdaksh", "dakshata", "பிஎம் தக்ஷ்", "पीएम दक्ष",
+                  "पीएम-दक्ष"],
+        "sources": ["PIB_PM-DAKSH_Skill_Development_2026-03-11.md",
+                    "PIB_PM-DAKSH_Yojana_2023-09-04.md"],
     },
     "fund-of-funds": {
         "names": ["fund of funds"],

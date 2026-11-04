@@ -84,6 +84,8 @@ class TestGazetteer:
         from app.data.catalogue import SCHEMES
 
         for entry in SCHEMES:
+            if entry["location"] == "All India":
+                continue  # national: open everywhere, listed rather than pinned
             assert places.place_key(entry["location"]) or places.place_key(
                 entry["district"]
             ), entry["location"]

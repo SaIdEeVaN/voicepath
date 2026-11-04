@@ -218,7 +218,10 @@ class TestSchemes:
     def test_district_filter_narrows(self, client):
         body = client.get("/api/schemes", params={"district": "Erode"}).json()
         assert body
-        assert all(o["district"] == "Erode" for o in body)
+        # Erode's own openings, plus the national schemes open everywhere.
+        assert all(o["district"] in ("Erode", "All India") for o in body)
+        assert any(o["district"] == "Erode" for o in body)
+        assert not any(o["district"] == "Salem" for o in body)
 
     def test_detail_includes_the_listing_text_and_requirements(self, client):
         body = client.get("/api/schemes/1").json()

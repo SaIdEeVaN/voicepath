@@ -13,7 +13,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends
 
 from app.models import schemas
-from app.services import places, schemes
+from app.services import matching, places, schemes
 from app.services.ratelimit import default_limit
 
 router = APIRouter(prefix="/api/places", tags=["places"])
@@ -30,7 +30,9 @@ async def nearby(payload: schemas.NearbyRequest) -> schemas.NearbyResponse:
     Answered from the catalogue and the gazetteer alone, so it is instant and
     works with no network. Offices are ``/support``, asked for separately.
     """
-    catalogue = await schemes.list_active()
+    everything = await schemes.list_active()
+    nationwide = [s for s in everything if matching.is_nationwide(s)]
+    catalogue = [s for s in everything if not matching.is_nationwide(s)]
     centre = places.resolve_centre(
         place=payload.place,
         latitude=payload.latitude,
@@ -68,6 +70,12 @@ async def nearby(payload: schemas.NearbyRequest) -> schemas.NearbyResponse:
                 id=s.id, title=s.title, organization=s.organization, type=s.type
             )
             for s in unplaced
+        ],
+        nationwide_schemes=[
+            schemas.NearbySchemeRef(
+                id=s.id, title=s.title, organization=s.organization, type=s.type
+            )
+            for s in nationwide
         ],
     )
 

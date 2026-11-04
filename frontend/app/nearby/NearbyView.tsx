@@ -200,6 +200,14 @@ export function NearbyView({ focusSchemeId }: { focusSchemeId: number | null }) 
       .filter((town) => town.openings.length > 0);
   }, [nearby, scores, showingAll]);
 
+  // The person's own national matches when they have results; all of them
+  // when browsing. Same rule as the pins on the map.
+  const nationwide = useMemo(
+    () =>
+      (nearby?.nationwide_schemes ?? []).filter((s) => showingAll || scores.has(s.id)),
+    [nearby, scores, showingAll],
+  );
+
   const offices = useMemo(
     () => (support?.support_places ?? []).filter((p) => categories.has(p.category)),
     [support, categories],
@@ -541,6 +549,40 @@ export function NearbyView({ focusSchemeId }: { focusSchemeId: number | null }) 
               </li>
             ))}
           </ul>
+
+          {/* National schemes: open wherever the person is, so listed rather
+              than pinned -- there is no one place to pin them, and "not on
+              the map yet" would read as a gap rather than as everywhere. */}
+          {nationwide.length > 0 && (
+            <div className="mt-6">
+              <h3 className="text-[15px] font-medium">{copy.nearbyNationwide}</h3>
+              <p className="mt-1 text-[13px]" style={{ color: "var(--ink-55)" }}>
+                {copy.nearbyNationwideNote}
+              </p>
+              <ul className="mt-3 flex flex-col gap-2">
+                {nationwide.map((ref) => (
+                  <li key={ref.id} className="flex items-baseline justify-between gap-3">
+                    <button
+                      type="button"
+                      onClick={() => openScheme(ref.id)}
+                      className="text-left text-[14px] underline-offset-4 hover:underline"
+                      lang="en"
+                    >
+                      {ref.title}
+                      <span className="block text-[12px]" style={{ color: "var(--ink-45)" }}>
+                        {ref.organization} · {typeLabel(ref.type, language)}
+                      </span>
+                    </button>
+                    {scores.has(ref.id) && (
+                      <span className="font-mono flex-none text-[12px]" style={{ color: "var(--color-accent-deep)" }}>
+                        {scores.get(ref.id)}
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
           {nearby && nearby.unplaced_schemes.length > 0 && showingAll && (
             <div className="mt-6">

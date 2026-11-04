@@ -205,6 +205,10 @@ export interface Copy {
   nearbyCategories: Record<NearbyCategory, string>;
   nearbyOpenings: string;
   nearbyUnplaced: string;
+  nearbyNationwide: string;
+  nearbyNationwideNote: string;
+  /** A national scheme's location, as the catalogue writes "All India". */
+  allIndia: string;
   nearbyStraightLine: string;
   nearbyViewOnOsm: string;
   /** `{date}` is replaced with the day the bundled office list was fetched. */
@@ -384,6 +388,7 @@ const en: Copy = {
   },
   skillCategories: {
     Agriculture: "Agriculture",
+    "Traditional Crafts": "Traditional crafts",
     Commerce: "Commerce",
     Construction: "Construction",
     Electrical: "Electrical",
@@ -451,6 +456,10 @@ const en: Copy = {
   },
   nearbyOpenings: "Openings",
   nearbyUnplaced: "Not on the map yet — the map does not know its town.",
+  nearbyNationwide: "Open anywhere in India",
+  nearbyNationwideNote:
+    "National schemes, not tied to one town. Open one to see who it is for and how to apply.",
+  allIndia: "All India",
   nearbyStraightLine: "Distances are in a straight line, not by road.",
   nearbyViewOnOsm: "On OpenStreetMap",
   nearbySupportAsOf: "OpenStreetMap data as of {date}.",
@@ -620,6 +629,7 @@ const ta: Copy = {
   },
   skillCategories: {
     Agriculture: "விவசாயம்",
+    "Traditional Crafts": "பாரம்பரிய கைவினை",
     Commerce: "வணிகம்",
     Construction: "கட்டிடம்",
     Electrical: "மின் வேலை",
@@ -688,6 +698,10 @@ const ta: Copy = {
   },
   nearbyOpenings: "வாய்ப்புகள்",
   nearbyUnplaced: "இன்னும் வரைபடத்தில் இல்லை — இதன் ஊர் வரைபடத்துக்குத் தெரியாது.",
+  nearbyNationwide: "இந்தியா முழுவதும் உள்ளவை",
+  nearbyNationwideNote:
+    "தேசியத் திட்டங்கள் — ஒரு ஊருக்கு மட்டும் அல்ல. யாருக்கு, எப்படி விண்ணப்பிப்பது என்று அறிய திறந்து பாருங்கள்.",
+  allIndia: "இந்தியா முழுவதும்",
   nearbyStraightLine: "தூரம் நேர்கோட்டில், சாலை வழியாக அல்ல.",
   nearbyViewOnOsm: "OpenStreetMap-இல்",
   nearbySupportAsOf: "{date} நிலவரப்படி OpenStreetMap தரவு.",
@@ -854,6 +868,7 @@ const hi: Copy = {
   },
   skillCategories: {
     Agriculture: "खेती",
+    "Traditional Crafts": "पारंपरिक शिल्प",
     Commerce: "व्यापार",
     Construction: "निर्माण",
     Electrical: "बिजली का काम",
@@ -920,6 +935,10 @@ const hi: Copy = {
   },
   nearbyOpenings: "मौके",
   nearbyUnplaced: "अभी नक्शे पर नहीं — नक्शे को इसका शहर पता नहीं।",
+  nearbyNationwide: "पूरे भारत में खुली योजनाएँ",
+  nearbyNationwideNote:
+    "राष्ट्रीय योजनाएँ — किसी एक शहर तक सीमित नहीं। किसके लिए है और आवेदन कैसे करें, यह देखने के लिए खोलिए।",
+  allIndia: "पूरे भारत में",
   nearbyStraightLine: "दूरी सीधी रेखा में है, सड़क से नहीं।",
   nearbyViewOnOsm: "OpenStreetMap पर",
   nearbySupportAsOf: "{date} तक का OpenStreetMap डेटा।",
@@ -986,6 +1005,18 @@ export function skillLabel(
 /** BCP-47 tag for `lang` attributes and the Web Speech API. */
 export function localeFor(language: Language): string {
   return { ta: "ta-IN", hi: "hi-IN", en: "en-IN" }[language];
+}
+
+/**
+ * A scheme's place, in the reader's language where the app knows it.
+ *
+ * Only "All India" is translated: town names are proper nouns the catalogue
+ * holds in English, and inventing a Tamil or Hindi spelling for one is a
+ * different problem (STATUS: "Place names render in English").
+ */
+export function placeLabel(place: string | null | undefined, language: Language): string {
+  if (!place) return "";
+  return place === "All India" ? copyFor(language).allIndia : place;
 }
 
 /** Localised label for a scheme type. Unknown values pass through. */

@@ -75,6 +75,11 @@ refused until the database is back (the bootstrap token cannot be checked
 safely without it). Restore the project in the Supabase dashboard and restart
 the backend; it does not reconnect on its own.
 
+**On startup the API catches the database up** with what the release ships
+(`services/corpus_sync.py`): embeddings for skills that have none, any new text
+document in `backend/data/scheme_docs`, and document URLs newly recorded in
+`sources.json`. Only what is missing, and nothing when embeddings are offline.
+
 `.github/workflows/keep-alive.yml` calls `/health` every three days so the
 project stays active, and fails — which emails the repository owner — if the
 database is not connected.
@@ -239,7 +244,7 @@ the database level and not only in application code.
 ## Tests
 
 ```bash
-cd backend && python -m pytest        # 579 tests
+cd backend && python -m pytest        # 661 tests
 cd frontend && npx tsc --noEmit && npx next build
 ```
 

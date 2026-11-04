@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 from app.config import get_settings
 from app.services.embeddings import cosine_similarity
 from app.services.normalization import NormalizedSkill
-from app.services.schemes import Scheme
+from app.services.schemes import NATIONWIDE, Scheme
 
 logger = logging.getLogger(__name__)
 
@@ -123,6 +123,14 @@ LOCATION_ADJACENT_DISTRICT = 0.45
 LOCATION_UNKNOWN = 0.5
 LOCATION_ELSEWHERE = 0.2
 
+# A national scheme -- PMKVY, PM Vishwakarma, Mudra -- is open wherever the
+# person is: it is delivered through district offices, training centres, banks
+# and Common Service Centres everywhere. Scored as their own district rather
+# than their own town, because "available in your district" is what the record
+# supports; "in your town" it does not say. Applied whether or not the person
+# said where they are, since the answer is the same either way.
+LOCATION_NATIONWIDE = LOCATION_SAME_DISTRICT
+
 # What to score when the person never said how long they have worked. Neither
 # credited nor penalised: the profile carries an uncertainty flag and the
 # interface asks. Scoring 0 would bury people who simply did not mention it.
@@ -171,6 +179,15 @@ SKILL_MATCHED_AT = 0.5
 # to 0.009. This clears that comfortably while admitting a genuine neighbour --
 # Two-Wheeler to Four-Wheeler Repair rescales to 0.34.
 SKILL_EVIDENCE_AT = 0.05
+
+# How many "open to any trade" schemes a result list may hold. See rank().
+MAX_OPEN_TO_ANY_TRADE = 3
+
+# Under skill_match "any", a requirement at full weight is a trade the scheme's
+# own text names -- PM Vishwakarma's eighteen. Lower weights mean "open to any
+# trade" (catalogue.ANY_TRADE). Only a named trade may be claimed out loud as
+# the reason a scheme fits; the rest is said as "not limited to one trade".
+SKILL_NAMED_WEIGHT = 1.0
 
 
 def _norm(value: str | None) -> str:
@@ -286,6 +303,9 @@ def skill_similarity(profile: ProfileInput, scheme: Scheme) -> tuple[float, list
         if s.embedding
     ]
 
+    if getattr(scheme, "skill_match", "all") == "any":
+        return _any_trade_similarity(required, owned_ids, owned_vectors)
+
     total_weight = 0.0
     earned = 0.0
     matched: list[str] = []
@@ -325,6 +345,50 @@ def skill_similarity(profile: ProfileInput, scheme: Scheme) -> tuple[float, list
     if total_weight == 0.0:
         return 0.0, []
     return round(min(1.0, earned / total_weight), 4), matched
+
+
+def _requirement_credit(
+    requirement, owned_ids: set[int], owned_vectors: list[tuple[str, list[float]]]
+) -> float:
+    """How much of one required skill the person has: 1.0 exact, else transferable."""
+    if requirement.skill_id in owned_ids:
+        return 1.0
+    if not requirement.embedding:
+        return 0.0
+    best = max(
+        (cosine_similarity(requirement.embedding, vector) for _, vector in owned_vectors),
+        default=0.0,
+    )
+    return transferable(best)
+
+
+def _any_trade_similarity(
+    required, owned_ids: set[int], owned_vectors: list[tuple[str, list[float]]]
+) -> tuple[float, list[str]]:
+    """One trade is enough: the best single requirement carries the score.
+
+    For a scheme that serves many trades -- PM Vishwakarma's eighteen, PMKVY's
+    every sector -- coverage of all of them is the wrong question. A tailor is
+    not a twentieth of a fit for PM Vishwakarma; tailoring is one of its
+    trades, so a tailor fits it fully. Weighted coverage would have scored her
+    0.05 and filtered the scheme out.
+
+    The weight still counts, as how squarely the scheme names the trade: a
+    named trade (1.0) earns full marks, "open to any trade" (0.6) earns less,
+    so PM Vishwakarma ranks above PMKVY for a carpenter. Only named trades are
+    returned as matched, because an explanation may claim them.
+    """
+    best = 0.0
+    named: list[str] = []
+    for requirement in required:
+        weight = min(max(requirement.weight, 0.0), 1.0)
+        if weight == 0.0:
+            continue
+        credit = _requirement_credit(requirement, owned_ids, owned_vectors)
+        best = max(best, credit * weight)
+        if credit >= SKILL_MATCHED_AT and weight >= SKILL_NAMED_WEIGHT:
+            named.append(requirement.code)
+    return round(min(1.0, best), 4), named
 
 
 def experience_score(profile: ProfileInput, scheme: Scheme) -> float:
@@ -373,6 +437,11 @@ def _district_of(place: str) -> str:
     return TOWN_DISTRICT.get(place, place)
 
 
+def is_nationwide(scheme: Scheme) -> bool:
+    """True for a scheme open across India rather than in one place."""
+    return _norm(scheme.location) == _norm(NATIONWIDE)
+
+
 def location_score(profile: ProfileInput, scheme: Scheme) -> float:
     """Distance, in the only terms the data supports: place and district.
 
@@ -381,6 +450,9 @@ def location_score(profile: ProfileInput, scheme: Scheme) -> float:
     catalogue's English spelling. Then through the town/district table, so
     someone in Attur is understood to be in Salem district.
     """
+    if is_nationwide(scheme):
+        return LOCATION_NATIONWIDE
+
     person_place = canonical_place(profile.location)
     if not person_place and not canonical_place(profile.district):
         return LOCATION_UNKNOWN
@@ -486,6 +558,12 @@ def _grounding(
         "minimum_experience": scheme.minimum_experience,
         "missing_certifications": missing_certs,
         "same_place": _norm(profile.location) == _norm(scheme.location),
+        # Open across India; said instead of a distance.
+        "nationwide": is_nationwide(scheme),
+        # Fits because the scheme takes any trade, not because it names this
+        # one. Said as such, never as "made for your work".
+        "open_to_any_trade": getattr(scheme, "skill_match", "all") == "any"
+        and not matched,
     }
 
 
@@ -506,8 +584,24 @@ def rank(
     scored = [score_one(profile, o) for o in catalogue]
     scored.sort(key=lambda m: (-m.overall_score, m.scheme.id))
 
-    for index, match in enumerate(scored, start=1):
-        match.rank = index
-
     cap = limit or settings.match_result_limit
-    return scored[:cap]
+    kept: list[ScoredMatch] = []
+    open_to_any = 0
+    for match in scored:
+        if len(kept) >= cap:
+            break
+        # Schemes that take any trade tie with one another for everyone --
+        # eight of them at one score, ordered by id. Past a few they say
+        # nothing new and push out the openings in the person's own trade, so
+        # only the first few are kept here. The rest are still listed on
+        # /nearby under "anywhere in India". Deterministic: same input, same
+        # cut.
+        if match.grounding.get("open_to_any_trade") and match.skill_evidence:
+            if open_to_any >= MAX_OPEN_TO_ANY_TRADE:
+                continue
+            open_to_any += 1
+        kept.append(match)
+
+    for index, match in enumerate(kept, start=1):
+        match.rank = index
+    return kept

@@ -44,8 +44,11 @@ def _correct(client, session_id, years):
 
 
 def _match(client, session_id) -> list[dict]:
+    # The whole ranking, not the first page: the point is how each scheme's
+    # experience score moves, wherever it lands.
     return client.post(
-        "/api/schemes/match", json={"session_id": session_id, "explain": False}
+        "/api/schemes/match",
+        json={"session_id": session_id, "explain": False, "limit": 100},
     ).json()["matches"]
 
 

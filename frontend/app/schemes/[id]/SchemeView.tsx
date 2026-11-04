@@ -17,7 +17,7 @@ import { useRouter } from "next/navigation";
 import { AskVoicePath } from "@/components/AskVoicePath";
 import { DegradedNote, ErrorNote } from "@/components/Notices";
 import { ApiError, api } from "@/lib/api";
-import { copyFor, payLabel, typeLabel } from "@/lib/i18n";
+import { copyFor, payLabel, placeLabel, typeLabel } from "@/lib/i18n";
 import { useSession } from "@/lib/session";
 import type { MatchResult, SchemeDetail } from "@/lib/types";
 
@@ -117,7 +117,7 @@ export function SchemeView({
           <p className="mt-3 text-[15px]" style={{ color: "var(--ink-62)" }}>
             {[
               scheme.organization,
-              scheme.location,
+              placeLabel(scheme.location, language),
               typeLabel(scheme.type, language),
             ].join(" · ")}
           </p>
@@ -295,7 +295,7 @@ export function SchemeView({
               <h3 className="vp-display text-[1.125rem]">{copy.applyHow}</h3>
               <p className="mt-3 text-[14px]" style={{ color: "var(--ink-62)" }}>
                 {scheme.organization}
-                {scheme.location ? ` · ${scheme.location}` : ""}
+                {scheme.location ? ` · ${placeLabel(scheme.location, language)}` : ""}
               </p>
               {scheme.source_reference && (
                 <>

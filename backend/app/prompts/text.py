@@ -177,6 +177,7 @@ The scheme:
 - Organisation: {organization}
 - Place: {location_scheme}
 - Type: {type}
+- Who it is for: {trades}
 - Minimum experience asked for: {minimum_experience}
 - Certificates required: {certifications_required}
 - Pay: {pay}

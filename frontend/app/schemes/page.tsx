@@ -20,7 +20,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { DegradedNote, ErrorNote } from "@/components/Notices";
 import { MatchRing } from "@/components/MatchRing";
 import { ApiError, api } from "@/lib/api";
-import { copyFor, payLabel, typeLabel } from "@/lib/i18n";
+import { copyFor, payLabel, placeLabel, typeLabel } from "@/lib/i18n";
 import { useSession } from "@/lib/session";
 import type { Language, MatchResult, SchemeSummary } from "@/lib/types";
 
@@ -226,7 +226,7 @@ function MatchRow({
             {o.title}
           </h2>
           <p className="mt-1.5 text-[13.5px]" style={{ color: "var(--ink-55)" }}>
-            {[o.organization, o.location, typeLabel(o.type, language)].join(
+            {[o.organization, placeLabel(o.location, language), typeLabel(o.type, language)].join(
               " · ",
             )}
           </p>
@@ -289,7 +289,7 @@ function BrowseRow({
         <p className="mt-1.5 text-[13.5px]" style={{ color: "var(--ink-55)" }}>
           {[
             scheme.organization,
-            scheme.location,
+            placeLabel(scheme.location, language),
             typeLabel(scheme.type, language),
           ].join(
             " · ",
