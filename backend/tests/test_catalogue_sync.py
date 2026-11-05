@@ -1,4 +1,4 @@
-"""``db/003_seed.sql`` (plus ``db/010_national_schemes.sql``) and
+"""``db/003_seed.sql`` (plus ``db/010_national_schemes.sql`` and ``db/011_more_skills.sql``) and
 ``app/data/catalogue.py`` describe the same catalogue. Nothing enforces that at runtime -- one is SQL and one is Python --
 so this test does, and fails loudly when the two drift apart."""
 
@@ -13,8 +13,8 @@ from app.data.catalogue import SCHEMES, TAXONOMY
 
 DB = Path(__file__).resolve().parents[2] / "db"
 # Every file that seeds catalogue rows. 010 adds the national schemes and the
-# trades they name.
-SEEDS = [DB / "003_seed.sql", DB / "010_national_schemes.sql"]
+# trades they name; 011 the skills people described that nothing could place.
+SEEDS = [DB / "003_seed.sql", DB / "010_national_schemes.sql", DB / "011_more_skills.sql"]
 
 
 @pytest.fixture(scope="module")

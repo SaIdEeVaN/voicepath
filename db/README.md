@@ -30,6 +30,7 @@ python -m app.scripts.embed_taxonomy
 | `004_policies.sql` | RLS. Catalogues are public-read; every personal-data table is unreachable by anon keys. |
 | `005`–`009` | Documents corpus, the schemes rename, match language, document URLs. |
 | `010_national_schemes.sql` | `schemes.skill_match`; 24 more skills (PM Vishwakarma's trades, street vending, sanitation work…); 11 national schemes quoted from their official releases. Generated from `backend/app/data/catalogue.py`. Idempotent. |
+| `011_more_skills.sql` | Three skills people described that nothing could place (engine repair, pharmacy, medicine sales), and the phrases they used as aliases of Engine Diagnostics. Generated from `catalogue.py`. Idempotent. |
 
 New skills have no embedding until one is computed. The API does that itself
 on startup (`services/corpus_sync.py`), along with ingesting any new text file

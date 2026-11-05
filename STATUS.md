@@ -3,7 +3,7 @@
 > **This file is the live todo list.** It is updated every time a task is completed.
 > Start at **To-do** — that is the working checklist. **Next up** carries the
 > detail behind the top items; everything below it is the record of the build.
-> Last updated: 2026-11-04 (security review and hardening; see SECURITY.md)
+> Last updated: 2026-11-05 (tests on every push; skills people described now reach the taxonomy)
 
 **Project root:** `C:\Users\Sai Dixit\voicepath`
 **Sources:** `PRD_File_For_Project.md` (spec) · `VoicePath Mockups.html` (design canvas, unpacked)
@@ -137,9 +137,13 @@ twice is harmless. There is no cost to doing this in the safe order.
 
 - [ ] **The Hugging Face Inference API is out of credits** (402 Payment
       Required since at least 2026-11-04 15:39 UTC). Decided 2026-11-04: the
-      owner adds HF credits. Until then skills are recognised only when said
-      by name or alias, the assistant searches documents by keyword only, and
-      the 24 new skills and 24 new official documents cannot be embedded.
+      owner adds HF credits. Until then a skill is accepted only when said by
+      name or alias -- one described in other words is shortlisted by its
+      words for the model or the person to confirm (2026-11-05) -- the
+      assistant searches documents by keyword only, and the 27 new skills
+      (24 + 3 from `db/011`) and 24 new official documents cannot be embedded.
+      Engine Diagnostics' embedding was also cleared by `db/011`, because its
+      aliases changed.
       After adding credits, restart the API (Render: Manual Deploy → Restart);
       its startup catch-up embeds and ingests everything missing. `/health` shows
       `"embeddings": {"status": "payment_required"}`. Options: buy HF
@@ -509,7 +513,7 @@ frontend/
 - [x] `/api/admin/*` — server-side role check, sha256 tokens, bootstrap that self-disables
 - [x] Rate limiting on public routes · `GET /health` reporting every provider honestly
 
-### Phase 5 — Backend tests ✅ (719 passing, 7 skipped)
+### Phase 5 — Backend tests ✅ (747 passing, 7 skipped)
 - [x] `test_matching.py` — weights, determinism, each component, grounding
 - [x] `test_extraction.py` — evidence grounding in ta/hi/en, invention rejected
 - [x] `test_normalization.py` — alias matching across scripts, no silent upgrades
@@ -717,6 +721,37 @@ below the `lg` breakpoint its grid had no column template, and an implicit
 column cannot shrink below its widest content. `grid-cols-1` fixes it.
 
 ---
+
+## Done on 2026-11-05 — skills people described now reach the taxonomy
+
+Of the first 66 skills people described in production, **12 matched nothing**:
+five were an engine mechanic's ("engine engine-aa velai paarthen",
+"identifying engine problems by sound", a Tamil sentence about knowing the
+fault from the engine's sound), six from the medicine trade ("Pharmacist",
+"pharmaceutical drug dealer" -- the licensed wholesale trade), one a football
+question. And while the embedder is out of credits, *every* skill not said by
+its exact name or alias landed nowhere.
+
+- **Three skills** (`db/011_more_skills.sql`, applied to production and
+  checked value by value against the catalogue): Engine Repair and Overhaul
+  (SK016), Pharmacy and Chemist Shop Work (SK118), Medicine Sales and
+  Distribution (SK096), with Tamil and Hindi names and aliases, linked at 0.40
+  to the eight schemes open to any trade. Engine Diagnostics gained the
+  phrases people used as aliases. Bare "drug dealer" is deliberately not an
+  alias and shortlists nothing.
+- **A keyword shortlist** (`taxonomy.keyword_candidates`) for when the
+  embedding search offers nothing or is down: skills sharing a *rare* word
+  with what was said ("engine", "pharma", "சத்தம்"), with word forms folded
+  ("diagnosing" / "diagnostics", Tamil case endings). It only offers -- the
+  model chooses among it, constrained to it, or the person does; shared
+  words never accept a skill alone. Generic words ("work", "problem",
+  "years", "வேலை", "काम") shortlist nothing.
+- **Tests**: `tests/test_skill_shortlist.py` (28) -- every production phrase
+  reaches its skill with the embedder down; the shortlist never accepts; the
+  model cannot choose outside it.
+- **Tests on every push** (`.github/workflows/tests.yml`): pytest, the
+  frontend type-check and a production build, on every push to `main` and
+  every pull request. Until now nothing checked a push before it deployed.
 
 ## Done on 2026-11-04 — security review and hardening
 

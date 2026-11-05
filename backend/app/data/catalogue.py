@@ -63,8 +63,12 @@ TAXONOMY: list[TaxonomyEntry] = [
     {"code": "SK014", "name": "Engine Diagnostics", "category": "Mechanical",
      "hint": "Finding the fault -- by sound, by feel, or with a tester.",
      "aliases": ["engine problem finding", "engine fault", "diagnose engine", "engine sound",
-                 "इंजन जाँच", "इंजन की दिक्कत पहचानना", "எஞ்சின் கோளாறு கண்டறிதல்",
-                 "எஞ்சின் சத்தம்"]},
+                 # Said in production (2026-09) and placed nowhere.
+                 "identifying engine problems by sound", "engine diagnosis",
+                 "finding engine problems", "engine fault finding",
+                 "इंजन जाँच", "इंजन की दिक्कत पहचानना", "इंजन की आवाज़ से खराबी पहचानना",
+                 "எஞ்சின் கோளாறு கண்டறிதல்", "எஞ்சின் சத்தம்", "இன்ஜின் சத்தம்",
+                 "இன்ஜின் கோளாறு"]},
     {"code": "SK015", "name": "Vehicle Electrical Work", "category": "Mechanical",
      "hint": "Wiring, battery, lights and starter on vehicles.",
      "aliases": ["auto electrician", "vehicle wiring", "battery work", "ऑटो इलेक्ट्रीशियन",
@@ -312,6 +316,39 @@ TAXONOMY: list[TaxonomyEntry] = [
      "hint": "Knotting and mending fishing nets.",
      "aliases": ["net maker", "net mending", "fishing net", "जाल बनाना", "मछली का जाल",
                  "வலை பின்னுதல்", "மீன் வலை"]},
+
+    # -- Added 2026-11-05 -------------------------------------------------
+    # Work people described in production that the taxonomy had no place
+    # for: an engine mechanic ("engine engine-aa velai paarthen") and people
+    # from the medicine trade -- a pharmacist, and "pharmaceutical drug
+    # dealer", which in India is the licensed wholesale trade, not a crime.
+    # Bare "drug dealer" is deliberately not an alias.
+    {"code": "SK016", "name": "Engine Repair and Overhaul", "category": "Mechanical",
+     "hint": "Opening up and rebuilding engines -- petrol and diesel, in vehicles, pumps "
+             "and generators.",
+     "aliases": ["engine repair", "engine work", "engine overhaul", "engine mechanic",
+                 "diesel mechanic", "diesel engine repair", "engine rebuilding",
+                 "इंजन का काम", "इंजन मरम्मत", "डीजल मैकेनिक", "इंजन ओवरहॉल",
+                 "இன்ஜின் வேலை", "எஞ்சின் வேலை", "இன்ஜின் ரிப்பேர்", "எஞ்சின் பழுது நீக்கம்",
+                 "டீசல் மெக்கானிக்"]},
+    {"code": "SK118", "name": "Pharmacy and Chemist Shop Work", "category": "Service",
+     "hint": "Dispensing medicines at a chemist's shop or hospital pharmacy -- reading "
+             "prescriptions, keeping stock and expiry dates.",
+     "aliases": ["pharmacist", "pharmacy", "pharmacy assistant", "chemist", "chemist shop",
+                 "medical shop", "medical store", "medicine shop", "dispensing medicines",
+                 "फार्मासिस्ट", "फार्मेसी", "केमिस्ट", "दवा की दुकान", "मेडिकल स्टोर",
+                 "பார்மசிஸ்ட்", "மருந்தகம்", "மருந்துக் கடை", "மெடிக்கல் ஷாப்",
+                 "மெடிக்கல் கடை"]},
+    {"code": "SK096", "name": "Medicine Sales and Distribution", "category": "Commerce",
+     "hint": "Selling and supplying medicines to chemists, clinics and hospitals -- as a "
+             "medical representative or for a wholesale distributor.",
+     "aliases": ["medical representative", "medical rep", "pharmaceutical sales",
+                 "pharma sales", "pharmaceutical distributor", "medicine distributor",
+                 "pharmaceutical wholesale", "pharmaceutical business",
+                 "pharmaceutical drug dealer", "pharmaceutical drug dealing",
+                 "मेडिकल रिप्रेजेंटेटिव", "दवा वितरक", "दवा का थोक व्यापार",
+                 "மெடிக்கல் ரெப்", "மருந்து விநியோகம்", "மருந்து மொத்த வியாபாரம்",
+                 "பார்மசூட்டிக்கல் ட்ரக் டீலர்"]},
 ]
 
 
@@ -825,6 +862,9 @@ DISPLAY_NAMES: dict[str, dict[str, str]] = {
     "SK132": {"ta": "பாரம்பரிய பொம்மை செய்தல்", "hi": "पारंपरिक खिलौने बनाना"},
     "SK133": {"ta": "மாலை கட்டுதல்", "hi": "माला बनाना"},
     "SK134": {"ta": "மீன்பிடி வலை பின்னுதல்", "hi": "मछली का जाल बनाना"},
+    "SK016": {"ta": "எஞ்சின் பழுது நீக்கம்", "hi": "इंजन मरम्मत"},
+    "SK118": {"ta": "மருந்தகப் பணி", "hi": "दवा दुकान का काम"},
+    "SK096": {"ta": "மருந்து விற்பனை மற்றும் விநியோகம்", "hi": "दवा बिक्री और वितरण"},
 }
 
 

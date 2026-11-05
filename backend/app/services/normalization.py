@@ -13,7 +13,10 @@ Three outcomes per skill, and the middle one is the point of the design:
   skill is flagged ``needs_disambiguation`` and the user is asked. That is the
   low-confidence screen in the design.
 * below the candidate threshold -> left unnormalized, with candidates attached
-  so the interface can still offer them.
+  so the interface can still offer them. When the embedding search has none to
+  offer -- or the embedder is down -- skills sharing distinctive words with the
+  phrase are shortlisted instead (``taxonomy.keyword_candidates``) and handled
+  like the middle band: the model may choose among them, or the user does.
 
 A skill is never silently mapped to something the evidence does not support.
 Unnormalized skills stay in the profile with their evidence intact; they simply
@@ -120,6 +123,18 @@ async def normalize_many(
         else:
             entry.needs_disambiguation = bool(entry.candidates)
             entry.confidence = best.similarity if best else 0.0
+            if not entry.candidates:
+                # Nothing the embedding search would offer, or no embedding at
+                # all. Skills sharing distinctive words with what was said are
+                # shortlisted for the model -- or the person -- to choose from,
+                # never accepted on the words alone.
+                shortlist = await taxonomy.keyword_candidates(
+                    raw_name, evidence, limit=max(settings.normalization_candidate_count, 3)
+                )
+                if shortlist:
+                    entry.candidates = shortlist
+                    entry.needs_disambiguation = True
+                    needs_assist.append(entry)
 
         results.append(entry)
 

@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
 import re
 import unicodedata
 from dataclasses import dataclass, field
@@ -79,9 +80,10 @@ async def _memory_taxonomy() -> list[TaxonomySkill]:
 
 def reset_memory_cache() -> None:
     """Used by tests that switch embedding providers mid-run."""
-    global _memory_cache, _alias_index
+    global _memory_cache, _alias_index, _keyword_index
     _memory_cache = None
     _alias_index = None
+    _keyword_index = None
 
 
 # ---------------------------------------------------------------------------
@@ -160,6 +162,165 @@ async def lexical_match(phrase: str) -> TaxonomySkill | None:
         return None
     found = await get_by_ids([skill_id])
     return found.get(skill_id)
+
+
+# ---------------------------------------------------------------------------
+# Keyword shortlist
+# ---------------------------------------------------------------------------
+#
+# Between "said a skill's exact name" and "the embedding model placed it" there
+# was nothing, so a skill described in a person's own words -- "identifying
+# engine problems by sound", "pharmacist" -- landed nowhere whenever the model
+# was down (Hugging Face out of credits, 2026-11) or simply missed it.
+#
+# This shortlists skills that share distinctive words with what was said. It
+# only ever *offers*: normalization hands the shortlist to the model to choose
+# from, or to the person, exactly as it does the embedding search's middle
+# band. A shared word is never enough to accept a skill on its own -- that is
+# the upgrade lexical_match's docstring forbids.
+
+_SPLIT = re.compile(r"[\s\-_/\\.,;:!?()\[\]{}\"'“”‘’…|+&*#@0-9]+")
+_ENGLISH_SUFFIXES = ("ings", "ing", "ers", "er", "ed", "es", "s")
+# Long enough that "diagnose", "diagnosing" and "diagnostics" meet, short enough
+# that "pharmacist", "pharmacy" and "pharmaceutical" do. Tamil and Hindi words
+# are cut the same way, which also strips Tamil case endings ("இன்ஜினோட" is
+# "இன்ஜின்" with a genitive on it).
+_STEM_LENGTH = 6
+
+# Words that say nothing about which skill: function words, and the words for
+# work, years, knowing and problems that every description of work contains.
+_STOPWORDS_RAW = """
+a an the and or of in on at by for with to from as is was are were be been am
+i me my mine we our you your he she they them it its this that these those
+who what when where how which why do did does done doing can could will would
+get got make made have has had know knew known knowing understand
+work works worked working job jobs velai seyden paarthen panninen years year
+experience problem problems issue issues thing things stuff good well very
+also all everything lot some any other more much like just only really
+நான் எனக்கு என் என்ன அது இது அந்த இந்த ஒரு நல்லா நல்ல தெரியும் வேலை
+பார்த்தேன் செய்தேன் செய்வேன் வருடம் வருஷம் ஆண்டு கேட்டா பிரச்சனை எல்லாம்
+मैं मेरा मेरी मुझे है था थी हूँ हूं का की के में से और को काम साल करता
+करती किया आता आती जानता जानती समस्या दिक्कत सब
+drug dealer dealing
+"""
+# "drug" and "dealer" above: "pharmaceutical drug dealer" is an alias of
+# Medicine Sales and Distribution -- the licensed trade -- but the words alone
+# are not, and a bare "drug dealer" should shortlist nothing.
+
+
+def _stem(token: str) -> str:
+    if token.isascii():
+        for suffix in _ENGLISH_SUFFIXES:
+            if token.endswith(suffix) and len(token) - len(suffix) >= 3:
+                token = token[: -len(suffix)]
+                break
+    return token[:_STEM_LENGTH]
+
+
+def _words(text: str) -> set[str]:
+    stems = {_stem(t) for t in _SPLIT.split(_fold(text)) if t}
+    return {s for s in stems if len(s) >= (3 if s.isascii() else 2)} - _STOPWORDS
+
+
+_STOPWORDS: set[str] = set()
+_STOPWORDS = _words(_STOPWORDS_RAW)
+
+# A word this many skills share or fewer can pick a skill out; "repair" or
+# "machine" cannot, so a phrase needs at least one word this rare to be
+# shortlisted at all.
+_DISTINCTIVE_DF = 3
+# Share of a phrase's known words (weighted by rarity) a skill must cover.
+_MIN_KEYWORD_SCORE = 0.34
+# Words from the evidence count less than words from the skill's own name.
+_EVIDENCE_WEIGHT = 0.5
+
+_keyword_index: tuple[dict[int, set[str]], dict[str, int]] | None = None
+_keyword_lock = asyncio.Lock()
+
+
+async def _get_keyword_index() -> tuple[dict[int, set[str]], dict[str, int]]:
+    """Each skill's vocabulary, and how many skills each word appears in."""
+    global _keyword_index
+    if _keyword_index is not None:
+        return _keyword_index
+    async with _keyword_lock:
+        if _keyword_index is not None:
+            return _keyword_index
+
+        vocab: dict[int, set[str]] = {}
+
+        def add(skill_id: int, *texts: str | None) -> None:
+            words = vocab.setdefault(skill_id, set())
+            for text in texts:
+                if isinstance(text, str):
+                    words |= _words(text)
+
+        if db.is_available():
+            rows = await db.fetch(
+                "select id, name, hint, aliases, display_names from skill_taxonomy"
+            )
+            for row in rows:
+                names = dict(row["display_names"] or {})
+                add(row["id"], row["name"], row["hint"], *(row["aliases"] or []),
+                    *names.values())
+        else:
+            for skill, entry in zip(await _memory_taxonomy(), TAXONOMY):
+                add(skill.id, entry["name"], entry["hint"], *entry["aliases"],
+                    *skill.display_names.values())
+
+        df: dict[str, int] = {}
+        for words in vocab.values():
+            for word in words:
+                df[word] = df.get(word, 0) + 1
+        _keyword_index = (vocab, df)
+        return _keyword_index
+
+
+async def keyword_candidates(
+    phrase: str, evidence: str = "", *, limit: int = 3
+) -> list[ScoredSkill]:
+    """Skills sharing rare words with a phrase -- to offer, never to accept.
+
+    ``similarity`` on the result is the share of the phrase's known words the
+    skill covers, weighted by how rare each word is: 1.0 means every word the
+    taxonomy knows points at this skill. It is not an embedding similarity and
+    is never compared against the accept threshold.
+    """
+    said = _words(phrase)
+    heard = _words(evidence) - said
+    if not said and not heard:
+        return []
+    vocab, df = await _get_keyword_index()
+    total_skills = max(len(vocab), 1)
+
+    def weight(word: str) -> float:
+        rarity = math.log(1 + total_skills / df[word])
+        return rarity * (1.0 if word in said else _EVIDENCE_WEIGHT)
+
+    known = [w for w in said | heard if w in df]
+    if not known:
+        return []
+    possible = sum(weight(w) for w in known)
+
+    scored: list[tuple[float, int]] = []
+    for skill_id, words in vocab.items():
+        shared = [w for w in known if w in words]
+        if not any(df[w] <= _DISTINCTIVE_DF for w in shared):
+            continue
+        score = sum(weight(w) for w in shared) / possible
+        if score >= _MIN_KEYWORD_SCORE:
+            scored.append((score, skill_id))
+    if not scored:
+        return []
+
+    scored.sort(key=lambda pair: (-pair[0], pair[1]))
+    top = scored[:limit]
+    found = await get_by_ids([skill_id for _, skill_id in top])
+    return [
+        ScoredSkill(skill=found[skill_id], similarity=round(score, 3))
+        for score, skill_id in top
+        if skill_id in found
+    ]
 
 
 async def list_all() -> list[TaxonomySkill]:
