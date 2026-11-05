@@ -366,6 +366,10 @@ class HealthResponse(Base):
     # The same for the embedder: "ok", "offline", or why it is not answering
     # ("payment_required" when the hosted API's credits are spent).
     embeddings: dict[str, str] = Field(default_factory=dict)
+    # Where the rate-limit counters live: "shared" (every instance counts
+    # against the same numbers) or "process", with the reason when a shared
+    # store is configured but not answering.
+    rate_limits: dict[str, str] = Field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------

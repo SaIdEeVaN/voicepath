@@ -12,3 +12,6 @@ pydantic-settings==2.7.0
 python-multipart==0.0.33
 httpx==0.28.1
 asyncpg==0.30.0
+# Shared rate-limit counters (Render Key Value). Only imported when
+# RATE_LIMIT_REDIS_URL is set.
+redis==8.1.0

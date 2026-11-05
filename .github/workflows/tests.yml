@@ -47,7 +47,12 @@ jobs:
           cache-dependency-path: backend/requirements-dev.txt
 
       - name: Install
-        run: pip install -r requirements-dev.txt
+        run: |
+          pip install -r requirements-dev.txt
+          # tests/test_shared_ratelimit.py starts its own Redis from this
+          # binary; without it those tests skip rather than test anything.
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends redis-server
 
       - name: Run the tests
         run: python -m pytest -q

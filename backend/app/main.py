@@ -17,7 +17,9 @@ from fastapi.responses import JSONResponse
 from app.config import get_settings
 from app.models import schemas
 from app.routes import admin, assistant, places, profile, query, schemes, sessions, speech
-from app.services import corpus_sync, db, embeddings, llm, ner, repository, stt, tts, websearch
+from app.services import (
+    corpus_sync, db, embeddings, llm, ner, ratelimit, repository, stt, tts, websearch,
+)
 from app.services import schemes as schemes_service
 from app.services import taxonomy as taxonomy_service
 from app.services import places as places_service
@@ -260,6 +262,7 @@ async def health() -> schemas.HealthResponse:
         database=database,
         llm=llm.status(),
         embeddings=embeddings.status(),
+        rate_limits=ratelimit.status_report(),
     )
 
 

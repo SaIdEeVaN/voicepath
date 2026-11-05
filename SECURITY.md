@@ -53,7 +53,12 @@ every external link carries `rel="noopener noreferrer"`.
 must hold: per session (only a well-formed session id counts), per address
 (four sessions' worth), and per route for everyone together (25x) -- the last
 is the ceiling that protects the Groq allowance even from a client forging
-both its session and its address.
+both its session and its address. The counters live in a shared store -- a
+Render Key Value instance (`RATE_LIMIT_REDIS_URL`), reachable only from Render
+services in its region -- so the limits hold however many instances run. Keys
+are hashed and expire on their own. If the store stops answering, counting
+falls back to the process (a request is never refused for want of a
+counter) and `/health` says so under `rate_limits`.
 
 **Admin access** (`routes/admin.py`). Tokens are stored only as SHA-256
 hashes; the bootstrap token is compared in constant time and is honoured only
@@ -92,8 +97,6 @@ is read-only and the offices job may only push its own data file.
 
 ## Known limits
 
-- Rate limits are per process. Behind more than one instance they multiply;
-  move the counters to Redis before scaling out.
 - The address used for limits comes from `X-Forwarded-For` as Render passes
   it, which a client can influence -- hence the global ceiling.
 - A session's data is reachable by anyone holding its id. The id is a random

@@ -52,7 +52,7 @@ async def require_admin(
     the window passes (services/ratelimit.py). A correct token is never
     counted, and a missing one (401) is not a guess.
     """
-    wait = ratelimit.admin_locked_out(request)
+    wait = await ratelimit.admin_locked_out(request)
     if wait is not None:
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -63,7 +63,7 @@ async def require_admin(
         return await _resolve_admin(authorization)
     except HTTPException as exc:
         if exc.status_code == status.HTTP_403_FORBIDDEN:
-            ratelimit.record_admin_failure(request)
+            await ratelimit.record_admin_failure(request)
         raise
 
 

@@ -191,6 +191,10 @@ class Settings(BaseSettings):
     rate_limit_speech_per_minute: int = 12
     rate_limit_assistant_per_minute: int = 20
     rate_limit_default_per_minute: int = 60
+    # The shared store for the counters (redis:// or rediss://) -- on Render,
+    # the Key Value instance's internal URL. Unset: counted in this process,
+    # which is right for one instance and multiplies behind several.
+    rate_limit_redis_url: str | None = None
 
     # -- Admin (PRD section 6.6) -------------------------------------------
     # Bootstrap token, sha256-compared. Used only when admin_users is empty.
