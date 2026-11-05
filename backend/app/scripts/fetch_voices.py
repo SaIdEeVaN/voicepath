@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import logging
 import sys
+import time
 import urllib.request
 from pathlib import Path
 
@@ -38,6 +39,37 @@ VOICES: dict[str, tuple[str, str, str]] = {
 }
 
 
+# A download used to have only a 600-second *socket* timeout: it fired after
+# ten minutes of total silence, never on a slow trickle. On 2026-11-05 a Render
+# build hung on the Hindi voice for over fifteen minutes and every deploy
+# queued behind it. Now each file has a ceiling for the whole download, any
+# 60 seconds of silence ends an attempt, and three attempts are made. A file
+# is written under a temporary name and renamed when complete, so a cut-off
+# download is never mistaken for a present one.
+PER_FILE_SECONDS = 300
+SILENCE_SECONDS = 60
+ATTEMPTS = 3
+CHUNK_BYTES = 1 << 20
+
+
+def _download(url: str, target: Path) -> None:
+    partial = target.with_name(target.name + ".part")
+    deadline = time.monotonic() + PER_FILE_SECONDS
+    request = urllib.request.Request(url, headers={"User-Agent": "voicepath"})
+    try:
+        with urllib.request.urlopen(request, timeout=SILENCE_SECONDS) as response, \
+                partial.open("wb") as out:
+            while chunk := response.read(CHUNK_BYTES):
+                out.write(chunk)
+                if time.monotonic() > deadline:
+                    raise TimeoutError(f"not finished after {PER_FILE_SECONDS}s")
+        if partial.stat().st_size == 0:
+            raise ValueError("empty download")
+        partial.replace(target)
+    finally:
+        partial.unlink(missing_ok=True)
+
+
 def main() -> int:
     dest = Path(get_settings().piper_voice_dir)
     dest.mkdir(parents=True, exist_ok=True)
@@ -48,15 +80,20 @@ def main() -> int:
             if target.is_file() and target.stat().st_size > 0:
                 logger.info("%s: %s already present", language, target.name)
                 continue
-            request = urllib.request.Request(
-                base + stem + suffix, headers={"User-Agent": "voicepath"}
-            )
-            try:
-                with urllib.request.urlopen(request, timeout=600) as response:
-                    target.write_bytes(response.read())
-            except Exception as exc:  # noqa: BLE001 - report and keep going
-                logger.error("%s: %s failed (%s)", language, target.name, exc)
-                return 1
+            for attempt in range(1, ATTEMPTS + 1):
+                try:
+                    _download(base + stem + suffix, target)
+                    break
+                except Exception as exc:  # noqa: BLE001 - retry, then fail the build
+                    logger.warning(
+                        "%s: %s attempt %d/%d failed (%s)",
+                        language, target.name, attempt, ATTEMPTS, exc,
+                    )
+                    if attempt == ATTEMPTS:
+                        # Failing the build keeps the running version live.
+                        logger.error("%s: %s could not be downloaded", language, target.name)
+                        return 1
+                    time.sleep(5 * attempt)
             logger.info(
                 "%s: %s  %.1f MB  [%s]",
                 language, target.name, target.stat().st_size / 1e6, licence,

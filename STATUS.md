@@ -513,7 +513,7 @@ frontend/
 - [x] `/api/admin/*` — server-side role check, sha256 tokens, bootstrap that self-disables
 - [x] Rate limiting on public routes · `GET /health` reporting every provider honestly
 
-### Phase 5 — Backend tests ✅ (892 passing, 7 skipped)
+### Phase 5 — Backend tests ✅ (894 passing, 7 skipped)
 - [x] `test_matching.py` — weights, determinism, each component, grounding
 - [x] `test_extraction.py` — evidence grounding in ta/hi/en, invention rejected
 - [x] `test_normalization.py` — alias matching across scripts, no silent upgrades
@@ -829,6 +829,14 @@ its exact name or alias landed nowhere.
     the session exists. Checked end to end in Chromium: the flow works with
     the key, every session request carries it, it is never in a URL, and
     without it nothing opens (`tests/test_session_keys.py`, 11).
+- **A voice download can no longer hang a deploy** (`scripts/fetch_voices.py`).
+  On 2026-11-05 a Render build hung for over fifteen minutes on a voice
+  trickling in from Hugging Face -- the only timeout fired after ten minutes of
+  total silence -- and the session-keys deploy queued behind it. Now: five
+  minutes per file at most, 60 seconds of silence ends an attempt, three
+  attempts, written under a temporary name until complete. A voice that still
+  will not come fails the build, which leaves the running version live.
+  Tests: `tests/test_fetch_voices.py` (2).
 - **Tests on every push** (`.github/workflows/tests.yml`): pytest, the
   frontend type-check and a production build, on every push to `main` and
   every pull request. Until now nothing checked a push before it deployed.
