@@ -17,7 +17,9 @@ from fastapi.responses import JSONResponse
 from app.config import get_settings
 from app.models import schemas
 from app.routes import admin, assistant, places, profile, query, schemes, sessions, speech
-from app.services import corpus_sync, db, embeddings, llm, ner, stt, tts, websearch
+from app.services import corpus_sync, db, embeddings, llm, ner, repository, stt, tts, websearch
+from app.services import schemes as schemes_service
+from app.services import taxonomy as taxonomy_service
 from app.services import places as places_service
 from app import security
 from app.security import BodySizeLimitMiddleware, SecurityHeadersMiddleware
@@ -78,11 +80,44 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # record. Background, idempotent, and a no-op once caught up.
     syncing = asyncio.create_task(corpus_sync.catch_up_safely())
 
+    # A configured database that did not answer: keep trying, and switch over
+    # once nobody is mid-flow on the in-memory store.
+    reconnecting = (
+        asyncio.create_task(
+            db.reconnect_in_background(
+                is_quiet=lambda: repository.memory_quiet(MEMORY_IDLE_BEFORE_SWITCH_SECONDS),
+                on_connected=_after_reconnect,
+            )
+        )
+        if db.is_configured() and not db.is_available()
+        else None
+    )
+
     yield
 
     warming.cancel()
     syncing.cancel()
+    if reconnecting is not None:
+        reconnecting.cancel()
     await db.close_pool()
+
+
+# How long the in-memory store must sit unused before the API switches to a
+# database that has come back. Nobody is mid-flow after half an hour idle.
+MEMORY_IDLE_BEFORE_SWITCH_SECONDS = 30 * 60
+
+
+async def _after_reconnect() -> None:
+    """Hand over from the in-memory store to the database that came back."""
+    retired = repository.retire_memory_sessions()
+    # Built from the bundled catalogue while the database was away; the
+    # database's rows (and ids) are the ones to use now.
+    taxonomy_service.reset_memory_cache()
+    schemes_service.reset_memory_cache()
+    logger.warning(
+        "Switched to the database; %d session(s) from the outage were not saved", retired
+    )
+    await corpus_sync.catch_up_safely()
 
 
 def _degraded(settings) -> list[str]:

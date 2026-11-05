@@ -191,11 +191,11 @@ twice is harmless. There is no cost to doing this in the safe order.
       database awake* → *Run workflow* once by hand. It should go green and
       print `"connected": true`. Supabase's exact definition of "inactive" is
       theirs; if the project pauses anyway, the job goes red and emails you.
-- [ ] **The API does not reconnect on its own.** After a database outage it
-      stays on memory until it restarts. On the free tier that happens on the
-      next wake from sleep anyway; on an always-on plan, restart it by hand
-      (or add a careful reconnect — sessions started in memory would vanish
-      if it switched underneath them).
+- [x] **The API does not reconnect on its own.** Fixed 2026-11-05: it
+      retries in the background and switches once nobody is mid-flow on the
+      in-memory store (see *Done on 2026-11-05*). Only a database lost
+      *after* startup still relies on asyncpg's pool, which replaces broken
+      connections on its own once the database answers again.
 
 ### Near you (the map) — follow-ups
 
@@ -513,7 +513,7 @@ frontend/
 - [x] `/api/admin/*` — server-side role check, sha256 tokens, bootstrap that self-disables
 - [x] Rate limiting on public routes · `GET /health` reporting every provider honestly
 
-### Phase 5 — Backend tests ✅ (758 passing, 7 skipped)
+### Phase 5 — Backend tests ✅ (770 passing, 7 skipped)
 - [x] `test_matching.py` — weights, determinism, each component, grounding
 - [x] `test_extraction.py` — evidence grounding in ta/hi/en, invention rejected
 - [x] `test_normalization.py` — alias matching across scripts, no silent upgrades
@@ -773,6 +773,20 @@ its exact name or alias landed nowhere.
   needs no case ending glued on; "சேலம்லேயே" would have been wrong. A place
   the gazetteer does not know keeps its catalogue spelling. Tests:
   `tests/test_place_names.py` (11).
+- **The API reconnects after a database outage** (`services/db.py`,
+  `main.py`, `repository.py`). Decided 2026-11-05: wait until nobody is
+  mid-flow. A database that did not answer at startup is retried after 15s,
+  30s, 1m, 2m, then every 5 minutes. Once it answers, the switch waits until
+  no in-memory session has been used for 30 minutes -- an outage session
+  carries the in-memory catalogue's skill and scheme ids, which are not the
+  database's, so continuing it against the database would match the wrong
+  rows. Then the pool opens, the in-memory sessions are retired, the
+  taxonomy and scheme caches are rebuilt from the database, and the corpus
+  catch-up runs. A request for a retired session gets **410** and "This
+  session was started while VoicePath's database was down, so it was not
+  saved. Please start again from the beginning." `/health` shows
+  `"reconnect": "retrying"` or "waiting for sessions started during the
+  outage to finish" meanwhile. Tests: `tests/test_database_reconnect.py` (12).
 - **Tests on every push** (`.github/workflows/tests.yml`): pytest, the
   frontend type-check and a production build, on every push to `main` and
   every pull request. Until now nothing checked a push before it deployed.

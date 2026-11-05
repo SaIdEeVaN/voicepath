@@ -9,6 +9,7 @@ so a long-running dev server cannot grow without limit.
 from __future__ import annotations
 
 import logging
+import time
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -103,14 +104,76 @@ def _now() -> datetime:
 
 
 def _remember(entry: _MemorySession) -> None:
+    _touch_memory()
     _memory[entry.session.id] = entry
     _memory.move_to_end(entry.session.id)
     while len(_memory) > MEMORY_SESSION_LIMIT:
         _memory.popitem(last=False)
 
 
+def _memory_get(session_id: UUID) -> _MemorySession | None:
+    _touch_memory()
+    return _memory.get(session_id)
+
+
 def reset_memory() -> None:
+    global _last_memory_activity
     _memory.clear()
+    _retired.clear()
+    _last_memory_activity = None
+
+
+# ---------------------------------------------------------------------------
+# Handing over to the database after an outage
+# ---------------------------------------------------------------------------
+#
+# When the database comes back (db.reconnect_in_background), the API switches
+# to it -- but only once nobody is mid-flow on the in-memory store. A session
+# started during the outage cannot be carried across: its skill and scheme ids
+# are the in-memory catalogue's, which are not the database's, so continuing
+# it against the database would match the wrong rows. It is retired instead,
+# and a request for it is told plainly that it was not saved.
+
+# Monotonic time of the last read or write of an in-memory session.
+_last_memory_activity: float | None = None
+# Sessions that lived in memory until the switch.
+_retired: set[UUID] = set()
+
+RETIRED_SESSION_MESSAGE = (
+    "This session was started while VoicePath's database was down, so it was not "
+    "saved. Please start again from the beginning."
+)
+
+
+def _touch_memory() -> None:
+    global _last_memory_activity
+    _last_memory_activity = time.monotonic()
+
+
+def memory_quiet(idle_seconds: float) -> bool:
+    """True when no in-memory session has been used for ``idle_seconds``."""
+    if not _memory or _last_memory_activity is None:
+        return True
+    return time.monotonic() - _last_memory_activity >= idle_seconds
+
+
+def retire_memory_sessions() -> int:
+    """Forget the in-memory sessions, remembering only that they existed."""
+    _retired.update(_memory.keys())
+    count = len(_memory)
+    _memory.clear()
+    return count
+
+
+def missing_session(session_id: UUID | str | None) -> tuple[int, str]:
+    """Status and message for a session id that was not found."""
+    try:
+        key = session_id if isinstance(session_id, UUID) else UUID(str(session_id))
+    except (TypeError, ValueError):
+        key = None
+    if key is not None and key in _retired:
+        return 410, RETIRED_SESSION_MESSAGE
+    return 404, "That session was not found."
 
 
 # ---------------------------------------------------------------------------
@@ -174,7 +237,7 @@ async def get_session(session_id: UUID) -> SessionRow | None:
             session_id,
         )
         return _session_from_row(row) if row else None
-    entry = _memory.get(session_id)
+    entry = _memory_get(session_id)
     return entry.session if entry else None
 
 
@@ -195,7 +258,7 @@ async def set_audio_retention(session_id: UUID, retained: bool) -> SessionRow | 
         )
         return _session_from_row(row) if row else None
 
-    entry = _memory.get(session_id)
+    entry = _memory_get(session_id)
     if entry is None:
         return None
     entry.session.audio_retained = retained
@@ -241,7 +304,7 @@ async def upsert_profile(
         )
         return _profile_from_row(row)
 
-    entry = _memory.get(session_id)
+    entry = _memory_get(session_id)
     if entry is None:
         raise ValueError(f"Unknown session {session_id}")
     profile = ProfileRow(
@@ -283,7 +346,7 @@ async def get_profile(session_id: UUID) -> ProfileRow | None:
             session_id,
         )
         return _profile_from_row(row) if row else None
-    entry = _memory.get(session_id)
+    entry = _memory_get(session_id)
     return entry.profile if entry else None
 
 
@@ -327,7 +390,7 @@ async def replace_skills(
 
     if session_id is None:
         raise ValueError("session_id is required for the in-memory backend")
-    entry = _memory.get(session_id)
+    entry = _memory_get(session_id)
     if entry is None:
         raise ValueError(f"Unknown session {session_id}")
     entry.skills = [
@@ -390,7 +453,7 @@ async def get_skills(session_id: UUID) -> list[SkillRow]:
             session_id,
         )
         return [_skill_from_row(r) for r in rows]
-    entry = _memory.get(session_id)
+    entry = _memory_get(session_id)
     return list(entry.skills) if entry else []
 
 
@@ -445,7 +508,7 @@ async def replace_matches(
                 rows.append(row)
         return [_match_from_row(r) for r in rows]
 
-    entry = _memory.get(session_id)
+    entry = _memory_get(session_id)
     if entry is None:
         raise ValueError(f"Unknown session {session_id}")
     entry.matches = []
@@ -688,7 +751,7 @@ async def get_matches(session_id: UUID) -> list[MatchRow]:
             session_id,
         )
         return [_match_from_row(r) for r in rows]
-    entry = _memory.get(session_id)
+    entry = _memory_get(session_id)
     return list(entry.matches) if entry else []
 
 
@@ -720,7 +783,7 @@ async def log_assistant_query(
             session_id, scheme_id, question_text, answer_text, source_note,
         )
         return
-    entry = _memory.get(session_id)
+    entry = _memory_get(session_id)
     if entry is None:
         return
     entry.questions.append(
@@ -744,7 +807,7 @@ async def list_assistant_queries(session_id: UUID, limit: int = 20) -> list[dict
             session_id, limit,
         )
         return [dict(r) for r in rows]
-    entry = _memory.get(session_id)
+    entry = _memory_get(session_id)
     if entry is None:
         return []
     return list(reversed(entry.questions))[:limit]

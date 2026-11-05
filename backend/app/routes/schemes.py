@@ -17,6 +17,13 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/schemes", tags=["schemes"])
 
 
+def _session_missing(session_id) -> HTTPException:
+    """404 for an unknown session; 410, with a plain reason, for one started
+    in memory during a database outage and retired when the database came back."""
+    code, message = repository.missing_session(session_id)
+    return HTTPException(status_code=code, detail=message)
+
+
 @router.post(
     "/match",
     response_model=schemas.MatchResponse,
@@ -35,10 +42,7 @@ async def match(payload: schemas.MatchRequest) -> schemas.MatchResponse:
         profile_input, _ = await pipeline.load_profile_input(payload.session_id)
         session = await repository.get_session(payload.session_id)
         if session is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="That session was not found.",
-            )
+            raise _session_missing(payload.session_id)
         language = (session.language_detected or "en").split("-")[0]
     elif payload.skills is not None:
         normalized = await pipeline.schema_skills_to_normalized(payload.skills)

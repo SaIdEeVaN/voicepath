@@ -74,8 +74,12 @@ after about a week without activity — the API still starts, on the in-memory
 store. `/health` lists `database` as degraded with `"configured": true`, the
 interface tells people their record may not be kept, and admin access is
 refused until the database is back (the bootstrap token cannot be checked
-safely without it). Restore the project in the Supabase dashboard and restart
-the backend; it does not reconnect on its own.
+safely without it). Restore the project in the Supabase dashboard; the API
+retries in the background (15s, 30s, 1m, 2m, then every 5 minutes) and
+switches to the database once nobody has used the in-memory store for 30
+minutes. Sessions started during the outage are not carried across -- their
+ids belong to the in-memory catalogue -- and anyone returning to one is told
+to start again. A restart still switches at once.
 
 **On startup the API catches the database up** with what the release ships
 (`services/corpus_sync.py`): embeddings for skills that have none, any new text
@@ -248,7 +252,7 @@ the database level and not only in application code.
 ## Tests
 
 ```bash
-cd backend && python -m pytest        # 758 tests
+cd backend && python -m pytest        # 770 tests
 cd frontend && npx tsc --noEmit && npx next build
 ```
 

@@ -17,14 +17,18 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
 
 
+def _session_missing(session_id) -> HTTPException:
+    """404 for an unknown session; 410, with a plain reason, for one started
+    in memory during a database outage and retired when the database came back."""
+    code, message = repository.missing_session(session_id)
+    return HTTPException(status_code=code, detail=message)
+
+
 @router.get("/{session_id}", response_model=schemas.PassportResponse)
 async def get_passport(session_id: UUID) -> schemas.PassportResponse:
     session = await repository.get_session(session_id)
     if session is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="That session was not found.",
-        )
+        raise _session_missing(session_id)
 
     profile = await repository.get_profile(session_id)
     rows = await repository.get_skills(session_id)
@@ -63,10 +67,7 @@ async def set_audio_retention(
 
     updated = await repository.set_audio_retention(session_id, payload.audio_retained)
     if updated is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="That session was not found.",
-        )
+        raise _session_missing(session_id)
     return pipeline.session_to_schema(updated)
 
 

@@ -16,6 +16,13 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/assistant", tags=["assistant"])
 
 
+def _session_missing(session_id) -> HTTPException:
+    """404 for an unknown session; 410, with a plain reason, for one started
+    in memory during a database outage and retired when the database came back."""
+    code, message = repository.missing_session(session_id)
+    return HTTPException(status_code=code, detail=message)
+
+
 @router.post(
     "/query",
     response_model=schemas.AssistantQueryResponse,
@@ -44,10 +51,7 @@ async def query(payload: schemas.AssistantQueryRequest) -> schemas.AssistantQuer
     if payload.session_id is not None:
         session = await repository.get_session(payload.session_id)
         if session is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="That session was not found.",
-            )
+            raise _session_missing(payload.session_id)
         context.audio_retained = session.audio_retained
         if payload.language == "en" and session.language_detected:
             language = session.language_detected.split("-")[0]  # type: ignore[assignment]

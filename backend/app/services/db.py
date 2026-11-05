@@ -11,8 +11,10 @@ survives a restart in that mode, and ``/health`` reports it.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
+from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
 from typing import Any, AsyncIterator, Sequence
 
@@ -34,6 +36,16 @@ _unreachable: str | None = None
 # process a short window to open its port; a database that is paused or gone
 # should cost seconds of that window, not all of it.
 CONNECT_TIMEOUT_SECONDS = 15.0
+
+# After an outage at startup: how long to wait before each try, the last
+# repeating. A restored Supabase project takes a minute or two to answer.
+RECONNECT_DELAYS_SECONDS: tuple[float, ...] = (15.0, 30.0, 60.0, 120.0, 300.0)
+# Once the database answers, how often to check whether the sessions started
+# in memory during the outage have finished.
+QUIET_CHECK_SECONDS = 60.0
+
+# What the background reconnect is doing, for /health. None when not running.
+_reconnect_state: str | None = None
 
 
 def vector_literal(values: Sequence[float]) -> str:
@@ -64,9 +76,9 @@ async def init_pool() -> asyncpg.Pool | None:
     the error is logged in full, ``/health`` lists ``database`` as degraded
     and says it is configured but unreachable, the interface shows a notice,
     and the admin gate stops honouring the bootstrap token (it cannot see
-    whether real admins exist). It does not reconnect on its own -- sessions
-    started in memory would vanish mid-flow if it did -- so the next restart
-    picks the database back up.
+    whether real admins exist). ``reconnect_in_background`` then keeps
+    trying, and switches over once nobody is mid-flow on the in-memory store
+    (2026-11-05); before that, only a restart picked the database back up.
     """
     global _pool, _unreachable
     settings = get_settings()
@@ -122,8 +134,9 @@ async def _init_connection(conn: asyncpg.Connection) -> None:
 
 
 async def close_pool() -> None:
-    global _pool, _unreachable
+    global _pool, _unreachable, _reconnect_state
     _unreachable = None
+    _reconnect_state = None
     if _pool is not None:
         await _pool.close()
         _pool = None
@@ -132,6 +145,73 @@ async def close_pool() -> None:
 
 def pool() -> asyncpg.Pool | None:
     return _pool
+
+
+async def _reachable() -> bool:
+    """One throwaway connection: does the database answer at all?"""
+    try:
+        conn = await asyncpg.connect(
+            dsn=get_settings().database_url,
+            timeout=CONNECT_TIMEOUT_SECONDS,
+            statement_cache_size=0,
+        )
+    except Exception as exc:  # noqa: BLE001 - any failure means "not yet"
+        logger.info("Database still unreachable (%s)", type(exc).__name__)
+        return False
+    try:
+        await conn.close()
+    except Exception:  # noqa: BLE001 - it answered; closing is not the question
+        pass
+    return True
+
+
+async def reconnect_in_background(
+    *,
+    is_quiet: Callable[[], bool],
+    on_connected: Callable[[], Awaitable[None]],
+    delays: Sequence[float] = RECONNECT_DELAYS_SECONDS,
+    quiet_check: float = QUIET_CHECK_SECONDS,
+    sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+) -> bool:
+    """Keep trying a database that did not answer at startup; switch when safe.
+
+    Before 2026-11-05 the API stayed on the in-memory store until someone
+    restarted it, however soon the database came back. Now it retries -- 15s,
+    30s, 1m, 2m, then every 5 minutes -- and once the database answers, waits
+    for ``is_quiet()``: nobody mid-flow on the in-memory store. Switching under
+    someone would continue their session against a different catalogue (the
+    in-memory skill and scheme ids are not the database's). Then the pool is
+    opened and ``on_connected`` runs. Returns True once switched.
+    """
+    global _reconnect_state
+    if not is_configured():
+        return False
+    attempt = 0
+    while _pool is None:
+        _reconnect_state = "retrying"
+        await sleep(delays[min(attempt, len(delays) - 1)])
+        attempt += 1
+        if not await _reachable():
+            continue
+        while not is_quiet():
+            _reconnect_state = "waiting for sessions started during the outage to finish"
+            logger.info("Database answers again; waiting for in-memory sessions to finish")
+            await sleep(quiet_check)
+        if await init_pool() is None:
+            continue
+        _reconnect_state = None
+        logger.warning("Reconnected to the database after %d attempt(s)", attempt)
+        try:
+            await on_connected()
+        except Exception:  # noqa: BLE001 - connected either way; say what failed
+            logger.exception("Reconnected, but the follow-up work failed")
+        return True
+    _reconnect_state = None
+    return True
+
+
+def reconnect_state() -> str | None:
+    return _reconnect_state
 
 
 def is_available() -> bool:
@@ -180,12 +260,15 @@ async def healthcheck() -> dict[str, Any]:
         if _unreachable is not None:
             # The kind of error only. /health is public, and a driver's
             # message can name the host, the project or the user.
-            return {
+            answer = {
                 "connected": False,
                 "configured": True,
                 "reason": "unreachable at startup; running on the in-memory store",
                 "error": _unreachable,
             }
+            if _reconnect_state is not None:
+                answer["reconnect"] = _reconnect_state
+            return answer
         return {"connected": False, "configured": False, "reason": "DATABASE_URL not set"}
     try:
         async with connection() as conn:
