@@ -96,6 +96,8 @@ export interface SchemeSummary {
   source_reference: string | null;
   /** The government's own page for this scheme. Shown as a link, never guessed. */
   official_url: string | null;
+  /** The town in each script the gazetteer holds. Absent for "All India". */
+  location_names?: Record<string, string>;
 }
 
 export interface SchemeDetail extends SchemeSummary {

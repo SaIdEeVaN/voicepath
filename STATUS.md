@@ -115,10 +115,9 @@ twice is harmless. There is no cost to doing this in the safe order.
       `services/schemes.py` already filters by district, so the query shape
       exists; mostly `app/schemes/page.tsx` plus query parameters on the list
       route. Do it after Jobs/Training — the type filter is most of the point.
-- [ ] **Place names render in English inside non-English sentences.** Matching
-      resolves them correctly across scripts; only the display label is
-      untranslated. The last known language leak, now that the rest are
-      closed -- see *Fixed on 2026-09-11*.
+- [x] **Place names render in English inside non-English sentences.** Fixed
+      2026-11-05: listings carry `location_names` from the gazetteer, and the
+      explanations -- template and model -- use the reader's script.
 - [ ] **An error already on screen does not follow a language switch.**
       Failures are stored as rendered strings, so the sentence shown keeps
       the language it was written in. Storing the cause and deriving the
@@ -514,7 +513,7 @@ frontend/
 - [x] `/api/admin/*` — server-side role check, sha256 tokens, bootstrap that self-disables
 - [x] Rate limiting on public routes · `GET /health` reporting every provider honestly
 
-### Phase 5 — Backend tests ✅ (747 passing, 7 skipped)
+### Phase 5 — Backend tests ✅ (758 passing, 7 skipped)
 - [x] `test_matching.py` — weights, determinism, each component, grounding
 - [x] `test_extraction.py` — evidence grounding in ta/hi/en, invention rejected
 - [x] `test_normalization.py` — alias matching across scripts, no silent upgrades
@@ -677,8 +676,6 @@ discards every response and the failure is indistinguishable from a dead server.
 - **Audio retention is three-quarters wired.** Opt-in, check constraint and purge
   function exist; nothing uploads a clip, so the passport's "Play" has nothing to
   play.
-- **Place names render in English inside non-English sentences.** Matching
-  resolves them correctly; only the display label is untranslated.
 - **Rate limiting is per-process.** Multiplies behind multiple instances; move
   the counter to Redis before scaling.
 
@@ -767,6 +764,15 @@ its exact name or alias landed nowhere.
   eight results `/api/schemes/match` returns (each costs a Groq explanation,
   so the page does not ask for more), and the whole catalogue when browsing
   without a session. Checked in Chromium.
+- **Town names in the reader's script** (`services/places.py`,
+  `explanation.py`, `lib/i18n.ts`). Listings carry `location_names` -- the
+  gazetteer's names, the ones the map already labels towns with, never a
+  spelling made up on the spot -- and scheme rows, the scheme page and the
+  explanations use them; the model is given the town in the language it
+  writes. The Tamil sentences were rephrased ("இடம்: சேலம் — …") so a name
+  needs no case ending glued on; "சேலம்லேயே" would have been wrong. A place
+  the gazetteer does not know keeps its catalogue spelling. Tests:
+  `tests/test_place_names.py` (11).
 - **Tests on every push** (`.github/workflows/tests.yml`): pytest, the
   frontend type-check and a production build, on every push to `main` and
   every pull request. Until now nothing checked a push before it deployed.

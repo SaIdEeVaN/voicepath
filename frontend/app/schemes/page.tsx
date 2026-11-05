@@ -301,7 +301,11 @@ function MatchRow({
             {o.title}
           </h2>
           <p className="mt-1.5 text-[13.5px]" style={{ color: "var(--ink-55)" }}>
-            {[o.organization, placeLabel(o.location, language), typeLabel(o.type, language)].join(
+            {[
+              o.organization,
+              placeLabel(o.location, language, o.location_names),
+              typeLabel(o.type, language),
+            ].join(
               " · ",
             )}
           </p>
@@ -364,7 +368,7 @@ function BrowseRow({
         <p className="mt-1.5 text-[13.5px]" style={{ color: "var(--ink-55)" }}>
           {[
             scheme.organization,
-            placeLabel(scheme.location, language),
+            placeLabel(scheme.location, language, scheme.location_names),
             typeLabel(scheme.type, language),
           ].join(
             " · ",

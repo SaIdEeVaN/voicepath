@@ -172,6 +172,10 @@ class SchemeSummary(Base):
     # Where the government describes this scheme. A page a person can open,
     # as opposed to source_reference, which is a code to quote at an office.
     official_url: str | None = None
+    # The town in each script the gazetteer holds ({"en", "ta", "hi"}), so a
+    # Tamil or Hindi row does not print it in English. Empty when the place is
+    # not a town the gazetteer knows -- "All India" among them.
+    location_names: dict[str, str] = Field(default_factory=dict)
 
 
 class SchemeDetail(SchemeSummary):

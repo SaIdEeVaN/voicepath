@@ -141,6 +141,23 @@ def place_key(value: str | None) -> str | None:
     return key if key in PLACES else None
 
 
+def place_names(value: str | None) -> dict[str, str]:
+    """A known town's name in each script the gazetteer holds; {} otherwise.
+
+    The names are the gazetteer's, the same ones the map labels towns with --
+    never a transliteration made up on the spot. A place the gazetteer does
+    not know keeps the spelling the catalogue gave it.
+    """
+    key = place_key(value)
+    return dict(PLACES[key]["names"]) if key else {}
+
+
+def localized_place(value: str | None, language: str | None) -> str:
+    """A place as a reader of ``language`` writes it, falling back to as given."""
+    code = (language or "en").split("-")[0].lower()
+    return place_names(value).get(code) or (value or "")
+
+
 def _scheme_place_key(scheme: Scheme) -> str | None:
     return place_key(scheme.location) or place_key(scheme.district)
 

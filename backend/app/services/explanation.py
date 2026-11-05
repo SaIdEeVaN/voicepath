@@ -19,6 +19,7 @@ from dataclasses import dataclass
 
 from app.prompts import EXPLANATION_SYSTEM, EXPLANATION_USER_TEMPLATE
 from app.services import llm
+from app.services.places import localized_place
 from app.services.matching import ScoredMatch
 
 logger = logging.getLogger(__name__)
@@ -82,8 +83,8 @@ TEMPLATES: dict[str, dict[str, str]] = {
         "experience_meets": "நீங்கள் {years} வருடம் சொன்னீர்கள்; அவர்கள் {minimum} கேட்கிறார்கள்.",
         "experience_short": "அவர்கள் {minimum} வருடம் கேட்கிறார்கள். நீங்கள் {years} சொன்னீர்கள்.",
         "experience_none_needed": "முன் அனுபவம் எதுவும் கேட்கவில்லை.",
-        "same_place": "இது {place}லேயே இருக்கிறது, நீங்கள் இருக்கும் இடத்தில்.",
-        "different_place": "இது {place}ல் இருக்கிறது, உங்கள் ஊரிலிருந்து தூரம்.",
+        "same_place": "இடம்: {place} — நீங்கள் இருக்கும் ஊரிலேயே.",
+        "different_place": "இடம்: {place} — உங்கள் ஊரிலிருந்து தூரம்.",
         "nationwide": "இது தேசியத் திட்டம், இந்தியா முழுவதும் உள்ளது.",
         "any_trade": "இது ஒரு தொழிலுக்கு மட்டும் அல்ல, பல தொழில்களுக்கும் உரியது.",
         "cert_missing": "அவர்கள் {certs} கேட்கிறார்கள். உங்களிடம் இருப்பதாக நீங்கள் சொல்லவில்லை.",
@@ -167,14 +168,14 @@ async def _explain_with_llm(match: ScoredMatch, *, language: str) -> Explanation
     prompt = EXPLANATION_USER_TEMPLATE.format(
         skills=_join(list(grounding.get("user_skill_names") or []), "en") or "not stated",
         experience=_number(grounding.get("experience_years")) or "not stated",
-        location=grounding.get("user_location") or "not stated",
+        location=localized_place(grounding.get("user_location"), language) or "not stated",
         certifications=_join(
             [c for c in (grounding.get("missing_certifications") or [])], "en"
         )
         or "none stated",
         title=scheme.title,
         organization=scheme.organization,
-        location_scheme=scheme.location,
+        location_scheme=localized_place(scheme.location, language),
         type=scheme.type,
         minimum_experience=_number(scheme.minimum_experience) or "0",
         certifications_required=_join(scheme.certifications_required, "en")
@@ -306,10 +307,14 @@ def explain_offline(match: ScoredMatch, *, language: str = "en") -> Explanation:
     if grounding.get("nationwide"):
         bullets.append(_t(language, "nationwide"))
     elif grounding.get("same_place"):
-        bullets.append(_t(language, "same_place").format(place=scheme.location))
+        bullets.append(
+            _t(language, "same_place").format(place=localized_place(scheme.location, language))
+        )
     elif match.location_score <= 0.5:
         bullets.append(
-            _t(language, "different_place").format(place=scheme.location)
+            _t(language, "different_place").format(
+                place=localized_place(scheme.location, language)
+            )
         )
 
     if match.overall_score >= 0.8:

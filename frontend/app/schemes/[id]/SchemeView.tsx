@@ -117,7 +117,7 @@ export function SchemeView({
           <p className="mt-3 text-[15px]" style={{ color: "var(--ink-62)" }}>
             {[
               scheme.organization,
-              placeLabel(scheme.location, language),
+              placeLabel(scheme.location, language, scheme.location_names),
               typeLabel(scheme.type, language),
             ].join(" · ")}
           </p>
@@ -295,7 +295,9 @@ export function SchemeView({
               <h3 className="vp-display text-[1.125rem]">{copy.applyHow}</h3>
               <p className="mt-3 text-[14px]" style={{ color: "var(--ink-62)" }}>
                 {scheme.organization}
-                {scheme.location ? ` · ${placeLabel(scheme.location, language)}` : ""}
+                {scheme.location
+                  ? ` · ${placeLabel(scheme.location, language, scheme.location_names)}`
+                  : ""}
               </p>
               {scheme.source_reference && (
                 <>

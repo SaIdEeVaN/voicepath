@@ -1076,13 +1076,19 @@ export function localeFor(language: Language): string {
 /**
  * A scheme's place, in the reader's language where the app knows it.
  *
- * Only "All India" is translated: town names are proper nouns the catalogue
- * holds in English, and inventing a Tamil or Hindi spelling for one is a
- * different problem (STATUS: "Place names render in English").
+ * "All India" is translated here. A town comes with its names from the API
+ * (`location_names`, from the gazetteer the map uses -- never a spelling made
+ * up on the spot); a place the gazetteer does not know stays as the catalogue
+ * wrote it.
  */
-export function placeLabel(place: string | null | undefined, language: Language): string {
+export function placeLabel(
+  place: string | null | undefined,
+  language: Language,
+  names?: Record<string, string> | null,
+): string {
   if (!place) return "";
-  return place === "All India" ? copyFor(language).allIndia : place;
+  if (place === "All India") return copyFor(language).allIndia;
+  return names?.[language] || place;
 }
 
 /** Localised label for a scheme type. Unknown values pass through. */

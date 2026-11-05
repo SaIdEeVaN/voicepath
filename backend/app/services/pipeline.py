@@ -13,7 +13,7 @@ import logging
 from uuid import UUID
 
 from app.models import schemas
-from app.services import embeddings, repository, taxonomy
+from app.services import embeddings, places, repository, taxonomy
 from app.services.matching import ProfileInput
 from app.services.normalization import NormalizedSkill
 from app.services.schemes import Scheme
@@ -117,6 +117,7 @@ def scheme_to_summary(scheme: Scheme) -> schemas.SchemeSummary:
         nsqf_level=scheme.nsqf_level,
         source_reference=scheme.source_reference,
         official_url=scheme.official_url,
+        location_names=places.place_names(scheme.location),
     )
 
 

@@ -248,7 +248,7 @@ the database level and not only in application code.
 ## Tests
 
 ```bash
-cd backend && python -m pytest        # 747 tests
+cd backend && python -m pytest        # 758 tests
 cd frontend && npx tsc --noEmit && npx next build
 ```
 
