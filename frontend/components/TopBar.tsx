@@ -9,8 +9,9 @@
  * than a menu to navigate by.
  *
  * Home exists even though the wordmark already goes there, because a wordmark
- * reads as a logo and only some people know it is also a button. Admin is a
- * signpost, not a door -- the route is token-gated server-side either way.
+ * reads as a logo and only some people know it is also a button. Admin moved
+ * to the footer on 2026-11-05: it is for the people running VoicePath, and in
+ * the main menu it was a fourth choice everyone else had to read past.
  *
  * The links sit in the middle of the bar, held there by a three-column grid
  * with equal outer columns -- so the centre is the centre of the header rather
@@ -59,7 +60,6 @@ export function TopBar() {
           { href: "/", label: copy.navHome },
           { href: "/nearby", label: copy.navNearby },
           { href: "/about", label: copy.navAbout },
-          { href: "/admin", label: "Admin" },
         ].map((item) => {
           const active = pathname === item.href;
           return (

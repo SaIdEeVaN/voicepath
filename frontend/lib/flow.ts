@@ -46,6 +46,8 @@ export interface FlowStep {
   label: string;
   isCurrent: boolean;
   isPast: boolean;
+  /** The step after this one: highlighted so the way forward is visible. */
+  isNext: boolean;
   /** Reachable means it has something on it, not merely that it exists. */
   canGo: boolean;
 }
@@ -64,6 +66,7 @@ export function useFlowSteps(): { steps: FlowStep[]; current: number } | null {
     label: copy.flowSteps[index] ?? "",
     isCurrent: index === current,
     isPast: index < current,
+    isNext: index === current + 1,
     canGo: href !== null && index !== current && reachable(index, sessionId, skills.length),
   }));
 

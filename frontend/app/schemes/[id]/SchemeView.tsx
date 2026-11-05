@@ -175,7 +175,7 @@ export function SchemeView({
                         {Math.round(bar.value * 100)}
                       </span>
                       <span
-                        className="font-mono w-11 flex-none text-right text-[11px]"
+                        className="font-mono w-11 flex-none text-right text-[12px]"
                         style={{ color: "var(--ink-38)" }}
                         title={copy.weightsLabel}
                       >
@@ -186,7 +186,7 @@ export function SchemeView({
                 </ul>
 
                 <p
-                  className="font-mono mt-3 text-[11px] leading-relaxed"
+                  className="font-mono mt-3 text-[12px] leading-relaxed"
                   style={{ color: "var(--ink-38)" }}
                   lang={language}
                 >

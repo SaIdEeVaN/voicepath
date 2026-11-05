@@ -156,7 +156,7 @@ function Group<T extends string>({
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
       <span
-        className="font-mono w-[5.5rem] flex-none text-[11px] uppercase tracking-[0.08em] max-[560px]:w-full"
+        className="font-mono w-[5.5rem] flex-none text-[12px] uppercase tracking-[0.08em] max-[560px]:w-full"
         style={{ color: "var(--ink-45)" }}
       >
         {label}
@@ -175,7 +175,7 @@ function Group<T extends string>({
               type="button"
               aria-pressed={on}
               onClick={() => onPick(option.value)}
-              className="rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors"
+              className="vp-seg rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors"
               style={{
                 background: on ? "var(--color-surface)" : "transparent",
                 color: on ? "var(--color-ink)" : "var(--ink-55)",
@@ -183,7 +183,7 @@ function Group<T extends string>({
               }}
             >
               {option.label}
-              <span className="font-mono ml-1.5 text-[11px]" style={{ color: "var(--ink-38)" }}>
+              <span className="font-mono ml-1.5 text-[12px]" style={{ color: "var(--ink-38)" }}>
                 {option.count}
               </span>
             </button>

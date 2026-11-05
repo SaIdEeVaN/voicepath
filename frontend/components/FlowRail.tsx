@@ -61,7 +61,7 @@ export function FlowRail() {
 
             {step.isCurrent && (
               <span
-                className="font-mono ml-[27px] mt-1.5 text-[11px] tracking-[0.07em]"
+                className="font-mono ml-[27px] mt-1.5 text-[12px] tracking-[0.07em]"
                 style={{ color: "var(--color-accent-deep)" }}
                 lang={language}
               >
@@ -113,14 +113,28 @@ export function FlowBar() {
       className="border-b px-[7vw] py-3 2xl:hidden print:hidden"
       style={{ borderColor: "var(--ink-09)", background: "var(--ink-03)" }}
     >
+      {/* On a phone the five labels do not fit and used to be cut off mid-word
+          ("Your passpor"). There, only the current step is named, with where
+          it sits in the five; the rest are dots. */}
+      <p
+        className="mx-auto mb-1.5 max-w-[1180px] text-[12px] sm:hidden"
+        style={{ color: "var(--ink-55)" }}
+        lang={language}
+      >
+        {copy.flowStepOf
+          .replace("{n}", String(flow.steps.findIndex((s) => s.isCurrent) + 1))
+          .replace("{total}", String(flow.steps.length))}
+      </p>
       <ol className="mx-auto flex w-full max-w-[1180px] items-center gap-2 overflow-x-auto">
         {flow.steps.map((step, index) => (
           <li key={step.label} className="flex flex-none items-center gap-2">
             <Dot step={step} inline />
-            <StepLabel step={step} language={language} />
+            <span className={step.isCurrent ? "" : "hidden sm:inline"}>
+              <StepLabel step={step} language={language} />
+            </span>
             {step.isCurrent && (
               <span
-                className="font-mono hidden text-[10px] tracking-[0.07em] sm:inline"
+                className="font-mono hidden text-[12px] tracking-[0.07em] sm:inline"
                 style={{ color: "var(--color-accent-deep)" }}
                 lang={language}
               >
@@ -158,7 +172,12 @@ function Dot({ step, inline = false }: { step: FlowStep; inline?: boolean }) {
         background:
           step.isCurrent || step.isPast
             ? "var(--color-accent)"
-            : "var(--ink-12)",
+            : step.isNext
+              ? "transparent"
+              : "var(--ink-12)",
+        // The next step is an open ring in the accent: where to go, not yet
+        // where you have been.
+        border: step.isNext ? "2px solid var(--color-accent)" : undefined,
         opacity: step.isPast && !step.isCurrent ? 0.45 : 1,
         // A ring on the current step, so it reads as the one being stood on
         // rather than just a darker dot.
@@ -185,9 +204,11 @@ function StepLabel({
       style={{
         color: step.isCurrent
           ? "var(--color-ink)"
-          : step.isPast
-            ? "var(--ink-62)"
-            : "var(--ink-38)",
+          : step.isNext
+            ? "var(--color-accent-deep)"
+            : step.isPast
+              ? "var(--ink-62)"
+              : "var(--ink-38)",
         fontWeight: step.isCurrent ? 600 : 400,
       }}
       lang={language}

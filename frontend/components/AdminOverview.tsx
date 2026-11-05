@@ -210,7 +210,7 @@ function Stat({
         {label}
       </p>
       <p
-        className="font-mono mt-1 text-[10.5px] tracking-[0.05em]"
+        className="font-mono mt-1 text-[12px] tracking-[0.05em]"
         style={{ color: "var(--ink-38)" }}
       >
         {note}

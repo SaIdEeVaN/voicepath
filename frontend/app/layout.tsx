@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 
 import { TopBar } from "@/components/TopBar";
+import { SiteFooter } from "@/components/SiteFooter";
 import { PageBackdrop } from "@/components/PageBackdrop";
 import { FlowBar, FlowRail } from "@/components/FlowRail";
 import { SessionProvider } from "@/lib/session";
@@ -16,7 +17,11 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#f6f3ec",
+  // The browser's own bar matches the page, light or dark.
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f6f3ec" },
+    { media: "(prefers-color-scheme: dark)", color: "#14120e" },
+  ],
   width: "device-width",
   initialScale: 1,
 };
@@ -52,6 +57,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                 the gutter cannot fit. Renders nothing off the flow. */}
             <FlowBar />
             <main className="flex flex-1 flex-col">{children}</main>
+            <SiteFooter />
           </div>
         </SessionProvider>
       </body>

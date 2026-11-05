@@ -222,7 +222,7 @@ export function AskVoicePath({ schemeId }: { schemeId: number }) {
             )}
             {!exchange.urgent && (
             <p
-              className="font-mono flex items-center gap-2 self-start text-[10.5px] tracking-[0.05em]"
+              className="font-mono flex items-center gap-2 self-start text-[12px] tracking-[0.05em]"
               style={{
                 color: exchange.fromData
                   ? "var(--paper-40)"
@@ -255,7 +255,7 @@ export function AskVoicePath({ schemeId }: { schemeId: number }) {
                     className="rounded-lg px-3 py-2 text-[12px] leading-relaxed"
                     style={{ background: "var(--ink-04)", color: "var(--ink-55)" }}
                   >
-                    <span className="font-mono text-[11px]" style={{ color: "var(--ink-45)" }}>
+                    <span className="font-mono text-[12px]" style={{ color: "var(--ink-45)" }}>
                       {citation.document_title}
                       {citation.heading ? ` · ${citation.heading}` : ""}
                     </span>

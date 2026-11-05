@@ -82,7 +82,7 @@ export function SkillCard({
               className="font-display w-full rounded-[7px] px-2 py-1 text-[21px] tracking-[-0.02em] outline-none"
               style={{
                 border: "1px solid var(--color-accent)",
-                background: "#fff",
+                background: "var(--color-surface)",
               }}
             />
           ) : (
@@ -93,31 +93,66 @@ export function SkillCard({
               {title}
             </h3>
           )}
-          <p
-            className="font-mono mt-1.5 text-[11px] tracking-[0.05em]"
-            style={{ color: "var(--ink-38)" }}
-          >
-            {skill.normalized_code
-              ? `${categoryLabel(skill.category, language)} · ${skill.normalized_code}`.trim()
-              : skill.raw_name}
+          {/* Plain words first (2026-11-05). The card used to open with
+              "Metalwork · SK022" and "1.000 · accepted · needs 0.82" -- true,
+              and checkable, but a developer's view. The numbers are still
+              here, one tap away under Details: a score shown against its
+              threshold is a claim someone can check. */}
+          <p className="mt-2 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[13.5px]" lang={language}>
+            <span
+              className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 font-medium"
+              style={
+                uncertain
+                  ? {
+                      background: "color-mix(in srgb, var(--color-caution) 16%, transparent)",
+                      color: "var(--color-caution-ink)",
+                    }
+                  : skill.normalized_code
+                    ? {
+                        background: "color-mix(in srgb, var(--color-accent) 14%, transparent)",
+                        color: "var(--color-accent-deep)",
+                      }
+                    : { background: "var(--ink-04)", color: "var(--ink-62)" }
+              }
+            >
+              <span aria-hidden="true">
+                {uncertain ? "?" : skill.normalized_code ? "✓" : "•"}
+              </span>
+              {uncertain
+                ? copy.skillCheck
+                : skill.normalized_code
+                  ? copy.skillMatched
+                  : copy.skillUnplaced}
+            </span>
+            {skill.normalized_code && skill.category && (
+              <span style={{ color: "var(--ink-55)" }}>
+                {categoryLabel(skill.category, language)}
+              </span>
+            )}
           </p>
 
-          {/* The number behind the match, and the bar it had to clear. A score
-              shown against its threshold is a claim someone can check; "the
-              system understood you" is not. Hidden when nothing matched --
-              there is no score to defend. */}
-          {skill.normalized_code && confidence !== null && (
-            <p
-              className="font-mono mt-1 text-[11px] tracking-[0.04em]"
-              style={{ color: uncertain ? "var(--color-caution-ink)" : "var(--ink-45)" }}
-            >
-              {confidence.toFixed(3)}
-              {" · "}
-              {uncertain ? copy.confidenceAsking : copy.confidenceAccepted}
-              {" · "}
-              {copy.confidenceThreshold} {ACCEPT_THRESHOLD.toFixed(2)}
-            </p>
-          )}
+          <details className="vp-details mt-2 text-[12.5px]" style={{ color: "var(--ink-55)" }}>
+            <summary className="cursor-pointer select-none py-1" lang={language}>
+              {copy.skillDetails}
+            </summary>
+            <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 font-mono text-[12px]">
+              <dt lang={language}>{copy.skillHeardAs}</dt>
+              <dd className="min-w-0 break-words">{skill.raw_name}</dd>
+              {skill.normalized_code && (
+                <>
+                  <dt lang={language}>{copy.skillCode}</dt>
+                  <dd>{skill.normalized_code}</dd>
+                </>
+              )}
+              {skill.normalized_code && confidence !== null && (
+                <dd className="col-span-2 font-sans text-[12.5px]" lang={language}>
+                  {copy.skillScore
+                    .replace("{score}", confidence.toFixed(3))
+                    .replace("{threshold}", ACCEPT_THRESHOLD.toFixed(2))}
+                </dd>
+              )}
+            </dl>
+          </details>
         </div>
 
         <div className="flex flex-none gap-1">
@@ -138,7 +173,7 @@ export function SkillCard({
         style={{ background: "var(--ink-03)" }}
       >
         <figcaption
-          className="font-mono flex items-center gap-1.5 text-[10.5px] tracking-[0.06em]"
+          className="font-mono flex items-center gap-1.5 text-[12px] tracking-[0.06em]"
           style={{ color: "var(--ink-45)" }}
         >
           <svg

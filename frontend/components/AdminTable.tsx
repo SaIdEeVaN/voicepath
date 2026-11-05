@@ -90,7 +90,7 @@ export function AdminTable<T>({
           wrapper scrolls; the page itself never does. */}
       <div className="min-w-[760px]">
       <div
-        className="font-mono grid gap-5 px-6 py-3.5 text-[10.5px] tracking-[0.08em]"
+        className="font-mono grid gap-5 px-6 py-3.5 text-[12px] tracking-[0.08em]"
         style={{
           gridTemplateColumns: template,
           background: "var(--ink-04)",

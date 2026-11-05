@@ -202,10 +202,13 @@ export default function SpeakPage() {
   const working = phase === "working";
 
   return (
-    <section className="flex flex-1 flex-col items-center justify-center gap-11 px-[7vw] py-[clamp(2rem,5vw,3.5rem)]">
+    // On a phone the mic button used to sit half below the fold under 300px
+    // of waveform and empty transcript; the spacing shrinks there so it is
+    // where a thumb finds it, and the instruction above it is readable size.
+    <section className="flex flex-1 flex-col items-center justify-center gap-6 px-[7vw] py-[clamp(1.5rem,5vw,3.5rem)] sm:gap-11">
       <div
-        className="flex items-center gap-2.5 text-xs"
-        style={{ color: "var(--ink-55)" }}
+        className="flex items-center gap-2.5 text-[15px] sm:text-[14px]"
+        style={{ color: "var(--ink-62)" }}
       >
         <span
           className="h-[7px] w-[7px] rounded-full"
@@ -228,14 +231,14 @@ export default function SpeakPage() {
         )}
       </div>
 
-      <div className="grid h-[180px] w-full max-w-[820px] place-items-center">
+      <div className="grid h-[110px] w-full max-w-[820px] place-items-center sm:h-[180px]">
         <Waveform read={readLevels} active={listening} />
       </div>
 
       {/* Live transcript, only on the on-device path -- server-side STT has
           nothing to show until the recording is sent. */}
       <div
-        className="font-display min-h-[120px] w-full max-w-[760px] text-center text-[clamp(1.4rem,2.4vw,2.1rem)] leading-snug tracking-[-0.02em]"
+        className="font-display min-h-[64px] w-full max-w-[760px] text-center text-[clamp(1.4rem,2.4vw,2.1rem)] leading-snug tracking-[-0.02em] sm:min-h-[120px]"
         style={{ textWrap: "pretty" }}
         lang={language}
         aria-live="polite"
@@ -310,9 +313,13 @@ export default function SpeakPage() {
           </button>
         )}
 
-        <p className="text-[13px]" style={{ color: "var(--ink-45)" }} lang={language}>
-          {listening ? copy.stopHint : working ? copy.loading : copy.speakHint}
-        </p>
+        {/* Only while recording: before that the line above already says what
+            to do, and saying it twice pushed the button further down. */}
+        {listening && (
+          <p className="text-[14px]" style={{ color: "var(--ink-55)" }} lang={language}>
+            {copy.stopHint}
+          </p>
+        )}
       </div>
     </section>
   );

@@ -20,7 +20,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { copyFor, localeFor, skillLabel } from "@/lib/i18n";
+import { categoryLabel, copyFor, localeFor, skillLabel } from "@/lib/i18n";
 import { useSession } from "@/lib/session";
 
 export default function PassportPage() {
@@ -75,7 +75,7 @@ export default function PassportPage() {
           style={{ background: "var(--color-accent)", color: "var(--color-paper)" }}
         >
           <div>
-            <p className="font-mono text-[11px] tracking-[0.14em] opacity-75">
+            <p className="font-mono text-[12px] tracking-[0.14em] opacity-75">
               {copy.passportLabel}
             </p>
             <h1
@@ -119,11 +119,14 @@ export default function PassportPage() {
                   >
                     {skillLabel(skill, language)}
                   </p>
+                  {/* The kind of work, not the taxonomy code: the paper may be
+                      read by an employer who has never seen "SK022". */}
                   <p
-                    className="font-mono mt-1 text-[10.5px] tracking-[0.05em]"
-                    style={{ color: "var(--ink-38)" }}
+                    className="mt-1 text-[13px]"
+                    style={{ color: "var(--ink-55)" }}
+                    lang={language}
                   >
-                    {skill.normalized_code ?? "—"}
+                    {skill.category ? categoryLabel(skill.category, language) : "—"}
                   </p>
                 </div>
 

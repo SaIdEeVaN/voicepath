@@ -170,7 +170,7 @@ export default function AdminSourcesPage() {
                   <p className="font-display text-[16px] leading-snug tracking-[-0.01em]">
                     {row.title}
                   </p>
-                  <p className="font-mono mt-1 text-[11.5px]" style={{ color: "var(--ink-45)" }}>
+                  <p className="font-mono mt-1 text-[12px]" style={{ color: "var(--ink-45)" }}>
                     {[
                       row.source_domain ?? "uploaded document",
                       `tier ${row.trust_tier}`,
@@ -182,7 +182,7 @@ export default function AdminSourcesPage() {
                   </p>
                 </div>
                 <span
-                  className="font-mono rounded px-2 py-1 text-[11px]"
+                  className="font-mono rounded px-2 py-1 text-[12px]"
                   style={{
                     background: "var(--ink-04)",
                     color:

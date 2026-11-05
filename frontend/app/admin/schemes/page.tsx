@@ -300,7 +300,7 @@ export default function AdminSchemesPage() {
                 {scheme.title}
                 {scheme.is_active === false && (
                   <span
-                    className="ml-2.5 align-middle text-[11px] uppercase tracking-[0.08em]"
+                    className="ml-2.5 align-middle text-[12px] uppercase tracking-[0.08em]"
                     style={{ color: "var(--color-caution-ink)" }}
                   >
                     deactivated
@@ -315,14 +315,14 @@ export default function AdminSchemesPage() {
                   href={scheme.official_url}
                   target="_blank"
                   rel="noreferrer noopener"
-                  className="font-mono mt-1.5 block truncate text-[11px] underline"
+                  className="font-mono mt-1.5 block truncate text-[12px] underline"
                   style={{ color: "var(--ink-45)" }}
                 >
                   {scheme.official_url}
                 </a>
               ) : (
                 <p
-                  className="font-mono mt-1.5 text-[11px]"
+                  className="font-mono mt-1.5 text-[12px]"
                   style={{ color: "var(--ink-38)" }}
                 >
                   no official page
@@ -494,7 +494,7 @@ function SchemeForm({
             border: `1px solid ${urlLooksWrong ? "var(--color-danger)" : "var(--ink-09)"}`,
           }}
         />
-        <span className="text-[11px]" style={{ color: "var(--ink-45)" }}>
+        <span className="text-[12px]" style={{ color: "var(--ink-45)" }}>
           {urlLooksWrong
             ? "Must start with http:// or https://"
             : "Quoted to people verbatim. Leave empty rather than guessing one."}
@@ -512,7 +512,7 @@ function SchemeForm({
           className="rounded-lg px-3 py-2 text-sm"
           style={{ background: "var(--ink-04)", border: "1px solid var(--ink-09)" }}
         />
-        <span className="text-[11px]" style={{ color: "var(--ink-45)" }}>
+        <span className="text-[12px]" style={{ color: "var(--ink-45)" }}>
           The only text explanations may ground themselves in. Anything not here
           cannot be said about this scheme.
         </span>
@@ -623,7 +623,7 @@ function SkillPicker({
       )}
 
       <span
-        className="text-[11px]"
+        className="text-[12px]"
         style={{
           color: selected.length === 0 ? "var(--color-caution-ink)" : "var(--ink-45)",
         }}

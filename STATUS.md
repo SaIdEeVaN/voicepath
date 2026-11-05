@@ -837,6 +837,30 @@ its exact name or alias landed nowhere.
   attempts, written under a temporary name until complete. A voice that still
   will not come fails the build, which leaves the running version live.
   Tests: `tests/test_fetch_voices.py` (2).
+- **UI pass** (decided 2026-11-05: all four of readability, phone layout,
+  plain-language skill cards, polish), from screenshots of every screen on a
+  phone and a desktop:
+  - *Readability.* The three faintest text greys measured 2.4, 2.9 and 4.0:1
+    against the paper -- under the 4.5:1 small text needs. Raised to 4.7-6:1
+    in the tokens, so every use moved. Text floor of 12px (it went to 10px).
+    On touch screens the small buttons and chips are at least 40px tall.
+    Focus rings one step darker.
+  - *Phone layout.* The step bar names only the current step there, with
+    "Step 2 of 5" (the labels used to be cut off mid-word); the Speak
+    screen's spacing shrinks so the mic button is on screen and the
+    instruction is readable size, said once rather than twice; Admin moved
+    from the main menu to a new footer.
+  - *Skill cards* say "Matched", "Please check this one" or "Kept in your
+    words", with the kind of work; the code, the score and the threshold
+    are one tap away under Details. The passport shows the kind of work,
+    not the code.
+  - *Polish.* Placeholders shaped like the results while they load; an
+    empty result list offers "Add more about your work" and "See what is
+    near you"; the next step is an open accent ring in the step bar; dark
+    mode follows the device (screen only -- print stays black on white),
+    with a lighter accent so text on it stays readable.
+  Checked in Chromium, light and dark, phone and desktop; no page scrolls
+  sideways.
 - **Tests on every push** (`.github/workflows/tests.yml`): pytest, the
   frontend type-check and a production build, on every push to `main` and
   every pull request. Until now nothing checked a push before it deployed.

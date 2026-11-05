@@ -43,6 +43,10 @@ export interface Copy {
    */
   flowSteps: string[];
   flowHere: string;
+  /** On a phone's step bar. `{n}` and `{total}` are replaced. */
+  flowStepOf: string;
+  /** The footer's admin link -- moved out of the main menu. */
+  footerAdmin: string;
   /** Link on a citation, to the government's own page. */
   readOnGovPage: string;
   /**
@@ -138,11 +142,20 @@ export interface Copy {
   matchesSub: string;
   matchWord: string;
   noMatches: string;
+  /** The empty results' ways forward. */
+  emptyAddMore: string;
+  emptySeeNearby: string;
   back: string;
   apply: string;
-  confidenceAccepted: string;
-  confidenceAsking: string;
-  confidenceThreshold: string;
+  /** Skill card status (2026-11-05): plain words, the numbers under Details. */
+  skillMatched: string;
+  skillCheck: string;
+  skillUnplaced: string;
+  skillDetails: string;
+  /** `{score}` and `{threshold}` are replaced. */
+  skillScore: string;
+  skillCode: string;
+  skillHeardAs: string;
   weightsLabel: string;
   schemeTypes: Record<string, string>;
   /** Taxonomy categories. A skill card shows one next to its code. */
@@ -302,6 +315,8 @@ const en: Copy = {
     "The one you pick",
   ],
   flowHere: "you are here",
+  flowStepOf: "Step {n} of {total}",
+  footerAdmin: "Admin",
   readOnGovPage: "Read this on the government page",
   aboutPageTitle: "About VoicePath",
   aboutPageLede:
@@ -394,11 +409,17 @@ const en: Copy = {
   matchesSub: "Closest first. Each one says why, using only what you told me.",
   matchWord: "fit for your work",
   noMatches: "Nothing here fits your work yet. Tell me more about what you do.",
+  emptyAddMore: "Add more about your work",
+  emptySeeNearby: "See what is near you",
   back: "Back",
   apply: "I want this",
-  confidenceAccepted: "accepted",
-  confidenceAsking: "asking you",
-  confidenceThreshold: "needs",
+  skillMatched: "Matched",
+  skillCheck: "Please check this one",
+  skillUnplaced: "Kept in your words",
+  skillDetails: "Details",
+  skillScore: "Match score {score} — {threshold} needed to accept it on its own",
+  skillCode: "Skill code",
+  skillHeardAs: "Heard as",
   weightsLabel: "Weights: skill 50% · experience 25% · eligibility 15% · place 10%",
   schemeTypes: {
     "Full-time": "Full-time",
@@ -553,6 +574,8 @@ const ta: Copy = {
     "நீங்கள் தேர்வது",
   ],
   flowHere: "நீங்கள் இங்கே",
+  flowStepOf: "படி {n} / {total}",
+  footerAdmin: "நிர்வாகம்",
   readOnGovPage: "அரசு பக்கத்தில் படியுங்கள்",
   aboutPageTitle: "VoicePath பற்றி",
   aboutPageLede:
@@ -647,11 +670,17 @@ const ta: Copy = {
   matchesSub: "மிக அருகில் இருப்பது முதலில். நீங்கள் சொன்னதை வைத்து மட்டுமே காரணம் சொல்கிறேன்.",
   matchWord: "உங்கள் வேலைக்குப் பொருத்தம்",
   noMatches: "உங்கள் வேலைக்கு இங்கு இன்னும் எதுவும் பொருந்தவில்லை. இன்னும் சொல்லுங்கள்.",
+  emptyAddMore: "உங்கள் வேலையைப் பற்றி மேலும் சொல்லுங்கள்",
+  emptySeeNearby: "அருகில் உள்ளதைப் பாருங்கள்",
   back: "பின்னால்",
   apply: "இது வேண்டும்",
-  confidenceAccepted: "ஏற்கப்பட்டது",
-  confidenceAsking: "உங்களிடம் கேட்கிறோம்",
-  confidenceThreshold: "தேவை",
+  skillMatched: "பொருந்தியது",
+  skillCheck: "இதைச் சரிபாருங்கள்",
+  skillUnplaced: "உங்கள் வார்த்தைகளிலேயே வைக்கப்பட்டது",
+  skillDetails: "விவரங்கள்",
+  skillScore: "பொருத்த மதிப்பெண் {score} — தானாக ஏற்க {threshold} தேவை",
+  skillCode: "திறன் குறியீடு",
+  skillHeardAs: "கேட்டது",
   weightsLabel: "எடை: திறமை 50% · அனுபவம் 25% · தகுதி 15% · இடம் 10%",
   schemeTypes: {
     "Full-time": "முழு நேரம்",
@@ -807,6 +836,8 @@ const hi: Copy = {
     "आपकी पसंद",
   ],
   flowHere: "आप यहाँ हैं",
+  flowStepOf: "चरण {n} / {total}",
+  footerAdmin: "एडमिन",
   readOnGovPage: "सरकारी पन्ने पर पढ़िए",
   aboutPageTitle: "VoicePath के बारे में",
   aboutPageLede:
@@ -898,11 +929,17 @@ const hi: Copy = {
   matchesSub: "सबसे नज़दीक पहले। हर एक का कारण आपके ही कहे पर आधारित है।",
   matchWord: "आपके काम से मेल",
   noMatches: "अभी यहाँ आपके काम से कुछ नहीं मिलता। अपने काम के बारे में और बताइए।",
+  emptyAddMore: "अपने काम के बारे में और बताइए",
+  emptySeeNearby: "देखिए आपके पास क्या है",
   back: "वापस",
   apply: "मुझे यह चाहिए",
-  confidenceAccepted: "स्वीकार",
-  confidenceAsking: "आपसे पूछ रहे हैं",
-  confidenceThreshold: "चाहिए",
+  skillMatched: "मिल गया",
+  skillCheck: "कृपया इसे जाँचें",
+  skillUnplaced: "आपके शब्दों में रखा गया",
+  skillDetails: "विवरण",
+  skillScore: "मिलान स्कोर {score} — अपने आप स्वीकार के लिए {threshold} चाहिए",
+  skillCode: "कौशल कोड",
+  skillHeardAs: "सुना गया",
   weightsLabel: "भार: कौशल 50% · अनुभव 25% · पात्रता 15% · जगह 10%",
   schemeTypes: {
     "Full-time": "पूरा समय",

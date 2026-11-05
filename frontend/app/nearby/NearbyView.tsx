@@ -428,7 +428,7 @@ export function NearbyView({ focusSchemeId }: { focusSchemeId: number | null }) 
                 type="button"
                 aria-pressed={showingAll === option.all}
                 onClick={() => setShowAll(option.all)}
-                className="rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors"
+                className="vp-seg rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-colors"
                 style={{
                   background: showingAll === option.all ? "var(--color-surface)" : "transparent",
                   color: showingAll === option.all ? "var(--color-ink)" : "var(--ink-55)",
@@ -688,7 +688,7 @@ export function NearbyView({ focusSchemeId }: { focusSchemeId: number | null }) 
             })}
 
           {support?.attribution && (
-            <p className="mt-6 text-[11.5px]" style={{ color: "var(--ink-38)" }}>
+            <p className="mt-6 text-[12px]" style={{ color: "var(--ink-38)" }}>
               {support.attribution}
               {/* The bundled list is a snapshot; say how old, so "this list
                   can be out of date" has a date to it. Rendered only after

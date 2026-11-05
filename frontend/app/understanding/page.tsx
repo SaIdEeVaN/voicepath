@@ -18,6 +18,7 @@ import { SafetyNotice } from "@/components/SafetyNotice";
 import { AddSkillByTyping } from "@/components/AddSkillByTyping";
 import { ExperienceEditor } from "@/components/ExperienceEditor";
 import { SkillCard } from "@/components/SkillCard";
+import { CardSkeletons } from "@/components/Skeleton";
 import { ApiError, api } from "@/lib/api";
 import { copyFor } from "@/lib/i18n";
 import { useSession } from "@/lib/session";
@@ -354,7 +355,7 @@ export default function UnderstandingPage() {
                 className="rounded-lg px-3 py-2 text-[12px] leading-relaxed"
                 style={{ background: "var(--ink-04)", color: "var(--ink-55)" }}
               >
-                <span className="font-mono text-[11px]" style={{ color: "var(--ink-45)" }}>
+                <span className="font-mono text-[12px]" style={{ color: "var(--ink-45)" }}>
                   {citation.document_title}
                   {citation.heading ? ` · ${citation.heading}` : ""}
                 </span>
@@ -413,7 +414,16 @@ export default function UnderstandingPage() {
             onAdd={addTyped}
           />
         </div>
-      ) : skills.length === 0 ? null : (
+      ) : skills.length === 0 ? (
+        loading ? (
+          <div
+            aria-busy="true"
+            className="grid gap-3.5 [grid-template-columns:repeat(auto-fill,minmax(310px,1fr))]"
+          >
+            <CardSkeletons count={2} />
+          </div>
+        ) : null
+      ) : (
 
         <div className="grid gap-3.5 [grid-template-columns:repeat(auto-fill,minmax(310px,1fr))]">
           {skills.map((skill, index) => (

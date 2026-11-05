@@ -159,7 +159,7 @@ export default function DisambiguatePage() {
       </div>
 
       {pending.length > 1 && (
-        <p className="font-mono text-[11px]" style={{ color: "var(--ink-38)" }}>
+        <p className="font-mono text-[12px]" style={{ color: "var(--ink-38)" }}>
           {pending.length - 1} more
         </p>
       )}

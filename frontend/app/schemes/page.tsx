@@ -19,6 +19,7 @@ import { motion, useReducedMotion } from "framer-motion";
 
 import { DegradedNote, ErrorNote } from "@/components/Notices";
 import { MatchRing } from "@/components/MatchRing";
+import { RowSkeletons } from "@/components/Skeleton";
 import {
   NO_FILTERS,
   SchemeFilters,
@@ -201,7 +202,11 @@ export default function SchemesPage() {
         </div>
       )}
 
-      <div className="mt-10 flex flex-col gap-3">
+      <div className="mt-10 flex flex-col gap-3" aria-busy={loading}>
+        {loading && (ranked ? shownMatches.length : shownBrowse.length) === 0 && (
+          <RowSkeletons count={3} />
+        )}
+
         {/* Results are filtered, not just sorted.
         
             A scheme that declares no skills cannot be ruled out, and one in a
@@ -247,9 +252,24 @@ export default function SchemesPage() {
             ))}
 
         {!loading && ranked && relevant.length === 0 && (
-          <p className="text-[15px]" style={{ color: "var(--ink-62)" }} lang={language}>
-            {copy.noMatches}
-          </p>
+          // Not a dead end: the two things that could change the answer.
+          <div
+            className="flex flex-col items-start gap-4 rounded-[16px] p-7"
+            style={{ border: "1px dashed var(--ink-22)" }}
+            lang={language}
+          >
+            <p className="max-w-[34em] text-[15.5px] leading-relaxed" style={{ color: "var(--ink-70)" }}>
+              {copy.noMatches}
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <Link href="/understanding" className="vp-pill vp-pill-primary">
+                {copy.emptyAddMore}
+              </Link>
+              <Link href="/nearby" className="vp-pill vp-pill-quiet">
+                {copy.emptySeeNearby}
+              </Link>
+            </div>
+          </div>
         )}
 
         {!loading && !ranked && (browse?.length ?? 0) === 0 && (
@@ -336,7 +356,7 @@ function MatchRow({
           {payLabel(o.salary_min, o.salary_max, language)}
         </span>
         <span
-          className="font-mono whitespace-nowrap rounded px-2 py-1 text-[11px] tracking-[0.06em]"
+          className="font-mono whitespace-nowrap rounded px-2 py-1 text-[12px] tracking-[0.06em]"
           style={{ background: "var(--ink-04)", color: "var(--ink-45)" }}
         >
           {typeLabel(o.type, language)}

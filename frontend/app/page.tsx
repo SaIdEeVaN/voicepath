@@ -96,7 +96,7 @@ export default function LandingPage() {
               }
             >
               <span
-                className="font-mono w-6 flex-none text-[10.5px] tracking-[0.08em]"
+                className="font-mono w-6 flex-none text-[12px] tracking-[0.08em]"
                 style={{ color: "var(--ink-38)" }}
               >
                 {entry.label}
