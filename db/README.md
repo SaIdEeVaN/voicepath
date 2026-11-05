@@ -32,6 +32,7 @@ python -m app.scripts.embed_taxonomy
 | `010_national_schemes.sql` | `schemes.skill_match`; 24 more skills (PM Vishwakarma's trades, street vending, sanitation work…); 11 national schemes quoted from their official releases. Generated from `backend/app/data/catalogue.py`. Idempotent. |
 | `011_more_skills.sql` | Three skills people described that nothing could place (engine repair, pharmacy, medicine sales), and the phrases they used as aliases of Engine Diagnostics. Generated from `catalogue.py`. Idempotent. |
 | `012_no_voice_clips.sql` | Clears `audio_retained` flags the removed passport toggle left behind -- recordings are never kept. Idempotent. |
+| `013_session_keys.sql` | `sessions.key_hash`: the SHA-256 of each session's secret key. Apply **before** the code that writes it. Idempotent. |
 
 New skills have no embedding until one is computed. The API does that itself
 on startup (`services/corpus_sync.py`), along with ingesting any new text file

@@ -70,3 +70,52 @@ def _reset_catalogue_caches():
     taxonomy.reset_memory_cache()
     schemes.reset_memory_cache()
     yield
+
+
+# ---------------------------------------------------------------------------
+# Session keys, the way the frontend sends them
+# ---------------------------------------------------------------------------
+#
+# Since 2026-11-05 a session opens only with its secret key, sent in the
+# X-VoicePath-Session-Key header (repository._require_key). The frontend keeps
+# the key it is handed when a session is created and sends it with every
+# request about that session; the test client does the same, so the hundreds
+# of tests about everything else need not each carry keys by hand.
+#
+# A test about the keys themselves turns this off for its client with
+# ``client.vp_send_keys = False`` -- tests/test_session_keys.py does.
+
+import json as _json  # noqa: E402
+import re as _re  # noqa: E402
+
+from starlette.testclient import TestClient as _TestClient  # noqa: E402
+
+_UUID = _re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", _re.I)
+_original_request = _TestClient.request
+
+
+def _request_with_session_keys(self, method, url, *args, **kwargs):
+    keys: dict[str, str] = self.__dict__.setdefault("_vp_keys", {})
+    if getattr(self, "vp_send_keys", True) and keys:
+        mentioned = set(_UUID.findall(str(url)))
+        body = kwargs.get("json")
+        if body is not None:
+            mentioned |= set(_UUID.findall(_json.dumps(body, default=str)))
+        headers = dict(kwargs.get("headers") or {})
+        for value in headers.values():
+            mentioned |= set(_UUID.findall(str(value)))
+        held = [keys[m.lower()] for m in mentioned if m.lower() in keys]
+        if held and not any(k.lower() == "x-voicepath-session-key" for k in headers):
+            headers["X-VoicePath-Session-Key"] = held[0]
+            kwargs["headers"] = headers
+    response = _original_request(self, method, url, *args, **kwargs)
+    try:
+        payload = response.json()
+    except ValueError:
+        payload = None
+    if isinstance(payload, dict) and payload.get("session_key") and payload.get("session_id"):
+        keys[str(payload["session_id"]).lower()] = payload["session_key"]
+    return response
+
+
+_TestClient.request = _request_with_session_keys

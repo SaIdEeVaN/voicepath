@@ -45,6 +45,8 @@ export interface ExtractedProfile {
 
 export interface TranscribeResponse {
   session_id: string;
+  /** The session's secret, given once. lib/api.ts keeps it and sends it back. */
+  session_key: string;
   transcript: string;
   language_detected: string;
   provider: string;
@@ -60,6 +62,8 @@ export interface SynthesizeResponse {
 
 export interface ExtractResponse {
   session_id: string | null;
+  /** Only when this call created the session. */
+  session_key?: string | null;
   profile: ExtractedProfile;
   skills: ExtractedSkill[];
   provider: string;

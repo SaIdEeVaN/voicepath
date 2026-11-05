@@ -24,7 +24,7 @@ from app.services import schemes as schemes_service
 from app.services import taxonomy as taxonomy_service
 from app.services import places as places_service
 from app import security
-from app.security import BodySizeLimitMiddleware, SecurityHeadersMiddleware
+from app.security import BodySizeLimitMiddleware, SecurityHeadersMiddleware, SessionKeyMiddleware
 
 logger = logging.getLogger(__name__)
 
@@ -212,12 +212,15 @@ app.add_middleware(
     allow_credentials=False,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     # Only the headers the frontend sends; "*" admitted anything.
-    allow_headers=["Content-Type", "Authorization", "X-VoicePath-Session"],
+    allow_headers=[
+        "Content-Type", "Authorization", "X-VoicePath-Session", "X-VoicePath-Session-Key",
+    ],
     max_age=600,
 )
 # Added last so they run first: a body over its limit is refused before CORS
 # or a route sees it, and every response, refusals included, carries the
 # security headers.
+app.add_middleware(SessionKeyMiddleware)
 app.add_middleware(BodySizeLimitMiddleware, max_audio_bytes=_settings.max_audio_bytes)
 app.add_middleware(SecurityHeadersMiddleware)
 
@@ -229,6 +232,15 @@ app.include_router(assistant.router)
 app.include_router(sessions.router)
 app.include_router(places.router)
 app.include_router(admin.router)
+
+
+@app.exception_handler(repository.SessionAccessDenied)
+async def session_denied_handler(
+    request: Request, exc: repository.SessionAccessDenied
+) -> JSONResponse:
+    """A session asked for without its key: as if it did not exist (404), or,
+    for one from before keys existed, a plain "start again" (410)."""
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.message})
 
 
 @app.exception_handler(ValueError)

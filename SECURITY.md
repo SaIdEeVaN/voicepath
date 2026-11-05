@@ -49,6 +49,16 @@ every external link carries `rel="noopener noreferrer"`.
 - Interactive docs (`/docs`, `/openapi.json`) are off on Render and whenever
   `APP_ENV=production`.
 
+**Sessions** (`services/repository.py`, `security.SessionKeyMiddleware`). A
+session's id is not enough to open it: it travels in request paths, so in
+access logs. Each session also has a 256-bit secret key, handed out once when
+the session is created, sent back only in the `X-VoicePath-Session-Key`
+header -- never in a URL -- and stored only as its SHA-256. Every repository
+function that reads or writes one session's data checks it, so no route can
+forget to; a missing or wrong key answers exactly like a session that does
+not exist. Sessions from before keys existed (2026-11-05) are refused with
+"please start again". `tests/test_session_keys.py`.
+
 **Rate limits** (`services/ratelimit.py`). Three limits per route, all of which
 must hold: per session (only a well-formed session id counts), per address
 (four sessions' worth), and per route for everyone together (25x) -- the last
@@ -99,6 +109,6 @@ is read-only and the offices job may only push its own data file.
 
 - The address used for limits comes from `X-Forwarded-For` as Render passes
   it, which a client can influence -- hence the global ceiling.
-- A session's data is reachable by anyone holding its id. The id is a random
-  UUID (122 bits) kept in the tab's sessionStorage and never put in a URL; it
-  works like a password for that session, so nothing should log or display it.
+- A session's key lives in the tab's sessionStorage, like the session itself,
+  so script running on the site could read it. The Content-Security-Policy
+  and the absence of rendered HTML are what stand against that.

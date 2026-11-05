@@ -101,6 +101,7 @@ async def extract(payload: schemas.ExtractRequest) -> schemas.ExtractResponse:
 
     return schemas.ExtractResponse(
         session_id=session.id if session else None,
+        session_key=session.issued_key if session else None,
         profile=pipeline.profile_to_schema(profile_row)
         if profile_row
         else schemas.ExtractedProfile(

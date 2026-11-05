@@ -89,6 +89,7 @@ async def transcribe(
 
     return schemas.TranscribeResponse(
         session_id=session.id,
+        session_key=session.issued_key,
         transcript=result.transcript,
         language_detected=result.language_detected,
         provider=result.provider,
@@ -123,6 +124,7 @@ async def client_transcript(
     )
     return schemas.TranscribeResponse(
         session_id=session.id,
+        session_key=session.issued_key,
         transcript=transcript,
         language_detected=payload.language_detected,
         provider="browser",

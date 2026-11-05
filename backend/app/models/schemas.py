@@ -26,6 +26,9 @@ class Base(BaseModel):
 
 class TranscribeResponse(Base):
     session_id: UUID
+    # The session's secret, given once. Send it back in X-VoicePath-Session-Key
+    # on every request about this session; the id alone no longer opens it.
+    session_key: str
     transcript: str
     language_detected: str
     provider: str
@@ -116,6 +119,8 @@ class ExtractedProfile(Base):
 
 class ExtractResponse(Base):
     session_id: UUID | None
+    # Only when this call created the session (no session_id was sent).
+    session_key: str | None = None
     profile: ExtractedProfile
     skills: list[ExtractedSkill]
     provider: str

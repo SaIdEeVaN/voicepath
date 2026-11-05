@@ -50,6 +50,53 @@ export class ApiError extends Error {
   }
 }
 
+/*
+ * Session keys (2026-11-05).
+ *
+ * A session opens only with its secret key: the API hands it out once, when
+ * the session is created, and refuses any request about that session that
+ * does not send it back in X-VoicePath-Session-Key. The id alone -- which is in
+ * request paths, so in server logs -- opens nothing.
+ *
+ * Kept here rather than in React state so it is in place the instant the
+ * session exists: the screen that created a session may ask about it before
+ * any effect has run. Mirrored to sessionStorage (this tab only, like the
+ * session itself) so a reload keeps working. Never put in a URL.
+ */
+const KEYS_STORAGE = "voicepath.session-keys.v1";
+const KEYS_KEPT = 5;
+const sessionKeys = new Map<string, string>();
+
+function storedKeys(): Record<string, string> {
+  try {
+    const raw = window.sessionStorage.getItem(KEYS_STORAGE);
+    const parsed = raw ? (JSON.parse(raw) as unknown) : null;
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, string>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function rememberSessionKey(sessionId: string | null | undefined, key: string | null | undefined) {
+  if (!sessionId || !key) return;
+  sessionKeys.set(sessionId, key);
+  try {
+    const kept = Object.entries({ ...storedKeys(), [sessionId]: key }).slice(-KEYS_KEPT);
+    window.sessionStorage.setItem(KEYS_STORAGE, JSON.stringify(Object.fromEntries(kept)));
+  } catch {
+    /* Private mode, or storage full: the key still works until a reload. */
+  }
+}
+
+function keyFor(sessionId: string): string | undefined {
+  const held = sessionKeys.get(sessionId);
+  if (held) return held;
+  if (typeof window === "undefined") return undefined;
+  const stored = storedKeys()[sessionId];
+  if (stored) sessionKeys.set(sessionId, stored);
+  return stored;
+}
+
 async function request<T>(
   path: string,
   init: RequestInit = {},
@@ -61,7 +108,11 @@ async function request<T>(
   }
   // The rate limiter keys on this before falling back to IP, so shared
   // connections do not throttle each other.
-  if (sessionId) headers.set("X-VoicePath-Session", sessionId);
+  if (sessionId) {
+    headers.set("X-VoicePath-Session", sessionId);
+    const key = keyFor(sessionId);
+    if (key) headers.set("X-VoicePath-Session-Key", key);
+  }
 
   let response: Response;
   try {
@@ -103,6 +154,9 @@ export const api = {
     return request<TranscribeResponse>("/api/speech/transcribe", {
       method: "POST",
       body: form,
+    }).then((result) => {
+      rememberSessionKey(result.session_id, result.session_key);
+      return result;
     });
   },
 
@@ -113,6 +167,9 @@ export const api = {
         transcript,
         language_detected: languageDetected,
       }),
+    }).then((result) => {
+      rememberSessionKey(result.session_id, result.session_key);
+      return result;
     }),
 
   synthesize: (text: string, language: Language) =>
@@ -169,6 +226,8 @@ export const api = {
   storedMatch: (id: number, sessionId: string, language: Language) =>
     request<import("./types").MatchResult>(
       `/api/schemes/${id}/match/${sessionId}?language=${language}`,
+      {},
+      sessionId,
     ),
 
   /**
@@ -180,10 +239,14 @@ export const api = {
    * and became an uncertain skill card.
    */
   addTypedSkill: (sessionId: string, text: string, language: Language) =>
-    request<import("./types").AddSkillResponse>("/api/profile/skills", {
-      method: "POST",
-      body: JSON.stringify({ session_id: sessionId, text, language }),
-    }),
+    request<import("./types").AddSkillResponse>(
+      "/api/profile/skills",
+      {
+        method: "POST",
+        body: JSON.stringify({ session_id: sessionId, text, language }),
+      },
+      sessionId,
+    ),
 
   /** Years of work, corrected by the person. Null clears it. */
   correctExperience: (sessionId: string, experienceYears: number | null) =>

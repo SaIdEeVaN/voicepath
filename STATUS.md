@@ -513,7 +513,7 @@ frontend/
 - [x] `/api/admin/*` — server-side role check, sha256 tokens, bootstrap that self-disables
 - [x] Rate limiting on public routes · `GET /health` reporting every provider honestly
 
-### Phase 5 — Backend tests ✅ (872 passing, 7 skipped)
+### Phase 5 — Backend tests ✅ (892 passing, 7 skipped)
 - [x] `test_matching.py` — weights, determinism, each component, grounding
 - [x] `test_extraction.py` — evidence grounding in ta/hi/en, invention rejected
 - [x] `test_normalization.py` — alias matching across scripts, no silent upgrades
@@ -810,6 +810,25 @@ its exact name or alias landed nowhere.
   `purge_expired_audio` daily -- before, nothing called it. Tests:
   `tests/test_audio_purge.py` (4), and `tests/test_api.py` holds that nothing
   can turn keeping on.
+- **Both known security limits fixed** (decided 2026-11-05):
+  - **Rate limits are shared across instances.** The counters, and the
+    admin-token lockout, live in a free Render Key Value instance
+    (`voicepath-ratelimit`, Singapore, beside the API; reachable only from
+    Render services in that region) via `RATE_LIMIT_REDIS_URL`. One pipelined
+    round trip per request; keys hashed and self-expiring. If the store stops
+    answering, counting falls back to the process for 30 seconds at a time --
+    nobody is refused for want of a counter -- and `/health` shows
+    `rate_limits.store`. Tested against a real Redis server, which the test
+    workflow installs (`tests/test_shared_ratelimit.py`, 9).
+  - **A session opens only with its secret key.** 256 bits, given once at
+    creation, sent back only in `X-VoicePath-Session-Key`, stored only as its
+    SHA-256 (`db/013_session_keys.sql`, applied before the code). Checked in
+    every per-session repository function; a missing or wrong key reads as
+    "not found"; sessions from before are asked to start again. The frontend
+    keeps the key in `lib/api.ts` (and sessionStorage, for reloads) the moment
+    the session exists. Checked end to end in Chromium: the flow works with
+    the key, every session request carries it, it is never in a URL, and
+    without it nothing opens (`tests/test_session_keys.py`, 11).
 - **Tests on every push** (`.github/workflows/tests.yml`): pytest, the
   frontend type-check and a production build, on every push to `main` and
   every pull request. Until now nothing checked a push before it deployed.

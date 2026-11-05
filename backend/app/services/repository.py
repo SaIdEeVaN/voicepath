@@ -8,12 +8,17 @@ so a long-running dev server cannot grow without limit.
 
 from __future__ import annotations
 
+import hashlib
+import hmac
 import logging
+import secrets
 import time
 from collections import OrderedDict
-from dataclasses import dataclass, field
+from contextlib import contextmanager
+from contextvars import ContextVar
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Iterator
 from uuid import UUID, uuid4
 
 from app.services import db
@@ -39,6 +44,11 @@ class SessionRow:
     audio_retained: bool = False
     audio_url: str | None = None
     stt_provider: str | None = None
+    # The session's secret, in the clear, on the row create_session returns
+    # and nowhere else: it is handed to the person once and never stored.
+    issued_key: str | None = None
+    # Its SHA-256, for the in-memory store (the database keeps its own).
+    key_hash: str | None = None
 
 
 @dataclass
@@ -177,6 +187,106 @@ def missing_session(session_id: UUID | str | None) -> tuple[int, str]:
 
 
 # ---------------------------------------------------------------------------
+# Session keys
+# ---------------------------------------------------------------------------
+#
+# Until 2026-11-05 a session's id was all it took to read or change it, and
+# the id is in request paths (/api/sessions/{id}) -- so in access logs, and in
+# anything else that records a URL. Now each session also has a secret key:
+# 256 random bits, handed to the person once when the session is created, sent
+# back only in the X-VoicePath-Session-Key header, and stored only as its
+# SHA-256. Every function below that reads or writes one session's data checks
+# it first, so no route can forget to. A missing or wrong key is
+# indistinguishable from a session that does not exist; a session from before
+# keys existed (no hash) is refused with a plain "start again" -- decided
+# 2026-11-05.
+#
+# The key a request presents is put in a context variable by
+# security.SessionKeyMiddleware, with a per-request cache so a route that
+# touches a session five times checks it once.
+
+SESSION_KEY_HEADER = "x-voicepath-session-key"
+
+_presented_key: ContextVar[str | None] = ContextVar("vp_session_key", default=None)
+_verified: ContextVar[set[UUID] | None] = ContextVar("vp_session_verified", default=None)
+
+UNKEYED_SESSION_MESSAGE = (
+    "This session was started before a security update, so it can no longer be "
+    "opened. Please start again from the beginning."
+)
+
+
+class SessionAccessDenied(Exception):
+    """Raised by the per-session functions; main.py turns it into a response."""
+
+    def __init__(self, status_code: int, message: str) -> None:
+        super().__init__(message)
+        self.status_code = status_code
+        self.message = message
+
+
+def _key_hash(key: str) -> str:
+    return hashlib.sha256(key.encode("utf-8")).hexdigest()
+
+
+def new_session_key() -> tuple[str, str]:
+    """A fresh key and the hash to store for it."""
+    key = secrets.token_urlsafe(32)
+    return key, _key_hash(key)
+
+
+@contextmanager
+def presenting(key: str | None) -> Iterator[None]:
+    """Act as the holder of ``key`` for the duration (middleware, and tests)."""
+    key_token = _presented_key.set(key)
+    cache_token = _verified.set(set())
+    try:
+        yield
+    finally:
+        _presented_key.reset(key_token)
+        _verified.reset(cache_token)
+
+
+def _mark_verified(session_id: UUID) -> None:
+    cache = _verified.get()
+    if cache is None:
+        cache = set()
+        _verified.set(cache)
+    cache.add(session_id)
+
+
+async def _stored_key_hash(session_id: UUID) -> tuple[bool, str | None]:
+    """(exists, key_hash) without touching anything else of the session."""
+    if db.is_available():
+        row = await db.fetchrow("select key_hash from sessions where id = $1", session_id)
+        return (row is not None, row["key_hash"] if row else None)
+    entry = _memory.get(session_id)
+    return (entry is not None, entry.session.key_hash if entry else None)
+
+
+async def _require_key(session_id: UUID | None) -> None:
+    """Refuse unless the request holds this session's key.
+
+    A session that does not exist passes through, so the caller's own
+    "not found" (or "retired after an outage") answer stands.
+    """
+    if session_id is None:
+        return
+    cache = _verified.get()
+    if cache is not None and session_id in cache:
+        return
+    exists, stored = await _stored_key_hash(session_id)
+    if not exists:
+        return
+    if stored is None:
+        raise SessionAccessDenied(410, UNKEYED_SESSION_MESSAGE)
+    presented = _presented_key.get()
+    if not presented or not hmac.compare_digest(_key_hash(presented), stored):
+        raise SessionAccessDenied(404, "That session was not found.")
+    _mark_verified(session_id)
+
+
+# ---------------------------------------------------------------------------
 # Sessions
 # ---------------------------------------------------------------------------
 
@@ -193,28 +303,35 @@ async def create_session(
         # Mirrors the database check constraint so both backends behave alike.
         raise ValueError("audio_url requires audio_retained=True")
 
+    key, key_hash = new_session_key()
     if db.is_available():
         row = await db.fetchrow(
             "insert into sessions "
-            "(transcript, language_detected, stt_provider, audio_retained, audio_url) "
-            "values ($1, $2, $3, $4, $5) "
+            "(transcript, language_detected, stt_provider, audio_retained, audio_url, key_hash) "
+            "values ($1, $2, $3, $4, $5, $6) "
             "returning id, created_at, language_detected, transcript, "
             "audio_retained, audio_url, stt_provider",
-            transcript, language_detected, stt_provider, audio_retained, audio_url,
+            transcript, language_detected, stt_provider, audio_retained, audio_url, key_hash,
         )
-        return _session_from_row(row)
-
-    session = SessionRow(
-        id=uuid4(),
-        created_at=_now(),
-        language_detected=language_detected,
-        transcript=transcript,
-        audio_retained=audio_retained,
-        audio_url=audio_url,
-        stt_provider=stt_provider,
-    )
-    _remember(_MemorySession(session=session))
-    return session
+        session = _session_from_row(row)
+    else:
+        session = SessionRow(
+            id=uuid4(),
+            created_at=_now(),
+            language_detected=language_detected,
+            transcript=transcript,
+            audio_retained=audio_retained,
+            audio_url=audio_url,
+            stt_provider=stt_provider,
+            key_hash=key_hash,
+        )
+        _remember(_MemorySession(session=session))
+    # The request that made it may go on using it before the person has
+    # the key to send back (extract creates and then fills a session).
+    _mark_verified(session.id)
+    # A copy: the stored row (in memory, the very object kept) holds the hash
+    # only, never the key.
+    return replace(session, issued_key=key)
 
 
 def _session_from_row(row) -> SessionRow:
@@ -230,6 +347,7 @@ def _session_from_row(row) -> SessionRow:
 
 
 async def get_session(session_id: UUID) -> SessionRow | None:
+    await _require_key(session_id)
     if db.is_available():
         row = await db.fetchrow(
             "select id, created_at, language_detected, transcript, audio_retained, "
@@ -257,6 +375,7 @@ async def upsert_profile(
     work_preferences: list[str],
     uncertainty_flags: list[str],
 ) -> ProfileRow:
+    await _require_key(session_id)
     if db.is_available():
         row = await db.fetchrow(
             "insert into extracted_profiles "
@@ -312,6 +431,7 @@ def _profile_from_row(row) -> ProfileRow:
 
 
 async def get_profile(session_id: UUID) -> ProfileRow | None:
+    await _require_key(session_id)
     if db.is_available():
         row = await db.fetchrow(
             "select id, session_id, experience_years, experience_context, education, "
@@ -332,6 +452,7 @@ async def replace_skills(
     Replacement rather than merge: the /understanding screen sends the full
     corrected list, and a merge would resurrect skills the user deleted.
     """
+    await _require_key(session_id)
     if db.is_available():
         async with db.transaction() as conn:
             await conn.execute(
@@ -415,6 +536,7 @@ def _skill_from_row(row) -> SkillRow:
 
 
 async def get_skills(session_id: UUID) -> list[SkillRow]:
+    await _require_key(session_id)
     if db.is_available():
         rows = await db.fetch(
             "select s.id, s.profile_id, s.raw_name, s.evidence_phrase, "
@@ -448,6 +570,7 @@ async def replace_matches(
     the one the reader wants, instead of serving whatever was written
     first and hoping.
     """
+    await _require_key(session_id)
     explanations = explanations or {}
     stored_language = (language or "").split("-")[0] or None
 
@@ -716,6 +839,7 @@ async def _overview_memory() -> dict[str, Any]:
 
 
 async def get_matches(session_id: UUID) -> list[MatchRow]:
+    await _require_key(session_id)
     if db.is_available():
         rows = await db.fetch(
             "select id, session_id, scheme_id, skill_similarity_score, "
@@ -749,6 +873,7 @@ async def log_assistant_query(
     answer_text: str,
     source_note: str | None,
 ) -> None:
+    await _require_key(session_id)
     if db.is_available():
         await db.execute(
             "insert into assistant_queries "
@@ -773,6 +898,7 @@ async def log_assistant_query(
 
 
 async def list_assistant_queries(session_id: UUID, limit: int = 20) -> list[dict[str, Any]]:
+    await _require_key(session_id)
     if db.is_available():
         rows = await db.fetch(
             "select id, question_text, answer_text, source_note, scheme_id, "

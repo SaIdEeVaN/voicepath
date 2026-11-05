@@ -92,6 +92,35 @@ class SecurityHeadersMiddleware:
         await self.app(scope, receive, with_headers)
 
 
+class SessionKeyMiddleware:
+    """Hand the request's X-VoicePath-Session-Key to the repository.
+
+    The repository checks it on every read or write of a session's data
+    (repository._require_key); this only makes it visible there, for the
+    length of the request, without every route having to pass it along.
+    """
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+        from app.services import repository
+
+        wanted = repository.SESSION_KEY_HEADER.encode("latin-1")
+        key = next(
+            (v.decode("latin-1") for k, v in scope.get("headers") or [] if k.lower() == wanted),
+            None,
+        )
+        # A key is 43 URL-safe characters; anything else is not one.
+        if key is not None and (len(key) > 128 or not key.strip()):
+            key = None
+        with repository.presenting(key.strip() if key else None):
+            await self.app(scope, receive, send)
+
+
 class BodySizeLimitMiddleware:
     """Refuse a request body over its route's limit, without buffering it."""
 
