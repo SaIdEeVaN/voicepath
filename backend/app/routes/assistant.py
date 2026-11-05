@@ -52,7 +52,6 @@ async def query(payload: schemas.AssistantQueryRequest) -> schemas.AssistantQuer
         session = await repository.get_session(payload.session_id)
         if session is None:
             raise _session_missing(payload.session_id)
-        context.audio_retained = session.audio_retained
         if payload.language == "en" and session.language_detected:
             language = session.language_detected.split("-")[0]  # type: ignore[assignment]
 

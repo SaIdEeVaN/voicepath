@@ -69,8 +69,11 @@ resolves to must be public -- checked again at every redirect, which is
 followed by hand. Bodies are read up to 2 MB. Fetched pages wait for an admin's
 review before the assistant may cite them.
 
-**Speech and the model.** Raw audio is not kept unless the person opts in, and
-the database enforces that with a check constraint. Everything the model
+**Speech and the model.** Recordings are never kept: speech is transcribed in
+memory and the bytes discarded (`routes/speech.py`). There is no switch to keep
+them -- the passport's old "keep my voice clips" toggle saved nothing and was
+removed on 2026-11-05 -- and the API runs `purge_expired_audio` daily as a
+safety net, with a check constraint forbidding a clip link without consent. Everything the model
 extracts must quote the transcript or it is dropped; matching imports no model
 at all; and a model's answer about a scheme must cite a passage from an
 approved document or it is refused.

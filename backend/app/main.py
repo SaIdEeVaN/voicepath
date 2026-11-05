@@ -93,13 +93,44 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         else None
     )
 
+    # The privacy safety net, daily: no clip link may outlive its window or
+    # sit on a session that never opted in. Nothing keeps a recording today;
+    # this holds the line if anything ever does.
+    purging = asyncio.create_task(purge_audio_daily())
+
     yield
 
     warming.cancel()
     syncing.cancel()
+    purging.cancel()
     if reconnecting is not None:
         reconnecting.cancel()
     await db.close_pool()
+
+
+PURGE_INTERVAL_SECONDS = 24 * 60 * 60
+
+
+async def purge_audio_once() -> int | None:
+    """Run db/002's purge_expired_audio once. None when there is no database."""
+    if not db.is_available():
+        return None
+    try:
+        cleared = await db.fetchval(
+            "select purge_expired_audio($1)", get_settings().audio_retention_days
+        )
+    except Exception:  # noqa: BLE001 - a missed night is retried tomorrow
+        logger.exception("Audio purge failed")
+        return None
+    if cleared:
+        logger.warning("Audio purge cleared %d clip link(s)", cleared)
+    return int(cleared or 0)
+
+
+async def purge_audio_daily(sleep=asyncio.sleep) -> None:
+    while True:
+        await purge_audio_once()
+        await sleep(PURGE_INTERVAL_SECONDS)
 
 
 # How long the in-memory store must sit unused before the API switches to a

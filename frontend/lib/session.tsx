@@ -57,7 +57,6 @@ interface StoredState {
    */
   matchesLanguage: Language | null;
   degraded: boolean;
-  audioRetained: boolean;
 }
 
 const EMPTY: StoredState = {
@@ -69,7 +68,6 @@ const EMPTY: StoredState = {
   matches: [],
   matchesLanguage: null,
   degraded: false,
-  audioRetained: false,
 };
 
 interface SessionContextValue extends StoredState {
@@ -89,7 +87,6 @@ interface SessionContextValue extends StoredState {
   /** A corrected profile. Drops the matches, which were scored on the old one. */
   setProfile(profile: ExtractedProfile): void;
   setMatches(matches: MatchResult[], language: Language): void;
-  setAudioRetained(retained: boolean): void;
   reset(): void;
 }
 
@@ -275,10 +272,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setState((s) => ({ ...s, matches, matchesLanguage: language })),
     [],
   );
-  const setAudioRetained = useCallback(
-    (audioRetained: boolean) => setState((s) => ({ ...s, audioRetained })),
-    [],
-  );
   const reset = useCallback(
     () => setState((s) => ({ ...EMPTY, language: s.language })),
     [],
@@ -296,7 +289,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setSkills,
       setProfile,
       setMatches,
-      setAudioRetained,
       reset,
     }),
     [
@@ -310,7 +302,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setSkills,
       setProfile,
       setMatches,
-      setAudioRetained,
       reset,
     ],
   );

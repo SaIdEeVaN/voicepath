@@ -234,9 +234,9 @@ twice is harmless. There is no cost to doing this in the safe order.
       degrades to `[]` safely, but nothing calls it and `transformers` is not in
       the deploy set, so `/health` reports it offline. Wire it into extraction
       or delete it — a built-and-unused service is the worst of both.
-- [ ] **Audio retention is three-quarters wired.** Opt-in, check constraint and
-      purge function exist; nothing uploads a clip, so the passport's "Play" has
-      nothing to play.
+- [x] **Audio retention is three-quarters wired.** Decided 2026-11-05: make it
+      honest. Nothing ever kept a clip, so the toggle that promised it is gone
+      (see *Done on 2026-11-05*).
 - [x] **Only 16 schemes, seeded** — 11 national schemes added 2026-11-04, each
       quoted from its official release; see *Done on 2026-11-04 — national
       schemes, more skills, official documents*. District openings are still
@@ -460,7 +460,7 @@ frontend/
     schemes/           Ranked feed
     schemes/[id]/      RSC detail + score bars with their weights
     about/                   What this is, what it will not do
-    passport/                Skill Passport, audio-retention toggle
+    passport/                Skill Passport (prints; recordings are never kept)
     admin/                   Schemes, taxonomy, sessions (no transcripts)
   components/                SkillCard, Waveform, MatchRing, AskVoicePath,
                              PageBackdrop, FlowRail/FlowBar, AdminOverview, ...
@@ -513,7 +513,7 @@ frontend/
 - [x] `/api/admin/*` — server-side role check, sha256 tokens, bootstrap that self-disables
 - [x] Rate limiting on public routes · `GET /health` reporting every provider honestly
 
-### Phase 5 — Backend tests ✅ (868 passing, 7 skipped)
+### Phase 5 — Backend tests ✅ (872 passing, 7 skipped)
 - [x] `test_matching.py` — weights, determinism, each component, grounding
 - [x] `test_extraction.py` — evidence grounding in ta/hi/en, invention rejected
 - [x] `test_normalization.py` — alias matching across scripts, no silent upgrades
@@ -548,7 +548,7 @@ frontend/
 - [x] `/speak` — **waveform driven by live mic analyser data**, not a timer
 - [x] `/understanding` — editable cards, each showing the words that produced it
 - [x] `/understanding/disambiguate` — low-confidence screen, "leave it out" is a real answer
-- [x] `/passport` — Skill Passport + audio-retention toggle
+- [x] `/passport` — Skill Passport (the audio toggle was removed 2026-11-05)
 - [x] `/schemes` — ranked feed, reasons weighted equal to titles
 - [x] `/schemes/[id]` — RSC detail + score bars + Ask VoicePath
 
@@ -673,9 +673,6 @@ discards every response and the failure is indistinguishable from a dead server.
   `/health` reports it offline.
 - **Only 16 schemes, seeded.** data.gov.in publishes district catalogues
   under GODL-India; the schema and admin importer already fit.
-- **Audio retention is three-quarters wired.** Opt-in, check constraint and purge
-  function exist; nothing uploads a clip, so the passport's "Play" has nothing to
-  play.
 - **Rate limiting is per-process.** Multiplies behind multiple instances; move
   the counter to Redis before scaling.
 
@@ -800,6 +797,19 @@ its exact name or alias landed nowhere.
   forbids any alias being a prefix of another town's. The offices snapshot
   lists the new towns as not yet fetched until the monthly refresh (run by
   hand on 2026-11-05) fills them. Tests: `tests/test_more_towns.py` (44).
+- **Voice recordings: the passport tells the truth.** Decided 2026-11-05.
+  No code path ever kept a recording, yet the passport offered "Keep my voice
+  clips so employers can hear me say it" and stored the answer -- a promise
+  nothing kept, and nothing for a retention clean-up to delete. The toggle,
+  its endpoint (`POST /api/sessions/{id}/audio-retention`), its session state
+  and copy, the `ALLOW_AUDIO_RETENTION` switch and the assistant's "you turned
+  on keeping clips" answer are gone. The passport now says, in all three
+  languages, that the recording was used only to write down what was said and
+  is not kept. `db/012_no_voice_clips.sql` (applied) cleared the two sessions
+  that had the flag set; there were no clip links. The API now runs
+  `purge_expired_audio` daily -- before, nothing called it. Tests:
+  `tests/test_audio_purge.py` (4), and `tests/test_api.py` holds that nothing
+  can turn keeping on.
 - **Tests on every push** (`.github/workflows/tests.yml`): pytest, the
   frontend type-check and a production build, on every push to `main` and
   every pull request. Until now nothing checked a push before it deployed.

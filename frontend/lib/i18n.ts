@@ -128,10 +128,8 @@ export interface Copy {
   passportRecordedOn: string;
   /** Printed at the foot of the page: what this record is, and is not. */
   passportNotCertificate: string;
-  playEvidence: string;
-  retainCopy: string;
-  retainOn: string;
-  retainOff: string;
+  /** On the passport: what happened to their recording. */
+  passportVoiceNote: string;
   statYears: string;
   statSkills: string;
   statLanguages: string;
@@ -387,11 +385,8 @@ const en: Copy = {
   passportRecordedOn: "Recorded with VoicePath on {date}.",
   passportNotCertificate:
     "Each line is what the person said about their work, in their own words. This is not a certificate or a government document.",
-  playEvidence: "Play",
-  retainCopy:
-    "Keep my voice clips so employers can hear me say it. You can turn this off any time.",
-  retainOn: "KEEPING CLIPS",
-  retainOff: "NOT KEEPING",
+  passportVoiceNote:
+    "Your recording was used only to write down what you said. It is not kept, and no one else has heard it.",
   statYears: "years of work",
   statSkills: "kinds of work",
   statLanguages: "language",
@@ -643,11 +638,8 @@ const ta: Copy = {
   passportRecordedOn: "{date} அன்று VoicePath-இல் பதிவு செய்யப்பட்டது.",
   passportNotCertificate:
     "ஒவ்வொரு வரியும், அவர் தன் வேலையைப் பற்றித் தன் சொந்த வார்த்தைகளில் சொன்னது. இது சான்றிதழோ அரசு ஆவணமோ அல்ல.",
-  playEvidence: "கேளுங்கள்",
-  retainCopy:
-    "என் குரல் பதிவுகளை வைத்துக்கொள்ளுங்கள் — வேலை தருபவர்கள் நேரடியாகக் கேட்கலாம். எப்போது வேண்டுமானாலும் நிறுத்தலாம்.",
-  retainOn: "வைக்கப்படுகிறது",
-  retainOff: "வைக்கப்படவில்லை",
+  passportVoiceNote:
+    "உங்கள் குரல் பதிவு, நீங்கள் சொன்னதை எழுதுவதற்கு மட்டுமே பயன்பட்டது. அது வைக்கப்படவில்லை, வேறு யாரும் அதைக் கேட்கவில்லை.",
   statYears: "வருட வேலை",
   statSkills: "வகை வேலை",
   statLanguages: "மொழி",
@@ -897,11 +889,8 @@ const hi: Copy = {
   passportRecordedOn: "{date} को VoicePath पर दर्ज किया गया।",
   passportNotCertificate:
     "हर पंक्ति वही है जो व्यक्ति ने अपने काम के बारे में अपने शब्दों में कहा। यह कोई प्रमाणपत्र या सरकारी दस्तावेज़ नहीं है।",
-  playEvidence: "सुनिए",
-  retainCopy:
-    "मेरी आवाज़ के हिस्से रखिए ताकि काम देने वाले मुझे सुन सकें। इसे कभी भी बंद कर सकते हैं।",
-  retainOn: "रखे जा रहे हैं",
-  retainOff: "नहीं रखे जा रहे",
+  passportVoiceNote:
+    "आपकी रिकॉर्डिंग सिर्फ़ यह लिखने के लिए इस्तेमाल हुई कि आपने क्या कहा। उसे रखा नहीं गया, और किसी और ने उसे नहीं सुना।",
   statYears: "साल का काम",
   statSkills: "तरह के काम",
   statLanguages: "भाषा",

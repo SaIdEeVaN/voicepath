@@ -241,32 +241,6 @@ async def get_session(session_id: UUID) -> SessionRow | None:
     return entry.session if entry else None
 
 
-async def set_audio_retention(session_id: UUID, retained: bool) -> SessionRow | None:
-    """Toggle the Skill Passport playback opt-in.
-
-    Turning it off clears the URL in the same statement, so there is no window
-    in which a row says "not retained" while still pointing at a clip.
-    """
-    if db.is_available():
-        row = await db.fetchrow(
-            "update sessions set audio_retained = $2, "
-            "audio_url = case when $2 then audio_url else null end "
-            "where id = $1 "
-            "returning id, created_at, language_detected, transcript, "
-            "audio_retained, audio_url, stt_provider",
-            session_id, retained,
-        )
-        return _session_from_row(row) if row else None
-
-    entry = _memory_get(session_id)
-    if entry is None:
-        return None
-    entry.session.audio_retained = retained
-    if not retained:
-        entry.session.audio_url = None
-    return entry.session
-
-
 # ---------------------------------------------------------------------------
 # Profiles and skills
 # ---------------------------------------------------------------------------

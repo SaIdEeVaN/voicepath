@@ -245,8 +245,8 @@ How this scheme was matched to them:
 {match}
 
 Privacy facts, true for this session:
-- Their recording was not kept. Only the words were kept.
-- Audio saving is {audio_retained}.
+- Their recording was not kept. Only the words were kept. VoicePath never
+  keeps recordings.
 - No employer has been sent anything.
 
 Return the JSON object.

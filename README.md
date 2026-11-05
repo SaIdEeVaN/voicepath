@@ -253,7 +253,7 @@ the database level and not only in application code.
 ## Tests
 
 ```bash
-cd backend && python -m pytest        # 868 tests
+cd backend && python -m pytest        # 872 tests
 cd frontend && npx tsc --noEmit && npx next build
 ```
 

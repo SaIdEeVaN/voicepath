@@ -3,10 +3,12 @@
 /**
  * Skill Passport (PRD sections 5 and 7).
  *
- * A record of the person's working life in their own words, and the one place
- * the audio-retention choice lives. The toggle is off, and the copy next to it
- * says what turning it on means in plain language -- not "consent to data
- * processing", but "employers can hear you say it".
+ * A record of the person's working life in their own words.
+ *
+ * It used to offer "Keep my voice clips so employers can hear me say it". No
+ * code path ever kept a clip -- speech is transcribed in memory and discarded
+ * -- so the toggle promised something that never happened. Removed
+ * 2026-11-05; the page now says plainly what became of the recording.
  *
  * It prints (2026-11-05): a person can take it to an office or an employer,
  * or keep it as a PDF on their phone. The print layout drops the site's own
@@ -18,25 +20,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { ErrorNote } from "@/components/Notices";
-import { ApiError, api } from "@/lib/api";
 import { copyFor, localeFor, skillLabel } from "@/lib/i18n";
 import { useSession } from "@/lib/session";
 
 export default function PassportPage() {
   const router = useRouter();
-  const {
-    language,
-    sessionId,
-    skills,
-    profile,
-    audioRetained,
-    setAudioRetained,
-  } = useSession();
+  const { language, sessionId, skills, profile } = useSession();
   const copy = copyFor(language);
 
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => setHydrated(true), []);
@@ -55,21 +46,6 @@ export default function PassportPage() {
       { value: language.toUpperCase(), label: copy.statLanguages },
     ].filter((entry): entry is { value: string; label: string } => entry !== null);
   }, [profile, skills.length, language, copy]);
-
-  const toggleRetention = async () => {
-    if (!sessionId) return;
-    const next = !audioRetained;
-    setBusy(true);
-    setError(null);
-    try {
-      const updated = await api.setAudioRetention(sessionId, next);
-      setAudioRetained(updated.audio_retained);
-    } catch (cause) {
-      setError(cause instanceof ApiError ? cause.message : copy.somethingWentWrong);
-    } finally {
-      setBusy(false);
-    }
-  };
 
   const today = useMemo(() => {
     try {
@@ -162,58 +138,16 @@ export default function PassportPage() {
             ))}
           </ul>
 
-          {error && (
-            <div className="print:hidden">
-              <ErrorNote message={error} />
-            </div>
-          )}
-
-          {/* The retention opt-in. Off by default, and the label says what it
-              does rather than what it is called. A control, so not printed. */}
-          <div
-            className="flex flex-wrap items-center gap-5 rounded-xl px-5 py-4.5 print:hidden"
-            style={{ border: "1px solid var(--ink-09)", padding: "1.125rem 1.25rem" }}
+          {/* What became of the recording -- the only true answer is "nothing
+              kept", so that is what it says. Not printed: the footer says
+              what the paper is. */}
+          <p
+            className="max-w-[44em] text-sm leading-relaxed print:hidden"
+            style={{ color: "var(--ink-62)" }}
+            lang={language}
           >
-            <button
-              type="button"
-              role="switch"
-              aria-checked={audioRetained}
-              disabled={busy}
-              onClick={() => void toggleRetention()}
-              className="flex h-7 w-[50px] flex-none rounded-full p-[3px] transition-colors disabled:opacity-50"
-              style={{
-                background: audioRetained
-                  ? "var(--color-accent)"
-                  : "var(--ink-12)",
-                justifyContent: audioRetained ? "flex-end" : "flex-start",
-              }}
-            >
-              <span
-                className="h-[22px] w-[22px] rounded-full"
-                style={{
-                  background: "var(--color-surface)",
-                  boxShadow: "0 1px 3px rgb(0 0 0 / 0.25)",
-                }}
-              />
-              <span className="sr-only">{copy.retainCopy}</span>
-            </button>
-
-            <p
-              className="min-w-0 flex-1 basis-[260px] text-sm leading-relaxed"
-              style={{ color: "var(--ink-70)" }}
-              lang={language}
-            >
-              {copy.retainCopy}
-            </p>
-
-            <span
-              className="font-mono text-[11px] tracking-[0.05em]"
-              style={{ color: "var(--ink-45)" }}
-              lang={language}
-            >
-              {audioRetained ? copy.retainOn : copy.retainOff}
-            </span>
-          </div>
+            {copy.passportVoiceNote}
+          </p>
 
           {/* Only on paper: when this was recorded, and what it is not. */}
           <footer

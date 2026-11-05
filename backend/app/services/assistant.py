@@ -47,7 +47,6 @@ class QueryContext:
     location: str | None = None
     certifications: list[str] | None = None
     skill_names: list[str] | None = None
-    audio_retained: bool = False
     overall_score: float | None = None
     matched_skill_names: list[str] | None = None
 
@@ -72,7 +71,6 @@ COPY: dict[str, dict[str, str]] = {
         "type_self": "This is support to start your own work, not a job with wages.",
         "type_job": "This is a {type} job.",
         "privacy": "Your voice was not saved. Only the words you said are kept, and no employer has been sent anything.",
-        "privacy_retained": "You turned on keeping your voice clips, so they are saved. You can turn that off any time.",
         "why_match": "You match on {skills}.",
         "unknown": "I do not have that in the record for this one. I will not guess at it.",
         "official_page": "The government page for this is {url}",
@@ -98,7 +96,6 @@ COPY: dict[str, dict[str, str]] = {
         "type_self": "यह अपना काम शुरू करने की सहायता है, तनख़्वाह वाली नौकरी नहीं।",
         "type_job": "यह {type} नौकरी है।",
         "privacy": "आपकी आवाज़ सहेजी नहीं गई। सिर्फ़ आपके शब्द रखे हैं, और किसी नियोक्ता को कुछ नहीं भेजा गया।",
-        "privacy_retained": "आपने आवाज़ रखने का विकल्प चालू किया है, इसलिए वे सहेजी गई हैं। इसे कभी भी बंद कर सकते हैं।",
         "why_match": "आपका {skills} इससे मेल खाता है।",
         "unknown": "इसके रिकॉर्ड में यह नहीं है। मैं अंदाज़ा नहीं लगाऊँगा।",
         "official_page": "इसका सरकारी पेज यह है: {url}",
@@ -124,7 +121,6 @@ COPY: dict[str, dict[str, str]] = {
         "type_self": "இது சொந்தத் தொழில் தொடங்க உதவி, சம்பள வேலை அல்ல.",
         "type_job": "இது {type} வேலை.",
         "privacy": "உங்கள் குரல் சேமிக்கப்படவில்லை. நீங்கள் சொன்ன வார்த்தைகள் மட்டுமே இருக்கின்றன, யாருக்கும் எதுவும் அனுப்பப்படவில்லை.",
-        "privacy_retained": "குரல் பதிவுகளை வைத்திருக்கும் விருப்பத்தை நீங்கள் இயக்கியுள்ளீர்கள். எப்போது வேண்டுமானாலும் நிறுத்தலாம்.",
         "why_match": "உங்கள் {skills} இதற்கு பொருந்துகிறது.",
         "unknown": "இதன் பதிவில் அது இல்லை. நான் ஊகிக்க மாட்டேன்.",
         "official_page": "இதன் அரசு பக்கம்: {url}",
@@ -289,7 +285,6 @@ async def _answer_with_llm(
         scheme=_describe_scheme(context.scheme),
         profile=_describe_profile(context),
         match=_describe_match(context),
-        audio_retained="on" if context.audio_retained else "off",
     )
     system = ASSISTANT_SYSTEM.format(
         language_name=LANGUAGE_NAMES.get(language, "English")
@@ -378,8 +373,7 @@ def answer_offline(
     scheme = context.scheme
 
     if intent == "privacy":
-        key = "privacy_retained" if context.audio_retained else "privacy"
-        return Answer(_c(language, key), _c(language, "source_privacy"), "offline")
+        return Answer(_c(language, "privacy"), _c(language, "source_privacy"), "offline")
 
     if scheme is None:
         return Answer(

@@ -334,10 +334,6 @@ class AssistantQueryLog(Base):
 # ---------------------------------------------------------------------------
 
 
-class AudioRetentionRequest(Base):
-    audio_retained: bool
-
-
 class SessionSummary(Base):
     id: UUID
     created_at: datetime

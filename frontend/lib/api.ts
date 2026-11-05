@@ -21,7 +21,6 @@ import type {
   SchemeSummary,
   PassportResponse,
   QueryUnderstandResponse,
-  SessionSummary,
   SkillEdit,
   SupportResponse,
   SynthesizeResponse,
@@ -265,13 +264,6 @@ export const api = {
 
   passport: (sessionId: string) =>
     request<PassportResponse>(`/api/sessions/${sessionId}`, {}, sessionId),
-
-  setAudioRetention: (sessionId: string, retained: boolean) =>
-    request<SessionSummary>(
-      `/api/sessions/${sessionId}/audio-retention`,
-      { method: "POST", body: JSON.stringify({ audio_retained: retained }) },
-      sessionId,
-    ),
 };
 
 type LanguageParam = Language | "auto";

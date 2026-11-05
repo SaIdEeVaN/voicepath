@@ -181,9 +181,9 @@ class Settings(BaseSettings):
     match_result_limit: int = 8
 
     # -- Privacy (PRD section 7) -------------------------------------------
-    # Hard off-switch. When false, no code path can persist audio, whatever
-    # the request asks for.
-    allow_audio_retention: bool = True
+    # No code path keeps a recording (routes/speech.py). This is the window
+    # the daily safety net in main.py passes to purge_expired_audio: any clip
+    # link older than it, or on a session that never opted in, is cleared.
     audio_retention_days: int = 90
 
     # -- Rate limiting (PRD section 6.6) -----------------------------------

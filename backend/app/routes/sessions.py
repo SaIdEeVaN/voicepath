@@ -5,12 +5,10 @@ from __future__ import annotations
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, HTTPException
 
-from app.config import get_settings
 from app.models import schemas
 from app.services import pipeline, repository, taxonomy
-from app.services.ratelimit import default_limit
 
 logger = logging.getLogger(__name__)
 
@@ -41,34 +39,6 @@ async def get_passport(session_id: UUID) -> schemas.PassportResponse:
         profile=pipeline.profile_to_schema(profile) if profile else None,
         skills=pipeline.skill_rows_to_schema(rows, lookup),
     )
-
-
-@router.post(
-    "/{session_id}/audio-retention",
-    response_model=schemas.SessionSummary,
-    dependencies=[Depends(default_limit)],
-)
-async def set_audio_retention(
-    session_id: UUID, payload: schemas.AudioRetentionRequest
-) -> schemas.SessionSummary:
-    """The evidence-playback opt-in on the Skill Passport (PRD section 7).
-
-    Turning it on records consent for clips captured from now on. It cannot
-    resurrect the original recording -- that was discarded at transcription, and
-    nothing here can undo that. Turning it off clears the flag and the URL in
-    one statement.
-    """
-    settings = get_settings()
-    if payload.audio_retained and not settings.allow_audio_retention:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Keeping voice clips is switched off for this deployment.",
-        )
-
-    updated = await repository.set_audio_retention(session_id, payload.audio_retained)
-    if updated is None:
-        raise _session_missing(session_id)
-    return pipeline.session_to_schema(updated)
 
 
 @router.get("/{session_id}/questions", response_model=list[schemas.AssistantQueryLog])

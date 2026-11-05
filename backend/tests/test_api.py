@@ -317,22 +317,22 @@ class TestPrivacy:
         assert session["audio_retained"] is False
         assert session["audio_url"] is None
 
-    def test_opt_in_can_be_turned_on_and_off(self, client):
+    def test_nothing_can_turn_keeping_on(self, client):
+        """Recordings are never kept (routes/speech.py), so since 2026-11-05
+        there is no switch that claims otherwise -- the passport's "keep my
+        voice clips" toggle flipped a flag and saved nothing."""
         session_id = client.post(
             "/api/speech/client-transcript",
             json={"transcript": TRANSCRIPT, "language_detected": "en"},
         ).json()["session_id"]
 
-        on = client.post(
+        response = client.post(
             f"/api/sessions/{session_id}/audio-retention", json={"audio_retained": True}
-        ).json()
-        assert on["audio_retained"] is True
-
-        off = client.post(
-            f"/api/sessions/{session_id}/audio-retention", json={"audio_retained": False}
-        ).json()
-        assert off["audio_retained"] is False
-        assert off["audio_url"] is None
+        )
+        assert response.status_code in (404, 405)
+        session = client.get(f"/api/sessions/{session_id}").json()["session"]
+        assert session["audio_retained"] is False
+        assert session["audio_url"] is None
 
     def test_a_url_cannot_exist_without_consent(self):
         """The database has a check constraint; the in-memory path must agree."""
