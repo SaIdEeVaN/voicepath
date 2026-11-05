@@ -85,6 +85,9 @@ TOWN_DISTRICT: dict[str, str] = {
     "sathyamangalam": "erode",
     "rasipuram": "namakkal",
     "tiruchengode": "namakkal",
+    # Headquarters whose district has another name.
+    "nagercoil": "kanniyakumari",
+    "udhagamandalam": "nilgiris",
 }
 
 
@@ -227,6 +230,34 @@ PLACE_ALIASES: dict[str, tuple[str, ...]] = {
     "sathyamangalam": ("sathyamangalam", "சத்தியமங்கலம", "सत्यमंगलम"),
     "rasipuram": ("rasipuram", "ராசிபுரம", "रासीपुरम"),
     "tiruchengode": ("tiruchengode", "திருச்செங்கோடு", "तिरुचेंगोड"),
+    # District headquarters added 2026-11-05 (app/data/places.py has the sources).
+    "ariyalur": ("ariyalur", "அரியலூர்", "அரியலூர", "अरियालुर"),
+    "chengalpattu": ("chengalpattu", "chengalpet", "chingleput", "செங்கல்பட்டு", "செங்கல்பட்ட", "चेंगलपट्टू"),
+    "cuddalore": ("cuddalore", "கடலூர்", "கடலூர", "कडलूर"),
+    "dindigul": ("dindigul", "திண்டுக்கல்", "திண்டுக்கல", "डिंडिगुल"),
+    "kallakurichi": ("kallakurichi", "கள்ளக்குறிச்சி", "कल्लाकुरिची"),
+    "kanchipuram": ("kanchipuram", "kancheepuram", "காஞ்சிபுரம்", "காஞ்சிபுரம", "காஞ்சிபுர", "कांचीपुरम"),
+    "nagercoil": ("nagercoil", "nagarcoil", "kanyakumari", "kanniyakumari", "நாகர்கோவில்", "நாகர்கோவில", "கன்னியாகுமரி", "नागरकोइल", "कन्याकुमारी"),
+    "mayiladuthurai": ("mayiladuthurai", "mayavaram", "மயிலாடுதுறை", "मयीलाडूतुरै"),
+    "nagapattinam": ("nagapattinam", "நாகப்பட்டினம்", "நாகப்பட்டினம", "நாகப்பட்டின", "नागपट्टनम"),
+    "udhagamandalam": ("udhagamandalam", "ooty", "nilgiris", "உதகமண்டலம்", "உதகமண்டலம", "உதகமண்டல", "ஊட்டி", "நீலகிரி", "उदगमंदलम", "ऊटी", "नीलगिरि"),
+    "perambalur": ("perambalur", "பெரம்பலூர்", "பெரம்பலூர", "पेरम्बलूर"),
+    "pudukkottai": ("pudukkottai", "pudukottai", "புதுக்கோட்டை", "पुदुकोट्टई", "पुदुक्कोट्टई"),
+    "ramanathapuram": ("ramanathapuram", "ramnad", "ramnathapuram", "இராமநாதபுரம்", "இராமநாதபுரம", "இராமநாதபுர", "ராமநாதபுரம்", "ராமநாதபுரம", "ராமநாதபுர", "रामानाथपुरम"),
+    "ranipet": ("ranipet", "இராணிப்பேட்டை", "ராணிப்பேட்டை", "रानीपेट"),
+    "sivaganga": ("sivaganga", "sivagangai", "சிவகங்கை", "शिवगंगा"),
+    "tenkasi": ("tenkasi", "தென்காசி", "तेंकाशी"),
+    "thanjavur": ("thanjavur", "tanjore", "தஞ்சாவூர்", "தஞ்சாவூர", "तंजावुर"),
+    "theni": ("theni", "தேனி", "तेनी"),
+    "thoothukudi": ("thoothukudi", "tuticorin", "thoothukkudi", "தூத்துக்குடி", "तूतुकुडी"),
+    "tirunelveli": ("tirunelveli", "nellai", "திருநெல்வேலி", "நெல்லை", "तिरूनेलवेली"),
+    "tirupathur": ("tirupathur", "tirupattur", "tiruppattur", "திருப்பத்தூர்", "திருப்பத்தூர", "तिरुपत्तुर"),
+    "tiruvallur": ("tiruvallur", "thiruvallur", "திருவள்ளூர்", "திருவள்ளூர", "तिरुवल्लुर"),
+    "tiruvannamalai": ("tiruvannamalai", "thiruvannamalai", "திருவண்ணாமலை", "तिरुवन्नमलई"),
+    "tiruvarur": ("tiruvarur", "thiruvarur", "திருவாரூர்", "திருவாரூர", "तिरुवारूर"),
+    "vellore": ("vellore", "வேலூர்", "வேலூர", "वेल्लोर"),
+    "viluppuram": ("viluppuram", "villupuram", "விழுப்புரம்", "விழுப்புரம", "விழுப்புர", "विलुप्पुरम"),
+    "virudhunagar": ("virudhunagar", "virudunagar", "விருதுநகர்", "விருதுநகர", "विरुधुनगर"),
 }
 
 # Below this, a shared prefix is coincidence rather than the same place.

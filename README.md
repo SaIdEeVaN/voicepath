@@ -152,7 +152,8 @@ name where OpenStreetMap has no translation.
 
 - **Openings** come from the catalogue, pinned at their town's centre because
   the record has no street address -- and the screen says so.
-- **Offices** come from OpenStreetMap. Around the 22 towns the map knows,
+- **Offices** come from OpenStreetMap. Around the 49 towns the map knows -- one
+  in every Tamil Nadu district --
   they are served from a bundled snapshot, `backend/app/data/support_places.json`
   (ODbL, (c) OpenStreetMap contributors), so the map does not depend on a
   volunteer server being up; the page shows the snapshot's date. Anywhere else
@@ -252,7 +253,7 @@ the database level and not only in application code.
 ## Tests
 
 ```bash
-cd backend && python -m pytest        # 770 tests
+cd backend && python -m pytest        # 868 tests
 cd frontend && npx tsc --noEmit && npx next build
 ```
 

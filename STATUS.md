@@ -222,11 +222,11 @@ twice is harmless. There is no cost to doing this in the safe order.
 - [x] **OpenStreetMap's own tile server is for light use** — resolved
       2026-11-04: the map now uses OpenFreeMap, which is built for free public
       use with no limits. OSM's server is only the fallback if it is down.
-- [ ] **The gazetteer is 22 towns around Salem and Erode.** A spoken place
-      outside it falls back to "where the openings are", which is honest but
-      not useful. Extend `backend/app/data/places.py` alongside
-      `matching.PLACE_ALIASES` as the catalogue grows; `tests/test_nearby.py`
-      fails if the two drift.
+- [x] **The gazetteer is 22 towns around Salem and Erode.** 49 since
+      2026-11-05: a town in every one of Tamil Nadu's 38 districts (see
+      *Done on 2026-11-05*). Adjacency between the new districts is not
+      recorded, so a neighbouring district there scores as "different
+      district" -- conservative, not wrong.
 
 ### Later — scale, breadth and loose ends
 
@@ -513,7 +513,7 @@ frontend/
 - [x] `/api/admin/*` — server-side role check, sha256 tokens, bootstrap that self-disables
 - [x] Rate limiting on public routes · `GET /health` reporting every provider honestly
 
-### Phase 5 — Backend tests ✅ (770 passing, 7 skipped)
+### Phase 5 — Backend tests ✅ (868 passing, 7 skipped)
 - [x] `test_matching.py` — weights, determinism, each component, grounding
 - [x] `test_extraction.py` — evidence grounding in ta/hi/en, invention rejected
 - [x] `test_normalization.py` — alias matching across scripts, no silent upgrades
@@ -787,6 +787,19 @@ its exact name or alias landed nowhere.
   saved. Please start again from the beginning." `/health` shows
   `"reconnect": "retrying"` or "waiting for sessions started during the
   outage to finish" meanwhile. Tests: `tests/test_database_reconnect.py` (12).
+- **A town in every district** (`app/data/places.py`, `matching.py`). The 27
+  district headquarters the map lacked, so the gazetteer covers all 38 Tamil
+  Nadu districts with 49 towns. Coordinates and Tamil and Hindi names are
+  OpenStreetMap's, looked up through Nominatim (Geofabrik and Overpass are
+  unreachable from the build container); Wikidata fills what OSM lacks --
+  eight Hindi names (Ramanathapuram's OSM one is corrupted, the word doubled)
+  and Pudukkottai's and Viluppuram's coordinates, where Nominatim found no
+  town object. Each entry names its source object. The matcher learns each
+  town's English variants (Tanjore, Tuticorin, Ooty, Nilgiris, Chingleput,
+  Villupuram…), Tamil stems that absorb case endings, and Hindi names; a test
+  forbids any alias being a prefix of another town's. The offices snapshot
+  lists the new towns as not yet fetched until the monthly refresh (run by
+  hand on 2026-11-05) fills them. Tests: `tests/test_more_towns.py` (44).
 - **Tests on every push** (`.github/workflows/tests.yml`): pytest, the
   frontend type-check and a production build, on every push to `main` and
   every pull request. Until now nothing checked a push before it deployed.

@@ -46,7 +46,9 @@ FEATURES = [
     node(5, SALEM["latitude"], SALEM["longitude"] + 0.02, amenity="school",
          name="St. Mary's Higher Secondary School"),         # a school, not training
     node(6, SALEM["latitude"], SALEM["longitude"] + 0.03, amenity="bank"),  # no name
-    node(7, 8.08, 77.55, amenity="bank", name="Kanyakumari Branch"),  # outside every circle
+    # Outside every circle. Was Kanyakumari until Nagercoil, 17 km away,
+    # joined the map on 2026-11-05; Bengaluru is 80 km from the nearest town.
+    node(7, 12.9716, 77.5946, amenity="bank", name="Bengaluru Branch"),
 ]
 
 
