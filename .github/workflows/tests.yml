@@ -1,0 +1,81 @@
+name: Tests
+
+# Every push to main redeploys the site (Render for the API, Vercel for the
+# pages), so a change that breaks something reaches people at once. This runs
+# the same checks a developer runs by hand, on every push and pull request, and
+# a failure emails the repository owner.
+#
+# * Backend: the whole pytest suite. It needs no keys, network or database --
+#   tests/conftest.py forces the offline providers -- so it is the same run
+#   everywhere.
+# * Frontend: the TypeScript check and a production build, which is what
+#   Vercel would otherwise be the first to try.
+#
+# Read-only, and actions are pinned to commits, not tags.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    # Pinned for the same reason as the other workflows: ubuntu-latest moved
+    # to 26.04, which has no Python 3.11.9 build -- the version Render runs.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version-file: backend/.python-version
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+
+      - name: Install
+        run: pip install -r requirements-dev.txt
+
+      - name: Run the tests
+        run: python -m pytest -q
+
+  frontend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Build
+        env:
+          NEXT_TELEMETRY_DISABLED: "1"
+        run: npm run build

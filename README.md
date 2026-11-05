@@ -256,6 +256,10 @@ The suite runs entirely offline — no keys, no network, no database. The guaran
 tested belong to this code, so a test that needed a vendor to demonstrate them would be
 testing the wrong thing.
 
+`.github/workflows/tests.yml` runs both on every push to `main` and every pull request.
+Each push to `main` redeploys the site, so a red run there means the live site may already
+carry the breakage; GitHub emails the repository owner when it fails.
+
 ---
 
 ## Adding to it
