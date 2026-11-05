@@ -217,6 +217,19 @@ export interface Copy {
   nearbyNationwideNote: string;
   /** A national scheme's location, as the catalogue writes "All India". */
   allIndia: string;
+  /** Scheme list filters (components/SchemeFilters.tsx). */
+  filterKind: string;
+  filterWhere: string;
+  filterSkill: string;
+  filterAll: string;
+  filterJobs: string;
+  filterTraining: string;
+  /** Self-employment support: loans, subsidies, toolkits for one's own work. */
+  filterOwnWork: string;
+  /** Listings tied to a town, as opposed to open anywhere in India. */
+  filterLocal: string;
+  filterNone: string;
+  filterClear: string;
   nearbyStraightLine: string;
   nearbyViewOnOsm: string;
   /** `{date}` is replaced with the day the bundled office list was fetched. */
@@ -473,6 +486,16 @@ const en: Copy = {
   nearbyNationwideNote:
     "National schemes, not tied to one town. Open one to see who it is for and how to apply.",
   allIndia: "All India",
+  filterKind: "Kind",
+  filterWhere: "Where",
+  filterSkill: "Fits my",
+  filterAll: "All",
+  filterJobs: "Jobs",
+  filterTraining: "Training",
+  filterOwnWork: "Own work & loans",
+  filterLocal: "In a town",
+  filterNone: "Nothing here with these filters.",
+  filterClear: "Show everything",
   nearbyStraightLine: "Distances are in a straight line, not by road.",
   nearbyViewOnOsm: "On OpenStreetMap",
   nearbySupportAsOf: "OpenStreetMap data as of {date}.",
@@ -720,6 +743,16 @@ const ta: Copy = {
   nearbyNationwideNote:
     "தேசியத் திட்டங்கள் — ஒரு ஊருக்கு மட்டும் அல்ல. யாருக்கு, எப்படி விண்ணப்பிப்பது என்று அறிய திறந்து பாருங்கள்.",
   allIndia: "இந்தியா முழுவதும்",
+  filterKind: "வகை",
+  filterWhere: "எங்கே",
+  filterSkill: "என் திறன்",
+  filterAll: "அனைத்தும்",
+  filterJobs: "வேலைகள்",
+  filterTraining: "பயிற்சி",
+  filterOwnWork: "சொந்தத் தொழில், கடன்",
+  filterLocal: "ஊரில்",
+  filterNone: "இந்த வடிகட்டல்களுடன் எதுவும் இல்லை.",
+  filterClear: "அனைத்தையும் காட்டு",
   nearbyStraightLine: "தூரம் நேர்கோட்டில், சாலை வழியாக அல்ல.",
   nearbyViewOnOsm: "OpenStreetMap-இல்",
   nearbySupportAsOf: "{date} நிலவரப்படி OpenStreetMap தரவு.",
@@ -962,6 +995,16 @@ const hi: Copy = {
   nearbyNationwideNote:
     "राष्ट्रीय योजनाएँ — किसी एक शहर तक सीमित नहीं। किसके लिए है और आवेदन कैसे करें, यह देखने के लिए खोलिए।",
   allIndia: "पूरे भारत में",
+  filterKind: "प्रकार",
+  filterWhere: "कहाँ",
+  filterSkill: "मेरा कौशल",
+  filterAll: "सभी",
+  filterJobs: "नौकरियाँ",
+  filterTraining: "प्रशिक्षण",
+  filterOwnWork: "अपना काम और लोन",
+  filterLocal: "किसी शहर में",
+  filterNone: "इन फ़िल्टर के साथ कुछ नहीं मिला।",
+  filterClear: "सब दिखाएँ",
   nearbyStraightLine: "दूरी सीधी रेखा में है, सड़क से नहीं।",
   nearbyViewOnOsm: "OpenStreetMap पर",
   nearbySupportAsOf: "{date} तक का OpenStreetMap डेटा।",

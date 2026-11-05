@@ -110,7 +110,8 @@ twice is harmless. There is no cost to doing this in the safe order.
 
 - [x] **Admin overview metrics** (§18) — done 2026-09-12. `GET
       /api/admin/overview` behind a stat row on `app/admin/page.tsx`.
-- [ ] **Filters on the scheme list** (§17): location, skill, experience, type.
+- [x] **Filters on the scheme list** (§17): kind, where and skill done 2026-11-05
+      (see below). Experience is not a filter: the ranking already weighs it.
       `services/schemes.py` already filters by district, so the query shape
       exists; mostly `app/schemes/page.tsx` plus query parameters on the list
       route. Do it after Jobs/Training — the type filter is most of the point.
@@ -756,6 +757,16 @@ its exact name or alias landed nowhere.
   colours, so it used to print blank), and a footer says when it was
   recorded and that it is the person's own words, not a certificate. Checked
   in Chromium's print rendering in English and Tamil.
+- **Filters on the scheme list** (`components/SchemeFilters.tsx`): kind (jobs;
+  training and apprenticeships; own work and loans), where (in a town, or
+  open anywhere in India) and, once matched, which of the person's skills a
+  result is for. One choice per group, each with the count it would leave;
+  options with nothing behind them, and groups with no real choice, are not
+  shown; an emptied list says so and offers "Show everything". Filtering only
+  hides rows -- the ranking and reasons stay the server's. It narrows the
+  eight results `/api/schemes/match` returns (each costs a Groq explanation,
+  so the page does not ask for more), and the whole catalogue when browsing
+  without a session. Checked in Chromium.
 - **Tests on every push** (`.github/workflows/tests.yml`): pytest, the
   frontend type-check and a production build, on every push to `main` and
   every pull request. Until now nothing checked a push before it deployed.

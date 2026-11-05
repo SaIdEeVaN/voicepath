@@ -12,15 +12,21 @@
  * than a wall telling them to go back and record something.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, useReducedMotion } from "framer-motion";
 
 import { DegradedNote, ErrorNote } from "@/components/Notices";
 import { MatchRing } from "@/components/MatchRing";
+import {
+  NO_FILTERS,
+  SchemeFilters,
+  passes,
+  type SchemeFilterState,
+} from "@/components/SchemeFilters";
 import { ApiError, api } from "@/lib/api";
-import { copyFor, payLabel, placeLabel, typeLabel } from "@/lib/i18n";
+import { copyFor, payLabel, placeLabel, skillLabel, typeLabel } from "@/lib/i18n";
 import { useSession } from "@/lib/session";
 import type { Language, MatchResult, SchemeSummary } from "@/lib/types";
 
@@ -34,6 +40,7 @@ export default function SchemesPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [filters, setFilters] = useState<SchemeFilterState>(NO_FILTERS);
   const reduceMotion = useReducedMotion();
 
   useEffect(() => setHydrated(true), []);
@@ -101,13 +108,54 @@ export default function SchemesPage() {
     [router],
   );
 
-  if (!hydrated) return null;
-
   const ranked = matches.length > 0;
 
   // `skill_evidence` is the domain's judgment, computed in matching; this is
   // only the interface acting on it.
-  const relevant = matches.filter((m) => m.skill_evidence);
+  const relevant = useMemo(() => matches.filter((m) => m.skill_evidence), [matches]);
+
+  // The person's placed skills that some result is actually for -- the only
+  // ones a "fits my" filter could show anything under.
+  const skillChoices = useMemo(() => {
+    const used = new Set(relevant.flatMap((m) => m.matched_skill_codes));
+    const seen = new Set<string>();
+    const choices: { code: string; label: string }[] = [];
+    for (const skill of skills) {
+      const code = skill.normalized_code;
+      if (!code || seen.has(code) || !used.has(code)) continue;
+      seen.add(code);
+      choices.push({ code, label: skillLabel(skill, language) });
+    }
+    return choices;
+  }, [relevant, skills, language]);
+
+  // A skill filter for a skill no longer in the list would hide everything.
+  const activeFilters =
+    filters.skill !== "all" && !skillChoices.some((s) => s.code === filters.skill)
+      ? { ...filters, skill: "all" }
+      : filters;
+
+  const filterable = ranked
+    ? relevant.map((m) => ({
+        type: m.scheme.type,
+        location: m.scheme.location,
+        matchedSkillCodes: m.matched_skill_codes,
+      }))
+    : (browse ?? []).map((scheme) => ({ type: scheme.type, location: scheme.location }));
+
+  const shownMatches = relevant.filter((m) =>
+    passes(
+      { type: m.scheme.type, location: m.scheme.location, matchedSkillCodes: m.matched_skill_codes },
+      activeFilters,
+    ),
+  );
+  const shownBrowse = (browse ?? []).filter((scheme) =>
+    passes({ type: scheme.type, location: scheme.location }, activeFilters),
+  );
+  const filteredAway =
+    filterable.length > 0 && (ranked ? shownMatches.length : shownBrowse.length) === 0;
+
+  if (!hydrated) return null;
 
   return (
     <section className="mx-auto w-full max-w-[1080px] flex-1 px-[7vw] py-[clamp(2rem,5vw,3.5rem)] pb-20">
@@ -141,6 +189,18 @@ export default function SchemesPage() {
         </div>
       )}
 
+      {!loading && filterable.length > 1 && (
+        <div className="mt-8">
+          <SchemeFilters
+            items={filterable}
+            filters={activeFilters}
+            onChange={setFilters}
+            skills={ranked ? skillChoices : []}
+            language={language}
+          />
+        </div>
+      )}
+
       <div className="mt-10 flex flex-col gap-3">
         {/* Results are filtered, not just sorted.
         
@@ -158,7 +218,7 @@ export default function SchemesPage() {
             simultaneous appearance does not. Suppressed when the person has
             asked for reduced motion. */}
         {ranked
-          ? relevant.map((match, index) => (
+          ? shownMatches.map((match, index) => (
               <motion.div
                 key={match.scheme.id}
                 initial={reduceMotion ? false : { opacity: 0, y: 10 }}
@@ -177,7 +237,7 @@ export default function SchemesPage() {
                 />
               </motion.div>
             ))
-          : (browse ?? []).map((scheme) => (
+          : shownBrowse.map((scheme) => (
               <BrowseRow
                 language={language}
                 key={scheme.id}
@@ -196,6 +256,21 @@ export default function SchemesPage() {
           <p className="text-[15px]" style={{ color: "var(--ink-62)" }} lang={language}>
             {copy.noMatches}
           </p>
+        )}
+
+        {!loading && filteredAway && (
+          <div className="flex flex-wrap items-center gap-4" lang={language}>
+            <p className="text-[15px]" style={{ color: "var(--ink-62)" }}>
+              {copy.filterNone}
+            </p>
+            <button
+              type="button"
+              onClick={() => setFilters(NO_FILTERS)}
+              className="vp-pill vp-pill-quiet"
+            >
+              {copy.filterClear}
+            </button>
+          </div>
         )}
       </div>
     </section>
