@@ -48,7 +48,7 @@ export function FlowRail() {
       aria-label={flow.steps.map((s) => s.label).join(", ")}
       /* Anchored to the content column rather than the viewport, so the gap
          beside the text stays constant as the window grows. */
-      className="pointer-events-none fixed top-1/2 z-20 hidden w-[140px] -translate-y-1/2 2xl:block"
+      className="pointer-events-none fixed top-1/2 z-20 hidden w-[140px] -translate-y-1/2 2xl:block print:hidden"
       style={{ left: "max(1.5rem, calc(50% - 768px))" }}
     >
       <ol className="flex flex-col">
@@ -110,7 +110,7 @@ export function FlowBar() {
   return (
     <nav
       aria-label={flow.steps.map((s) => s.label).join(", ")}
-      className="border-b px-[7vw] py-3 2xl:hidden"
+      className="border-b px-[7vw] py-3 2xl:hidden print:hidden"
       style={{ borderColor: "var(--ink-09)", background: "var(--ink-03)" }}
     >
       <ol className="mx-auto flex w-full max-w-[1180px] items-center gap-2 overflow-x-auto">

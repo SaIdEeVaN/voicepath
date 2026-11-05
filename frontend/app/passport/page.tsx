@@ -7,6 +7,12 @@
  * the audio-retention choice lives. The toggle is off, and the copy next to it
  * says what turning it on means in plain language -- not "consent to data
  * processing", but "employers can hear you say it".
+ *
+ * It prints (2026-11-05): a person can take it to an office or an employer,
+ * or keep it as a PDF on their phone. The print layout drops the site's own
+ * chrome and the controls, keeps every skill with the words that support it,
+ * and says at the foot what the record is -- their own words, not a
+ * certificate -- so nobody mistakes it for one.
  */
 
 import { useEffect, useMemo, useState } from "react";
@@ -14,7 +20,7 @@ import { useRouter } from "next/navigation";
 
 import { ErrorNote } from "@/components/Notices";
 import { ApiError, api } from "@/lib/api";
-import { copyFor, skillLabel } from "@/lib/i18n";
+import { copyFor, localeFor, skillLabel } from "@/lib/i18n";
 import { useSession } from "@/lib/session";
 
 export default function PassportPage() {
@@ -65,19 +71,31 @@ export default function PassportPage() {
     }
   };
 
+  const today = useMemo(() => {
+    try {
+      return new Intl.DateTimeFormat(localeFor(language), {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }).format(new Date());
+    } catch {
+      return new Date().toISOString().slice(0, 10);
+    }
+  }, [language]);
+
   if (!hydrated) return null;
 
   return (
-    <section className="mx-auto w-full max-w-[1080px] flex-1 px-[7vw] py-[clamp(2rem,5vw,3.5rem)] pb-20">
+    <section className="mx-auto w-full max-w-[1080px] flex-1 px-[7vw] py-[clamp(2rem,5vw,3.5rem)] pb-20 print:max-w-none print:p-0">
       <article
-        className="overflow-hidden rounded-[20px]"
+        className="vp-passport overflow-hidden rounded-[20px]"
         style={{
           border: "1px solid var(--ink-09)",
           background: "var(--color-surface)",
         }}
       >
         <header
-          className="flex flex-wrap items-start justify-between gap-10 px-10 py-9"
+          className="vp-passport-head flex flex-wrap items-start justify-between gap-10 px-10 py-9"
           style={{ background: "var(--color-accent)", color: "var(--color-paper)" }}
         >
           <div>
@@ -115,7 +133,7 @@ export default function PassportPage() {
             {skills.map((skill, index) => (
               <li
                 key={skill.id ?? index}
-                className="flex flex-wrap items-center gap-5 rounded-xl px-4.5 py-4"
+                className="vp-passport-skill flex flex-wrap items-center gap-5 rounded-xl px-4.5 py-4"
                 style={{ background: "var(--ink-03)", padding: "1rem 1.125rem" }}
               >
                 <div className="min-w-0 basis-[190px] flex-none max-[560px]:basis-full">
@@ -144,12 +162,16 @@ export default function PassportPage() {
             ))}
           </ul>
 
-          {error && <ErrorNote message={error} />}
+          {error && (
+            <div className="print:hidden">
+              <ErrorNote message={error} />
+            </div>
+          )}
 
           {/* The retention opt-in. Off by default, and the label says what it
-              does rather than what it is called. */}
+              does rather than what it is called. A control, so not printed. */}
           <div
-            className="flex flex-wrap items-center gap-5 rounded-xl px-5 py-4.5"
+            className="flex flex-wrap items-center gap-5 rounded-xl px-5 py-4.5 print:hidden"
             style={{ border: "1px solid var(--ink-09)", padding: "1.125rem 1.25rem" }}
           >
             <button
@@ -192,10 +214,20 @@ export default function PassportPage() {
               {audioRetained ? copy.retainOn : copy.retainOff}
             </span>
           </div>
+
+          {/* Only on paper: when this was recorded, and what it is not. */}
+          <footer
+            className="hidden text-[12px] leading-relaxed print:block"
+            style={{ color: "var(--ink-62)" }}
+            lang={language}
+          >
+            <p>{copy.passportRecordedOn.replace("{date}", today)}</p>
+            <p className="mt-1">{copy.passportNotCertificate}</p>
+          </footer>
         </div>
       </article>
 
-      <div className="mt-6 flex flex-wrap gap-3">
+      <div className="mt-6 flex flex-wrap items-center gap-3 print:hidden">
         <button
           type="button"
           onClick={() => router.push("/schemes")}
@@ -207,6 +239,15 @@ export default function PassportPage() {
         </button>
         <button
           type="button"
+          onClick={() => window.print()}
+          className="vp-pill vp-pill-quiet"
+          lang={language}
+          disabled={skills.length === 0}
+        >
+          {copy.passportPrint}
+        </button>
+        <button
+          type="button"
           onClick={() => router.push("/understanding")}
           className="vp-pill vp-pill-quiet"
           lang={language}
@@ -214,6 +255,15 @@ export default function PassportPage() {
           {copy.back}
         </button>
       </div>
+      {skills.length > 0 && (
+        <p
+          className="mt-3 text-[13px] leading-snug print:hidden"
+          style={{ color: "var(--ink-45)" }}
+          lang={language}
+        >
+          {copy.passportPrintHint}
+        </p>
+      )}
     </section>
   );
 }

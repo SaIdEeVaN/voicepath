@@ -749,6 +749,13 @@ its exact name or alias landed nowhere.
 - **Tests**: `tests/test_skill_shortlist.py` (28) -- every production phrase
   reaches its skill with the embedder down; the shortlist never accepts; the
   model cannot choose outside it.
+- **The passport prints** (`app/passport/page.tsx`, `globals.css`): a "Print
+  or save as PDF" button, with a hint that "Save as PDF" keeps a copy on a
+  phone. On paper the site's menus, the audio toggle and the buttons are
+  hidden, the green header becomes black on white (browsers drop background
+  colours, so it used to print blank), and a footer says when it was
+  recorded and that it is the person's own words, not a certificate. Checked
+  in Chromium's print rendering in English and Tamil.
 - **Tests on every push** (`.github/workflows/tests.yml`): pytest, the
   frontend type-check and a production build, on every push to `main` and
   every pull request. Until now nothing checked a push before it deployed.

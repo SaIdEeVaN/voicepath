@@ -120,6 +120,14 @@ export interface Copy {
   /* Passport */
   passportLabel: string;
   passportTitle: string;
+  /** The button that opens the browser's print dialog for the passport. */
+  passportPrint: string;
+  /** Under the button: how to keep a copy without a printer. */
+  passportPrintHint: string;
+  /** Printed at the foot of the page. `{date}` is replaced with today. */
+  passportRecordedOn: string;
+  /** Printed at the foot of the page: what this record is, and is not. */
+  passportNotCertificate: string;
   playEvidence: string;
   retainCopy: string;
   retainOn: string;
@@ -361,6 +369,11 @@ const en: Copy = {
   skip: "Leave it out",
   passportLabel: "SKILL PASSPORT",
   passportTitle: "Your work, in your own words.",
+  passportPrint: "Print or save as PDF",
+  passportPrintHint: "To keep a copy on your phone, choose \u201cSave as PDF\u201d as the printer.",
+  passportRecordedOn: "Recorded with VoicePath on {date}.",
+  passportNotCertificate:
+    "Each line is what the person said about their work, in their own words. This is not a certificate or a government document.",
   playEvidence: "Play",
   retainCopy:
     "Keep my voice clips so employers can hear me say it. You can turn this off any time.",
@@ -602,6 +615,11 @@ const ta: Copy = {
   skip: "இதை விட்டுவிடு",
   passportLabel: "திறன் பாஸ்போர்ட்",
   passportTitle: "உங்கள் வேலை, உங்கள் வார்த்தைகளில்.",
+  passportPrint: "அச்சிடு அல்லது PDF ஆகச் சேமி",
+  passportPrintHint: "உங்கள் போனில் ஒரு நகலை வைத்திருக்க, பிரிண்டராக \u201cSave as PDF\u201d என்பதைத் தேர்ந்தெடுக்கவும்.",
+  passportRecordedOn: "{date} அன்று VoicePath-இல் பதிவு செய்யப்பட்டது.",
+  passportNotCertificate:
+    "ஒவ்வொரு வரியும், அவர் தன் வேலையைப் பற்றித் தன் சொந்த வார்த்தைகளில் சொன்னது. இது சான்றிதழோ அரசு ஆவணமோ அல்ல.",
   playEvidence: "கேளுங்கள்",
   retainCopy:
     "என் குரல் பதிவுகளை வைத்துக்கொள்ளுங்கள் — வேலை தருபவர்கள் நேரடியாகக் கேட்கலாம். எப்போது வேண்டுமானாலும் நிறுத்தலாம்.",
@@ -841,6 +859,11 @@ const hi: Copy = {
   skip: "इसे छोड़ दीजिए",
   passportLabel: "स्किल पासपोर्ट",
   passportTitle: "आपका काम, आपके ही शब्दों में।",
+  passportPrint: "प्रिंट करें या PDF में सहेजें",
+  passportPrintHint: "फ़ोन में कॉपी रखने के लिए, प्रिंटर में \u201cSave as PDF\u201d चुनें।",
+  passportRecordedOn: "{date} को VoicePath पर दर्ज किया गया।",
+  passportNotCertificate:
+    "हर पंक्ति वही है जो व्यक्ति ने अपने काम के बारे में अपने शब्दों में कहा। यह कोई प्रमाणपत्र या सरकारी दस्तावेज़ नहीं है।",
   playEvidence: "सुनिए",
   retainCopy:
     "मेरी आवाज़ के हिस्से रखिए ताकि काम देने वाले मुझे सुन सकें। इसे कभी भी बंद कर सकते हैं।",

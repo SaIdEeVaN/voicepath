@@ -677,3 +677,50 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Print -- the skill passport (2026-11-05).
+
+   Browsers drop background colours when printing unless told otherwise, and
+   the passport's header is white text on the accent colour: printed as is, it
+   came out blank. On paper it is black on white instead, which every printer
+   and every "Save as PDF" renders the same, and the skill rows lose their
+   tinted panels for a thin rule. The site's own chrome is hidden with
+   `print:hidden` where it is drawn.
+--------------------------------------------------------------------------- */
+@media print {
+  @page {
+    margin: 14mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  .vp-passport {
+    border: none !important;
+    border-radius: 0 !important;
+    background: #fff !important;
+  }
+
+  .vp-passport-head {
+    background: none !important;
+    color: #000 !important;
+    border-bottom: 2px solid #000;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .vp-passport-head + div {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .vp-passport-skill {
+    background: none !important;
+    border: 1px solid #bbb;
+    break-inside: avoid;
+  }
+}

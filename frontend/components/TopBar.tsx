@@ -40,7 +40,7 @@ export function TopBar() {
 
   return (
     <header
-      className="sticky top-0 z-20 grid grid-cols-[1fr_auto_1fr] items-center gap-x-4 gap-y-2.5 border-b px-6 py-3 backdrop-blur max-[560px]:grid-cols-[auto_1fr] max-[560px]:px-4"
+      className="sticky top-0 z-20 grid print:hidden grid-cols-[1fr_auto_1fr] items-center gap-x-4 gap-y-2.5 border-b px-6 py-3 backdrop-blur max-[560px]:grid-cols-[auto_1fr] max-[560px]:px-4"
       style={{
         borderColor: "var(--ink-09)",
         background: "rgb(var(--paper-rgb) / 0.86)",

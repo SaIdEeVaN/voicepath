@@ -29,7 +29,7 @@ export function PageBackdrop() {
       // negative z-index paints behind the parent's background, and the
       // body background here propagates to the canvas, which makes the
       // result depend on painting rules nobody should have to reason about.
-      className="pointer-events-none fixed inset-0 z-0 overflow-hidden"
+      className="pointer-events-none fixed inset-0 z-0 overflow-hidden print:hidden"
     >
       {/* Listening rings, off the top-right corner. Cropped by the viewport on
           purpose -- a complete circle reads as an object on the page, a
