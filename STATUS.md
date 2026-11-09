@@ -134,10 +134,13 @@ twice is harmless. There is no cost to doing this in the safe order.
       script. `npm run typecheck` is the check that exists. Adding eslint
       properly is still open if anyone wants it; it would arrive with its own
       backlog of findings.
-- [ ] **The motion layer has not been seen in a browser.** It compiles, `/`
-      still prerenders, and every rule degrades under `prefers-reduced-motion`
-      — but no screenshot was taken, because this environment has no browser.
-      Worth one look on a real phone before it is shown to anyone.
+- [x] **The motion layer has not been seen in a browser.** Checked 2026-11-09
+      on an iPhone 13-sized Chromium, home, Speak, understanding and schemes:
+      no layout shift on any page (CLS 0), nothing scrolls sideways mid-
+      animation, the entrances settle within ~0.7s in order (headline, the
+      Tamil and Hindi lines, then the mic), and with reduced motion on no
+      animation runs at all -- the mic's listening rings and breathing ring
+      included. Nothing needed changing.
 
 ### Embeddings — credits being added
 
