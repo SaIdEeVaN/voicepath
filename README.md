@@ -102,7 +102,6 @@ per-call cost, and nothing about a person's voice leaves the process.
 | Speech-to-text | faster-whisper (`medium`, int8) | MIT | Locally, on the CPU |
 | Text-to-speech | Piper | MIT — **Tamil voice is CC-BY-4.0** | Locally, on the CPU |
 | Embeddings | `multilingual-e5-base` | MIT | Locally, on the CPU |
-| Entity tagging | `ai4bharat/IndicNER` | MIT | Locally — **gated repo, needs an HF token** |
 | Extraction / explanation / Q&A | Groq-hosted open-weight models | Open weights, hosted service | Over the network |
 
 The LLM is the one exception, and it is a deliberate one: an open-weight model
@@ -116,9 +115,10 @@ a queue.
 One key, `LLM_API_KEY` in `backend/.env`, free from
 [console.groq.com/keys](https://console.groq.com/keys).
 
-`HF_TOKEN` is needed only for entity tagging: `ai4bharat/IndicNER` is a gated
-repo, so you must accept its terms on huggingface.co first. Without it NER
-returns nothing and the rest of the pipeline is unaffected.
+`HF_TOKEN` is needed when embeddings run through the Hugging Face Inference API
+(`EMBEDDING_PROVIDER=hf_api`, as on Render). The account behind the token needs
+Inference Providers credits; without them skills are matched by name and keyword
+only, and `/health` says `payment_required`.
 
 `.env` is gitignored. `.env.example` is committed, so never put a real key in it.
 

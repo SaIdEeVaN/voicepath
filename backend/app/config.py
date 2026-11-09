@@ -20,7 +20,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 LLMProvider = Literal["groq", "gemini", "offline"]
 SpeechProvider = Literal["local", "groq", "offline"]
 EmbeddingProvider = Literal["local", "hf_api", "offline"]
-NERProvider = Literal["local", "offline"]
 SearchProvider = Literal["tavily", "offline"]
 PlacesProvider = Literal["overpass", "offline"]
 
@@ -95,10 +94,6 @@ class Settings(BaseSettings):
     # Raise it if you point LLM_MODEL at a reasoning model.
     llm_reasoning_headroom: int = 0
 
-    # -- Entity tagging (PER/ORG/LOC; never skills -- see services/ner.py) ---
-    ner_provider: NERProvider = "local"
-    ner_model: str = "ai4bharat/IndicNER"
-
     # -- Web search (PRD section 7) ------------------------------------------
     # Finds scheme pages the local corpus does not have. Offline without a key,
     # which means the ingested documents answer and nothing else does.
@@ -162,8 +157,7 @@ class Settings(BaseSettings):
     embedding_dimension: int = 768
     embedding_api_timeout: float = 60.0
 
-    # Hugging Face token. Needed by embedding_provider=hf_api, and by the
-    # gated ai4bharat/IndicNER repo.
+    # Hugging Face token. Needed by embedding_provider=hf_api.
     hf_token: str | None = None
 
     # -- Matching (PRD section 8; weights are tunable per section 4.4) -------
@@ -235,10 +229,6 @@ class Settings(BaseSettings):
         if self.search_provider == "tavily" and not self.tavily_api_key:
             object.__setattr__(self, "search_provider", "offline")
 
-        if self.ner_provider == "local":
-            if importlib.util.find_spec("transformers") is None:
-                object.__setattr__(self, "ner_provider", "offline")
-
         # The hosted embedder is useless without a token, and an embedder that
         # fails at query time is worse than one that says so at startup.
         if self.embedding_provider == "hf_api" and not self.hf_token:
@@ -299,8 +289,6 @@ class Settings(BaseSettings):
             out.append("llm")
         if self.embedding_provider == "offline":
             out.append("embeddings")
-        if self.ner_provider == "offline":
-            out.append("ner")
         if self.search_provider == "offline":
             out.append("search")
         if self.places_provider == "offline":

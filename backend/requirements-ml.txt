@@ -8,7 +8,6 @@
 # Model downloads on first use, cached under ~/.cache:
 #   faster-whisper medium (int8)   ~800MB   speech to text
 #   multilingual-e5-base            ~1.1GB  taxonomy embeddings
-#   ai4bharat/IndicNER              ~1GB    entity tagging (optional)
 # Piper voices are fetched by scripts/fetch_voices.py into models/piper (~190MB).
 
 -r requirements.txt
@@ -19,5 +18,5 @@ faster-whisper==1.2.1
 # Text to speech -- Piper, MIT. Bundles espeak-ng data, so no system package.
 piper-tts==1.8.0
 
-# Embeddings (multilingual-e5) and entity tagging (IndicNER) both ride on this.
+# Embeddings (multilingual-e5) ride on this.
 sentence-transformers==3.3.1

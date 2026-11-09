@@ -18,7 +18,7 @@ from app.config import get_settings
 from app.models import schemas
 from app.routes import admin, assistant, places, profile, query, schemes, sessions, speech
 from app.services import (
-    corpus_sync, db, embeddings, llm, ner, ratelimit, repository, stt, tts, websearch,
+    corpus_sync, db, embeddings, llm, ratelimit, repository, stt, tts, websearch,
 )
 from app.services import schemes as schemes_service
 from app.services import taxonomy as taxonomy_service
@@ -277,7 +277,6 @@ async def health() -> schemas.HealthResponse:
             "tts": tts.provider_name(),
             "llm": llm.provider_name(),
             "embeddings": embeddings.provider_name(),
-            "ner": ner.provider_name(),
             "search": websearch.provider_name(),
             "places": places_service.provider_name(),
         },

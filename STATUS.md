@@ -232,10 +232,8 @@ twice is harmless. There is no cost to doing this in the safe order.
 
 ### Later — scale, breadth and loose ends
 
-- [ ] **NER is built but unused.** `services/ner.py` tags PER/ORG/LOC and
-      degrades to `[]` safely, but nothing calls it and `transformers` is not in
-      the deploy set, so `/health` reports it offline. Wire it into extraction
-      or delete it — a built-and-unused service is the worst of both.
+- [x] **NER is built but unused.** Deleted 2026-11-09: nothing called it, and it
+      put `ner` in every production health report's degraded list.
 - [x] **Audio retention is three-quarters wired.** Decided 2026-11-05: make it
       honest. Nothing ever kept a clip, so the toggle that promised it is gone
       (see *Done on 2026-11-05*).
