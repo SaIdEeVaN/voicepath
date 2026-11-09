@@ -161,12 +161,15 @@ twice is harmless. There is no cost to doing this in the safe order.
 - [x] **A plea for help was answered with a privacy notice** — fixed
       2026-11-04. See *Fixed on 2026-11-04 — a plea for help got a privacy
       notice*.
-- [ ] **The distress patterns are a fixed list.** Phrasing it does not know
-      falls through to the assistant, whose prompt carries the same
-      instruction (it needs Groq to be up). Add new phrasings to
-      `backend/app/services/safety.py` -- with a test in `tests/test_safety.py`
-      for each, and one for the nearest everyday sentence that must *not*
-      match -- as they turn up in the question log.
+- [x] **The distress patterns are a fixed list.** Strengthened 2026-11-09: the
+      list gained threats, attacks, feeling unsafe, self-harm, being held and
+      bonded labour in all three languages (each with its nearest everyday
+      sentence as a negative test), and "save" now counts only as a cry --
+      "I need work to save my family" no longer triggers it. A second net:
+      the intent classifier (every transcript and typed line) and the
+      assistant (every question) also return `someone_in_danger`, at no
+      extra request, and either one saying so shows the helplines.
+      `tests/test_safety_net.py`. Keep adding phrasings from the question log.
 
 ### Scheme Q&A (RAG) — after the 2026-11-04 fixes
 

@@ -42,5 +42,7 @@ async def understand(
         asks_question=result.asks_question,
         question=result.question,
         provider=result.provider,
-        urgent=safety.detect_distress(text),
+        # The fixed list first -- it works with Groq down -- then the model's
+        # reading, which knows phrasing the list does not.
+        urgent=safety.detect_distress(text) or result.in_danger,
     )

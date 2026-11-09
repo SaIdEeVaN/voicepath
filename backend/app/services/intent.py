@@ -41,6 +41,10 @@ class QueryIntent:
     # turned into a question -- the retrieval step searches with this verbatim.
     question: str | None
     provider: str
+    # The model's second net under safety.detect_distress (2026-11-09): it
+    # reads phrasing no fixed list knows. False on the offline path, where
+    # only the list stands.
+    in_danger: bool = False
 
     @property
     def is_empty(self) -> bool:
@@ -159,6 +163,7 @@ async def classify(text: str) -> QueryIntent:
 
     describes = bool(payload.get("describes_work"))
     asks = bool(payload.get("asks_question"))
+    in_danger = payload.get("someone_in_danger") is True
 
     question = payload.get("question")
     question = question.strip() if isinstance(question, str) else None
@@ -176,11 +181,15 @@ async def classify(text: str) -> QueryIntent:
         # marker the model talked itself out of, so give it the last word.
         fallback = await _offline(clean)
         if not fallback.is_empty:
-            return fallback
+            return QueryIntent(
+                fallback.describes_work, fallback.asks_question, fallback.question,
+                fallback.provider, in_danger=in_danger,
+            )
 
     return QueryIntent(
         describes_work=describes,
         asks_question=asks,
         question=question if asks else None,
         provider=llm.provider_name(),
+        in_danger=in_danger,
     )

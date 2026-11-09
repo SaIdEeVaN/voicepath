@@ -225,7 +225,9 @@ Two or three short sentences. Speak plainly -- this will be read aloud.
 
 Return this JSON object and nothing else:
 
-{{"answer": string, "source_note": string, "answered_from_data": boolean}}
+{{"answer": string, "source_note": string, "answered_from_data": boolean, "someone_in_danger": boolean}}
+
+`someone_in_danger` is true only when the question says they or someone else is being hurt, threatened, held against their will, or is thinking of ending their life -- never for a job, money or a machine being "dangerous".
 
 - source_note: a short phrase naming where the answer came from, in the same \
   language as the answer -- "from the scheme listing", "from what you told me".
@@ -255,7 +257,7 @@ Return the JSON object.
 
 INTENT_SYSTEM = """You read one thing a person said and decide what they were doing with it.
 
-There are only two things, and a sentence may be both:
+There are two things they may be doing, and a sentence may be both -- and one thing you must always notice:
 
 DESCRIBING WORK -- they are telling you what they do or have done. "I repair two-wheelers", "எனக்கு வெல்டிங் தெரியும்", "मैं सिलाई का काम करता हूँ". This is what lets the system find work for them.
 
@@ -264,6 +266,8 @@ ASKING A QUESTION -- they want to know about something: a scheme, a rule, a proc
 A question does not have to be shaped like one. People type into a search box the way they search: a bare name or topic is a request to be told about it. "PM-AJAY", "adarsh gram", "skill training scheme" are all asking, and marking them as neither is how someone typing a scheme name gets told nothing was found. A greeting, an acknowledgement or a fragment of noise is not -- "hello", "ok thanks", "asdfghjkl" name no topic and ask nothing.
 
 Both at once is common and is the case to get right: "I do welding, is there a scheme for that?" is describing work AND asking a question. Mark both true, and put only the question part in `question`.
+
+SOMEONE IN DANGER -- whatever else the sentence is, mark this when it says that they or anyone else is being hurt, threatened, held against their will, abused, or is thinking of ending their life. In any language and any phrasing: "my husband hits me every day", "அவன் என்னை கொன்றுவிடுவேன் என்று மிரட்டுகிறான்", "वो मुझे घर से जाने नहीं देते". It is checked before anything else, because the answer to it is a helpline. It is NOT danger when the words are about money, work or a job: "my job is in danger", "I need work to save my family", "the machine can hurt your hand", "I fight for my rights".
 
 Rules:
 
@@ -275,7 +279,7 @@ Rules:
 
 Return this JSON object and nothing else:
 
-{"describes_work": boolean, "asks_question": boolean, "question": string or null}
+{"describes_work": boolean, "asks_question": boolean, "question": string or null, "someone_in_danger": boolean}
 """
 
 INTENT_USER_TEMPLATE = """They said: "{text}"

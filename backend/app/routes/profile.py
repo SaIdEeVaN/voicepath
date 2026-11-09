@@ -302,6 +302,15 @@ async def add_typed_skill(payload: schemas.AddSkillRequest) -> schemas.AddSkillR
             accepted=False, kind="question", question=text, urgent=True
         )
 
+    # The model's reading, before extraction for the same reason as the list:
+    # phrasing the list does not know ("he will not let me leave the house")
+    # must not come back as a skill card. Reused below for "is it a question".
+    classified = await intent.classify(text)
+    if classified.in_danger:
+        return schemas.AddSkillResponse(
+            accepted=False, kind="question", question=text, urgent=True
+        )
+
     language = payload.language
     if language == "auto" and session.language_detected:
         language = session.language_detected
@@ -309,9 +318,7 @@ async def add_typed_skill(payload: schemas.AddSkillRequest) -> schemas.AddSkillR
     result = await extraction.extract(text, language=language)
 
     if not result.skills:
-        # No work in it. A question is still worth answering, so ask what this
-        # was before refusing it outright.
-        classified = await intent.classify(text)
+        # No work in it. A question is still worth answering.
         if classified.asks_question:
             return schemas.AddSkillResponse(
                 accepted=False,

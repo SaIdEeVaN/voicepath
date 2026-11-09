@@ -294,6 +294,18 @@ async def _answer_with_llm(
     if not isinstance(payload, dict):
         raise llm.LLMResponseError("Assistant reply was not a JSON object")
 
+    # The model's second net under the fixed list (2026-11-09): phrasing the
+    # list does not know is answered with who can help, the same words the
+    # list's answer uses, and flagged so the screen shows the helpline panel.
+    if payload.get("someone_in_danger") is True:
+        return Answer(
+            answer_text=safety.helpline_answer(language),
+            source_note=safety.source_note(language),
+            provider=llm.provider_name(),
+            answered_from_data=True,
+            urgent=True,
+        )
+
     text = payload.get("answer")
     if not isinstance(text, str) or not text.strip():
         raise llm.LLMResponseError("Assistant returned no answer text")
