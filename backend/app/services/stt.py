@@ -41,6 +41,7 @@ from dataclasses import dataclass
 import httpx
 
 from app.config import get_settings
+from app.services import stt_vocabulary
 
 logger = logging.getLogger(__name__)
 
@@ -140,6 +141,8 @@ def _transcribe_sync(audio: bytes, language: str) -> tuple[str, str | None, floa
     segments, info = model.transcribe(
         io.BytesIO(audio),
         language=None if language == "auto" else language,
+        # The trade words people say in this language (stt_vocabulary.py).
+        initial_prompt=stt_vocabulary.prompt_for(language),
         beam_size=5,
         # Whisper will happily hallucinate fluent text over silence. This makes
         # it return nothing instead, which the caller reports honestly.
@@ -170,6 +173,10 @@ async def _transcribe_groq(
     data = {"model": settings.stt_groq_model, "response_format": "json"}
     if language != "auto":
         data["language"] = language
+    # The trade words people say in this language, so "வெல்டிங்" (welding) is
+    # likelier than "வெள்ளி" (silver). See stt_vocabulary.py.
+    if prompt := stt_vocabulary.prompt_for(language):
+        data["prompt"] = prompt
 
     try:
         async with httpx.AsyncClient(timeout=settings.llm_timeout_seconds) as client:
@@ -229,7 +236,8 @@ async def transcribe(
     except Exception as exc:  # noqa: BLE001 - any decode/model failure is the same to the caller
         raise STTUnavailable(f"Whisper transcription failed: {exc}") from exc
 
-    if not transcript:
+    if not transcript or stt_vocabulary.is_echo(transcript, requested):
+        # An echo is Whisper repeating its prompt over silence: nothing heard.
         raise STTUnavailable("Nothing was recognised in that recording")
 
     return Transcription(

@@ -217,9 +217,81 @@ def _stem(token: str) -> str:
     return token[:_STEM_LENGTH]
 
 
+# -- Sounds-alike keys (2026-11-09) ------------------------------------------
+#
+# A trade word spoken in Tamil or Hindi is usually an English one, and it can
+# arrive in any spelling: "மெக்கானிக்கு" for "மெக்கானிக்", "எலக்ட்ரீசியன்"
+# for "எலெக்ட்ரீஷியன்", or the English itself. Each word is reduced to the
+# consonants it is said with, in classes the three scripts share -- Tamil
+# writes k and g, t and d, p and b with one letter each -- so வெல்டிங்,
+# वेल्डिंग and "welding" all become "vltn". The keys join the vocabulary
+# above as "~key", so they can only shortlist a skill, like any word.
+#
+# Deliberately not meaning: "வெள்ளி" (silver) is a real word, silver work is a
+# real trade, and it keys apart from welding. Whisper's mishearing of
+# welding as silver is the speech prompt's job (stt_vocabulary.py).
+
+_TAMIL_SOUNDS = {
+    "க": "k", "ங": "n", "ச": "s", "ஞ": "n", "ட": "t", "ண": "n", "த": "t", "ந": "n",
+    "ப": "p", "ம": "m", "ய": "", "ர": "r", "ல": "l", "வ": "v", "ழ": "l", "ள": "l",
+    "ற": "r", "ன": "n", "ஜ": "j", "ஷ": "s", "ஸ": "s", "ஹ": "",
+}
+_DEVANAGARI_SOUNDS = {
+    "क": "k", "ख": "k", "ग": "k", "घ": "k", "ङ": "n", "च": "s", "छ": "s", "ज": "j",
+    "झ": "j", "ञ": "n", "ट": "t", "ठ": "t", "ड": "t", "ढ": "t", "ण": "n", "त": "t",
+    "थ": "t", "द": "t", "ध": "t", "न": "n", "प": "p", "फ": "p", "ब": "p", "भ": "p",
+    "म": "m", "य": "", "र": "r", "ल": "l", "व": "v", "श": "s", "ष": "s", "स": "s",
+    "ह": "", "ं": "n", "ँ": "n",
+}
+_MIN_KEY = 3
+_CROSS_SCRIPT_KEY = 4
+
+
+def _latin_sounds(word: str) -> str:
+    w = word.lower()
+    w = w.replace("ph", "f").replace("ck", "k").replace("sh", "s").replace("ch", "s")
+    w = re.sub(r"c(?=[eiy])", "s", w)
+    w = re.sub(r"g(?=[eiy])", "j", w)
+    table = str.maketrans({"c": "k", "q": "k", "x": "k", "z": "s", "w": "v", "y": "",
+                           "b": "p", "d": "t", "g": "k", "f": "p", "h": ""})
+    return re.sub(r"[aeiou]", "", w.translate(table))
+
+
+def _sound_key(token: str) -> str | None:
+    if token.isascii():
+        if not token.isalpha():
+            return None
+        consonants = _latin_sounds(token)
+    else:
+        consonants = "".join(
+            _TAMIL_SOUNDS.get(c, _DEVANAGARI_SOUNDS.get(c, "")) for c in token
+        )
+    key = re.sub(r"(.)\1+", r"\1", consonants)  # doubled letters said once
+    key = re.sub(r"nk$", "n", key)              # -ing, -ங், -ंग alike
+    key = key.replace("np", "mp")               # a nasal before p is m: प्लंबर
+    if len(key) < _MIN_KEY:
+        return None
+    # Three consonants say too little to cross languages: English "sound" and
+    # Tamil "சொந்த" (own) both key "snt". Short keys match spelling variants
+    # within one script; only longer ones ("vltn", "lktrsn") cross scripts.
+    if len(key) < _CROSS_SCRIPT_KEY:
+        script = "la" if token.isascii() else ("ta" if any(c in _TAMIL_SOUNDS for c in token) else "hi")
+        return f"{script}:{key}"
+    return key
+
+
 def _words(text: str) -> set[str]:
-    stems = {_stem(t) for t in _SPLIT.split(_fold(text)) if t}
-    return {s for s in stems if len(s) >= (3 if s.isascii() else 2)} - _STOPWORDS
+    out: set[str] = set()
+    for token in _SPLIT.split(_fold(text)):
+        if not token:
+            continue
+        stem = _stem(token)
+        if stem in _STOPWORDS or len(stem) < (3 if stem.isascii() else 2):
+            continue
+        out.add(stem)
+        if key := _sound_key(token):
+            out.add("~" + key)
+    return out
 
 
 _STOPWORDS: set[str] = set()

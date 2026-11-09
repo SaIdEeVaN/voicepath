@@ -94,12 +94,15 @@ twice is harmless. There is no cost to doing this in the safe order.
       the 50 / 25 / 15 / 10 the code implements, and there is no education
       term anywhere. Worth settling before a jury asks which is authoritative.
 
-- [ ] **Tamil speech recognition.** Whisper mishears English loanwords inside
-      Tamil: "வெல்டிங்" (welding) → "வெள்ளி" (silver), and extraction then
-      reported *silver work*, correctly grounded in a transcript that was itself
-      wrong. Try constrained decoding over the 44 taxonomy terms first, then a
-      phonetic fallback in normalisation; route Tamil to AI4Bharat
-      IndicWav2Vec only if neither lands. Detail under **Next up → 4**.
+- [~] **Tamil speech recognition.** Approaches (2) and (3) done 2026-11-09:
+      Whisper is primed with the skill list's loanwords in Tamil or Hindi
+      (`services/stt_vocabulary.py`; sized so Whisper reads all of it; only for
+      a chosen language; an echoed prompt counts as nothing heard), and the
+      keyword shortlist matches words by sound across Tamil, Devanagari and
+      English spellings (`taxonomy._sound_key`) -- offering, never accepting.
+      "வெள்ளி" (silver) is deliberately not mapped to welding: silver work is
+      a real trade. Not yet measured on real Tamil audio; if welding still
+      comes back as silver, try (1), IndicWav2Vec. `tests/test_tamil_speech.py`.
 - [ ] **Jobs and Training as their own entities.** `voice_condensed.md` §12–§13
       describe three data models; everything is a `scheme` with a `type` column,
       so the All/Jobs/Schemes/Training filter has nothing to filter on. Touches
