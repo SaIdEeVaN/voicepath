@@ -20,6 +20,7 @@ import { ApiError, api } from "@/lib/api";
 import { copyFor, payLabel, placeLabel, typeLabel } from "@/lib/i18n";
 import { useSession } from "@/lib/session";
 import type { MatchResult, SchemeDetail } from "@/lib/types";
+import { fromError, problemText, type Problem } from "@/lib/problems";
 
 export function SchemeView({
   scheme,
@@ -35,7 +36,7 @@ export function SchemeView({
   // It reveals the reference the person quotes in person instead -- useful,
   // and honest about what VoicePath does not do.
   const [showApply, setShowApply] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Problem | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => setHydrated(true), []);
@@ -66,7 +67,7 @@ export function SchemeView({
       .catch((cause: unknown) => {
         // A 404 just means this scheme was outside the top results.
         if (!cancelled && cause instanceof ApiError && cause.status !== 404) {
-          setError(cause.message);
+          setError(fromError(cause));
         }
       });
 
@@ -260,7 +261,7 @@ export function SchemeView({
 
           {error && (
             <div className="mt-6 max-w-[40em]">
-              <ErrorNote message={error} />
+              <ErrorNote message={problemText(error, language) ?? ""} />
             </div>
           )}
 

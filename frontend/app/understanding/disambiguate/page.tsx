@@ -16,10 +16,11 @@ import { useRouter } from "next/navigation";
 
 import { ErrorNote } from "@/components/Notices";
 import { MicIcon } from "@/components/MicIcon";
-import { ApiError, api } from "@/lib/api";
+import { api } from "@/lib/api";
 import { copyFor, skillLabel } from "@/lib/i18n";
 import { useSession } from "@/lib/session";
 import type { SkillEdit } from "@/lib/types";
+import { fromError, problemText, type Problem } from "@/lib/problems";
 
 export default function DisambiguatePage() {
   const router = useRouter();
@@ -27,7 +28,7 @@ export default function DisambiguatePage() {
   const copy = copyFor(language);
 
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Problem | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => setHydrated(true), []);
@@ -69,7 +70,7 @@ export default function DisambiguatePage() {
       const result = await api.normalize(sessionId, payload);
       setSkills(result.skills);
     } catch (cause) {
-      setError(cause instanceof ApiError ? cause.message : copy.somethingWentWrong);
+      setError(fromError(cause));
     } finally {
       setBusy(false);
     }
@@ -108,7 +109,7 @@ export default function DisambiguatePage() {
 
       {error && (
         <div className="w-full max-w-[560px]">
-          <ErrorNote message={error} />
+          <ErrorNote message={problemText(error, language) ?? ""} />
         </div>
       )}
 

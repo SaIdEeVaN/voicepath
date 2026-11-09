@@ -28,6 +28,7 @@ import {
 import { copyFor } from "@/lib/i18n";
 import { isRecordingSupported, startRecording, type Recorder } from "@/lib/recorder";
 import { useSession } from "@/lib/session";
+import { fromError, problem, problemText, type Problem } from "@/lib/problems";
 
 type Phase = "idle" | "listening" | "working" | "error";
 
@@ -39,7 +40,7 @@ export default function SpeakPage() {
 
   const [phase, setPhase] = useState<Phase>("idle");
   const [transcript, setTranscript] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Problem | null>(null);
 
   const recorderRef = useRef<Recorder | null>(null);
   const recognitionRef = useRef<RecognitionHandle | null>(null);
@@ -69,7 +70,7 @@ export default function SpeakPage() {
       const clean = text.trim();
       if (!clean) {
         setPhase("error");
-        setError(copy.nothingHeard);
+        setError(problem("nothingHeard"));
         return;
       }
       try {
@@ -79,9 +80,7 @@ export default function SpeakPage() {
         router.push("/understanding");
       } catch (cause) {
         setPhase("error");
-        setError(
-          cause instanceof ApiError ? cause.message : copy.somethingWentWrong,
-        );
+        setError(fromError(cause));
       }
     },
     [copy.nothingHeard, language, router, setSession],
@@ -95,7 +94,7 @@ export default function SpeakPage() {
     if (serverStt) {
       if (!isRecordingSupported()) {
         setPhase("error");
-        setError(copy.micUnsupported);
+        setError(problem("micUnsupported"));
         return;
       }
       try {
@@ -104,7 +103,7 @@ export default function SpeakPage() {
       } catch (cause) {
         const reason = (cause as { reason?: string }).reason;
         setPhase("error");
-        setError(reason === "denied" ? copy.micDenied : copy.micUnsupported);
+        setError(problem(reason === "denied" ? "micDenied" : "micUnsupported"));
       }
       return;
     }
@@ -113,7 +112,7 @@ export default function SpeakPage() {
     // waveform has real levels to draw -- that blob is never uploaded.
     if (!canRecogniseOnDevice()) {
       setPhase("error");
-      setError(copy.micUnsupported);
+      setError(problem("micUnsupported"));
       return;
     }
 
@@ -130,7 +129,7 @@ export default function SpeakPage() {
       onError: (reason) => {
         if (reason === "no-speech") return;
         setPhase("error");
-        setError(reason === "not-allowed" ? copy.micDenied : copy.micUnsupported);
+        setError(problem(reason === "not-allowed" ? "micDenied" : "micUnsupported"));
         releaseAll();
       },
       onEnd: (finalText) => {
@@ -151,7 +150,7 @@ export default function SpeakPage() {
       const blob = await recorder?.stop();
       if (!blob) {
         setPhase("error");
-        setError(copy.nothingHeard);
+        setError(problem("nothingHeard"));
         return;
       }
       try {
@@ -163,13 +162,11 @@ export default function SpeakPage() {
         if (cause instanceof ApiError && cause.isUnavailable) {
           // Server-side STT went away between /health and now.
           setPhase("error");
-          setError(cause.message);
+          setError(fromError(cause));
           return;
         }
         setPhase("error");
-        setError(
-          cause instanceof ApiError ? cause.message : copy.somethingWentWrong,
-        );
+        setError(fromError(cause));
       }
       return;
     }
@@ -263,7 +260,7 @@ export default function SpeakPage() {
 
       {(error || healthUnreachable) && (
         <div className="w-full max-w-[560px]">
-          <ErrorNote message={error ?? copy.serverUnreachable} />
+          <ErrorNote message={problemText(error, language) ?? copy.serverUnreachable} />
         </div>
       )}
 

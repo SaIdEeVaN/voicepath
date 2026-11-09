@@ -26,10 +26,11 @@ import {
   passes,
   type SchemeFilterState,
 } from "@/components/SchemeFilters";
-import { ApiError, api } from "@/lib/api";
+import { api } from "@/lib/api";
 import { copyFor, payLabel, placeLabel, skillLabel, typeLabel } from "@/lib/i18n";
 import { useSession } from "@/lib/session";
 import type { Language, MatchResult, SchemeSummary } from "@/lib/types";
+import { fromError, problemText, type Problem } from "@/lib/problems";
 
 export default function SchemesPage() {
   const router = useRouter();
@@ -39,7 +40,7 @@ export default function SchemesPage() {
 
   const [browse, setBrowse] = useState<SchemeSummary[] | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Problem | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [filters, setFilters] = useState<SchemeFilterState>(NO_FILTERS);
   const reduceMotion = useReducedMotion();
@@ -58,9 +59,7 @@ export default function SchemesPage() {
         .then((result) => !cancelled && setBrowse(result))
         .catch((cause: unknown) => {
           if (!cancelled) {
-            setError(
-              cause instanceof ApiError ? cause.message : copy.somethingWentWrong,
-            );
+            setError(fromError(cause));
           }
         })
         .finally(() => !cancelled && setLoading(false));
@@ -84,9 +83,7 @@ export default function SchemesPage() {
       })
       .catch((cause: unknown) => {
         if (!cancelled) {
-          setError(
-            cause instanceof ApiError ? cause.message : copy.somethingWentWrong,
-          );
+          setError(fromError(cause));
         }
       })
       .finally(() => !cancelled && setLoading(false));
@@ -186,7 +183,7 @@ export default function SchemesPage() {
 
       {error && (
         <div className="mt-8 max-w-[46em]">
-          <ErrorNote message={error} />
+          <ErrorNote message={problemText(error, language) ?? ""} />
         </div>
       )}
 

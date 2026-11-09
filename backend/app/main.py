@@ -6,13 +6,17 @@ Run with:  uvicorn app.main:app --reload --port 8000
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
 
 from fastapi import FastAPI, Request
+from fastapi.exception_handlers import request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.config import get_settings
 from app.models import schemas
@@ -23,7 +27,7 @@ from app.services import (
 from app.services import schemes as schemes_service
 from app.services import taxonomy as taxonomy_service
 from app.services import places as places_service
-from app import security
+from app import errors, security
 from app.security import BodySizeLimitMiddleware, SecurityHeadersMiddleware, SessionKeyMiddleware
 
 logger = logging.getLogger(__name__)
@@ -251,7 +255,31 @@ async def session_denied_handler(
 ) -> JSONResponse:
     """A session asked for without its key: as if it did not exist (404), or,
     for one from before keys existed, a plain "start again" (410)."""
-    return JSONResponse(status_code=exc.status_code, content={"detail": exc.message})
+    content: dict[str, object] = {"detail": exc.message}
+    if code := errors.code_for(exc.status_code, exc.message):
+        content["code"] = code
+    return JSONResponse(status_code=exc.status_code, content=content)
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_error_handler(request: Request, exc: StarletteHTTPException) -> Response:
+    """FastAPI's own handler, plus a ``code`` the screen can translate."""
+    headers = getattr(exc, "headers", None)
+    if exc.status_code < 200 or exc.status_code in (204, 304):
+        return Response(status_code=exc.status_code, headers=headers)
+    content: dict[str, object] = {"detail": exc.detail}
+    if code := errors.code_for(exc.status_code, exc.detail):
+        content["code"] = code
+    return JSONResponse(content, status_code=exc.status_code, headers=headers)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+    """FastAPI's 422 body, plus the code for "that input was not valid"."""
+    response = await request_validation_exception_handler(request, exc)
+    body = json.loads(bytes(response.body))
+    body["code"] = "invalid_input"
+    return JSONResponse(body, status_code=response.status_code)
 
 
 @app.exception_handler(ValueError)

@@ -19,10 +19,11 @@ import { AddSkillByTyping } from "@/components/AddSkillByTyping";
 import { ExperienceEditor } from "@/components/ExperienceEditor";
 import { SkillCard } from "@/components/SkillCard";
 import { CardSkeletons } from "@/components/Skeleton";
-import { ApiError, api } from "@/lib/api";
+import { api } from "@/lib/api";
 import { copyFor } from "@/lib/i18n";
 import { useSession } from "@/lib/session";
 import type { AssistantQueryResponse, Language, SkillEdit } from "@/lib/types";
+import { fromError, problem, problemText, type Problem } from "@/lib/problems";
 
 export default function UnderstandingPage() {
   const router = useRouter();
@@ -40,12 +41,12 @@ export default function UnderstandingPage() {
 
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Problem | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [answer, setAnswer] = useState<AssistantQueryResponse | null>(null);
   // Shown beside the typing box, where the person is looking, rather than
   // as a page-level error about something they did not do wrong.
-  const [typedError, setTypedError] = useState<string | null>(null);
+  const [typedError, setTypedError] = useState<Problem | null>(null);
   // A ref, not state. As state this was in the effect's own dependency
   // array, so setting it re-ran the effect, which fired the previous
   // cleanup, which set cancelled -- and the answer was thrown away when it
@@ -89,9 +90,7 @@ export default function UnderstandingPage() {
       })
       .catch((cause: unknown) => {
         if (cancelled) return;
-        setError(
-          cause instanceof ApiError ? cause.message : copy.somethingWentWrong,
-        );
+        setError(fromError(cause));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -162,16 +161,14 @@ export default function UnderstandingPage() {
         const result = await api.normalize(sessionId, edits);
         setSkills(result.skills);
       } catch (cause) {
-        setError(
-          cause instanceof ApiError ? cause.message : copy.somethingWentWrong,
-        );
+        setError(fromError(cause));
       } finally {
         setBusy(false);
       }
     },
     // copy is in here so a failure after a language switch is reported in
     // the language now on screen, not the one the callback was built in.
-    [sessionId, setSkills, copy.somethingWentWrong],
+    [sessionId, setSkills],
   );
 
   const asEdits = (): SkillEdit[] =>
@@ -216,15 +213,13 @@ export default function UnderstandingPage() {
           language,
         });
         if (answered.urgent || (answered.citations?.length ?? 0) > 0) setAnswer(answered);
-        else setTypedError(copy.notWork);
+        else setTypedError(problem("notWork"));
         return;
       }
 
-      setTypedError(copy.notWork);
+      setTypedError(problem("notWork"));
     } catch (cause) {
-      setTypedError(
-        cause instanceof ApiError ? cause.message : copy.somethingWentWrong,
-      );
+      setTypedError(fromError(cause));
     } finally {
       setBusy(false);
     }
@@ -306,7 +301,7 @@ export default function UnderstandingPage() {
 
       {error && (
         <div className="mb-8 max-w-[46em]">
-          <ErrorNote message={error} />
+          <ErrorNote message={problemText(error, language) ?? ""} />
         </div>
       )}
 
@@ -410,7 +405,7 @@ export default function UnderstandingPage() {
           <AddSkillByTyping
             language={language}
             busy={busy}
-            error={typedError}
+            error={problemText(typedError, language)}
             onAdd={addTyped}
           />
         </div>
@@ -459,7 +454,7 @@ export default function UnderstandingPage() {
           <AddSkillByTyping
             language={language}
             busy={busy}
-            error={typedError}
+            error={problemText(typedError, language)}
             onAdd={addTyped}
           />
         </div>

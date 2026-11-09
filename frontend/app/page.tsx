@@ -13,11 +13,12 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { MicIcon } from "@/components/MicIcon";
-import { ApiError, api } from "@/lib/api";
+import { api } from "@/lib/api";
 import { PrivacyNote } from "@/components/Notices";
 import { COPY, LANGUAGES, copyFor } from "@/lib/i18n";
 import { useSession } from "@/lib/session";
 import type { Language } from "@/lib/types";
+import { fromError, problemText, type Problem } from "@/lib/problems";
 
 export default function LandingPage() {
   const router = useRouter();
@@ -26,7 +27,7 @@ export default function LandingPage() {
 
   const [typed, setTyped] = useState("");
   const [sending, setSending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Problem | null>(null);
 
   const others = LANGUAGES.filter((entry) => entry.code !== language);
 
@@ -53,9 +54,7 @@ export default function LandingPage() {
       setSession(result.session_id, result.transcript, language);
       router.push("/understanding");
     } catch (cause) {
-      setError(
-        cause instanceof ApiError ? cause.message : copy.somethingWentWrong,
-      );
+      setError(fromError(cause));
       setSending(false);
     }
   };
@@ -213,8 +212,8 @@ export default function LandingPage() {
           </div>
 
           {error && (
-            <p className="text-center text-[13px]" style={{ color: "var(--color-danger)" }}>
-              {error}
+            <p className="text-center text-[13px]" style={{ color: "var(--color-danger)" }} lang={language}>
+              {problemText(error, language)}
             </p>
           )}
         </form>

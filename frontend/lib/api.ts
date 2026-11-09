@@ -35,6 +35,8 @@ export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
+    /** The API's error code (backend/app/errors.py), when it sent one. */
+    readonly code?: string,
   ) {
     super(message);
     this.name = "ApiError";
@@ -126,14 +128,16 @@ async function request<T>(
 
   if (!response.ok) {
     let detail = `Request failed (${response.status})`;
+    let code: string | undefined;
     try {
-      const body = (await response.json()) as { detail?: unknown };
+      const body = (await response.json()) as { detail?: unknown; code?: unknown };
       if (typeof body.detail === "string") detail = body.detail;
       else if (Array.isArray(body.detail)) detail = "That input was not valid.";
+      if (typeof body.code === "string") code = body.code;
     } catch {
       /* Non-JSON error body; the generic message stands. */
     }
-    throw new ApiError(detail, response.status);
+    throw new ApiError(detail, response.status, code);
   }
 
   if (response.status === 204) return undefined as T;

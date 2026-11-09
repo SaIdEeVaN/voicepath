@@ -203,7 +203,7 @@ async def _refuse(send: Send, limit: int) -> None:
     body = (
         b'{"detail":"The request is too large. The limit is '
         + str(limit // 1024).encode()
-        + b' KB."}'
+        + b' KB.","code":"too_large"}'
     )
     await send({
         "type": "http.response.start",

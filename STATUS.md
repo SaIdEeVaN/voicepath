@@ -119,12 +119,14 @@ twice is harmless. There is no cost to doing this in the safe order.
 - [x] **Place names render in English inside non-English sentences.** Fixed
       2026-11-05: listings carry `location_names` from the gazetteer, and the
       explanations -- template and model -- use the reader's script.
-- [ ] **An error already on screen does not follow a language switch.**
-      Failures are stored as rendered strings, so the sentence shown keeps
-      the language it was written in. Storing the cause and deriving the
-      message at render time would fix it, across six files' error paths.
-      Narrow and transient, which is why it was left rather than bundled
-      into the language fix.
+- [x] **An error already on screen does not follow a language switch.** Fixed
+      2026-11-09, along with the API's English messages: every error response
+      carries a `code` (`backend/app/errors.py`), the frontend says each code in
+      English, Tamil and Hindi (`errorCodes` in `lib/i18n.ts`), and screens keep
+      the cause (`lib/problems.ts`) rather than a sentence, so it is put into
+      words in the language being read -- checked switching ta → hi → en with
+      an error on screen. `tests/test_error_codes.py` fails if a code lacks a
+      translation or a mapped message disappears.
 - [x] **`npm run lint` does not exist** — fixed 2026-11-03 by dropping the
       script. `npm run typecheck` is the check that exists. Adding eslint
       properly is still open if anyone wants it; it would arrive with its own

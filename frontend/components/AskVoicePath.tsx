@@ -16,7 +16,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { MicIcon } from "@/components/MicIcon";
 import { SafetyNotice } from "@/components/SafetyNotice";
-import { ApiError, api } from "@/lib/api";
+import { api } from "@/lib/api";
 import {
   canRecogniseOnDevice,
   playBase64Audio,
@@ -28,6 +28,7 @@ import {
 import { copyFor } from "@/lib/i18n";
 import { useSession } from "@/lib/session";
 import type { Citation, Language } from "@/lib/types";
+import { fromError, problem, problemText, type Problem } from "@/lib/problems";
 
 interface Exchange {
   question: string;
@@ -58,7 +59,7 @@ export function AskVoicePath({ schemeId }: { schemeId: number }) {
   const [listening, setListening] = useState(false);
   const [thinking, setThinking] = useState(false);
   const [draft, setDraft] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Problem | null>(null);
 
   const recognitionRef = useRef<RecognitionHandle | null>(null);
   // Synthesis is awaited outside the render lifecycle, so it can resolve
@@ -145,9 +146,7 @@ export function AskVoicePath({ schemeId }: { schemeId: number }) {
           }
         })();
       } catch (cause) {
-        setError(
-          cause instanceof ApiError ? cause.message : copy.somethingWentWrong,
-        );
+        setError(fromError(cause));
         setThinking(false);
       }
     },
@@ -171,8 +170,8 @@ export function AskVoicePath({ schemeId }: { schemeId: number }) {
       onPartial: (text) => setDraft(text),
       onError: (reason) => {
         setListening(false);
-        if (reason === "not-allowed") setError(copy.micDenied);
-        else if (reason !== "no-speech") setError(copy.micUnsupported);
+        if (reason === "not-allowed") setError(problem("micDenied"));
+        else if (reason !== "no-speech") setError(problem("micUnsupported"));
       },
       onEnd: (finalText) => {
         setListening(false);
@@ -290,8 +289,8 @@ export function AskVoicePath({ schemeId }: { schemeId: number }) {
         )}
 
         {error && (
-          <p className="text-[13px]" style={{ color: "var(--color-caution)" }}>
-            {error}
+          <p className="text-[13px]" style={{ color: "var(--color-caution)" }} lang={language}>
+            {problemText(error, language)}
           </p>
         )}
       </div>

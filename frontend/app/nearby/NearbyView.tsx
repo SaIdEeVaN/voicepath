@@ -35,7 +35,7 @@ import {
   type MapSelection,
   type MapTown,
 } from "@/components/NearbyMap";
-import { ApiError, api } from "@/lib/api";
+import { api } from "@/lib/api";
 import { copyFor, localeFor, typeLabel } from "@/lib/i18n";
 import { useSession } from "@/lib/session";
 import {
@@ -46,6 +46,7 @@ import {
   type NearbyResponse,
   type SupportResponse,
 } from "@/lib/types";
+import { fromError, problemText, type Problem } from "@/lib/problems";
 
 const RADII = [5, 10, 25] as const;
 type Radius = (typeof RADII)[number];
@@ -95,7 +96,7 @@ export function NearbyView({ focusSchemeId }: { focusSchemeId: number | null }) 
 
   const [known, setKnown] = useState<KnownPlace[]>([]);
   const [nearby, setNearby] = useState<NearbyResponse | null>(null);
-  const [nearbyError, setNearbyError] = useState<string | null>(null);
+  const [nearbyError, setNearbyError] = useState<Problem | null>(null);
   const [support, setSupport] = useState<SupportResponse | null>(null);
   const [supportLoading, setSupportLoading] = useState(false);
   const [selected, setSelected] = useState<MapSelection | null>(null);
@@ -127,13 +128,13 @@ export function NearbyView({ focusSchemeId }: { focusSchemeId: number | null }) 
       .then((result) => !cancelled && setNearby(result))
       .catch((cause: unknown) => {
         if (!cancelled) {
-          setNearbyError(cause instanceof ApiError ? cause.message : copy.somethingWentWrong);
+          setNearbyError(fromError(cause));
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [hydrated, gps, chosen, spoken, copy.somethingWentWrong]);
+  }, [hydrated, gps, chosen, spoken]);
 
   // Offices. All four kinds are asked for at once and filtered here, so
   // toggling a category never costs another trip to a volunteer server.
@@ -407,7 +408,7 @@ export function NearbyView({ focusSchemeId }: { focusSchemeId: number | null }) 
 
       {nearbyError && (
         <div className="mt-6 max-w-[46em]">
-          <ErrorNote message={nearbyError} />
+          <ErrorNote message={problemText(nearbyError, language) ?? ""} />
         </div>
       )}
 

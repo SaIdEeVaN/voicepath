@@ -147,6 +147,14 @@ export interface Copy {
   emptySeeNearby: string;
   back: string;
   apply: string;
+  /**
+   * What the API's error codes mean, in this language (2026-11-09). The API
+   * sends English plus a code (backend/app/errors.py); lib/problems.ts shows
+   * the sentence for the code, so an error is in the reader's language and
+   * follows a language switch. backend/tests/test_error_codes.py checks every
+   * code is here in all three languages.
+   */
+  errorCodes: Record<string, string>;
   /** Skill card status (2026-11-05): plain words, the numbers under Details. */
   skillMatched: string;
   skillCheck: string;
@@ -413,6 +421,25 @@ const en: Copy = {
   emptySeeNearby: "See what is near you",
   back: "Back",
   apply: "I want this",
+  errorCodes: {
+    session_not_found: "We could not open what you told us earlier. Please start again from the beginning.",
+    session_retired: "What you told us while VoicePath's database was down was not saved. Please start again from the beginning.",
+    session_outdated: "VoicePath has had a security update since you started, so please start again from the beginning.",
+    scheme_not_found: "That scheme could not be found. It may have been removed.",
+    not_matched: "This scheme was not among your matches.",
+    nothing_understood: "Nothing has been understood from what you said yet. Say or type a little about your work first.",
+    nothing_to_read: "There was nothing to read.",
+    no_question: "There was no question to answer. Say or type your question.",
+    empty_transcript: "Nothing was heard. Please try again, a little closer to the microphone.",
+    nothing_typed: "Nothing was typed.",
+    no_audio: "No recording was received. Please try again.",
+    recording_too_long: "That recording is too long. Try a shorter one.",
+    not_audio: "Only voice recordings can be sent here.",
+    too_many_requests: "Too many requests just now. Please wait a moment and try again.",
+    too_large: "That was too large to send. Try something shorter.",
+    unavailable: "This is not available just now. Please try again in a little while.",
+    invalid_input: "Something in that was not valid. Please check it and try again.",
+  },
   skillMatched: "Matched",
   skillCheck: "Please check this one",
   skillUnplaced: "Kept in your words",
@@ -674,6 +701,25 @@ const ta: Copy = {
   emptySeeNearby: "அருகில் உள்ளதைப் பாருங்கள்",
   back: "பின்னால்",
   apply: "இது வேண்டும்",
+  errorCodes: {
+    session_not_found: "நீங்கள் முன்பு சொன்னதைத் திறக்க முடியவில்லை. தயவுசெய்து மீண்டும் தொடக்கத்திலிருந்து தொடங்குங்கள்.",
+    session_retired: "VoicePath-இன் தரவுத்தளம் இயங்காத நேரத்தில் நீங்கள் சொன்னது சேமிக்கப்படவில்லை. தயவுசெய்து மீண்டும் தொடக்கத்திலிருந்து தொடங்குங்கள்.",
+    session_outdated: "நீங்கள் தொடங்கிய பிறகு VoicePath-இல் பாதுகாப்பு மேம்பாடு செய்யப்பட்டுள்ளது. தயவுசெய்து மீண்டும் தொடக்கத்திலிருந்து தொடங்குங்கள்.",
+    scheme_not_found: "அந்தத் திட்டம் கிடைக்கவில்லை. அது நீக்கப்பட்டிருக்கலாம்.",
+    not_matched: "இந்தத் திட்டம் உங்கள் பொருத்தங்களில் இல்லை.",
+    nothing_understood: "நீங்கள் சொன்னதிலிருந்து இன்னும் எதுவும் புரிந்துகொள்ளப்படவில்லை. முதலில் உங்கள் வேலையைப் பற்றி கொஞ்சம் சொல்லுங்கள் அல்லது தட்டச்சு செய்யுங்கள்.",
+    nothing_to_read: "படிக்க எதுவும் இல்லை.",
+    no_question: "பதில் சொல்ல கேள்வி எதுவும் இல்லை. உங்கள் கேள்வியைச் சொல்லுங்கள் அல்லது தட்டச்சு செய்யுங்கள்.",
+    empty_transcript: "எதுவும் கேட்கவில்லை. மைக்குக்கு அருகில் இருந்து மீண்டும் முயற்சிக்கவும்.",
+    nothing_typed: "எதுவும் தட்டச்சு செய்யப்படவில்லை.",
+    no_audio: "பதிவு எதுவும் வரவில்லை. மீண்டும் முயற்சிக்கவும்.",
+    recording_too_long: "அந்தப் பதிவு மிக நீளமாக உள்ளது. சிறியதாக முயற்சிக்கவும்.",
+    not_audio: "இங்கே குரல் பதிவுகளை மட்டுமே அனுப்ப முடியும்.",
+    too_many_requests: "இப்போது அதிகமான கோரிக்கைகள் வருகின்றன. சிறிது நேரம் கழித்து மீண்டும் முயற்சிக்கவும்.",
+    too_large: "அனுப்ப இது மிகப் பெரியது. சிறியதாக முயற்சிக்கவும்.",
+    unavailable: "இது இப்போது கிடைக்கவில்லை. சிறிது நேரம் கழித்து மீண்டும் முயற்சிக்கவும்.",
+    invalid_input: "இதில் ஏதோ சரியில்லை. சரிபார்த்து மீண்டும் முயற்சிக்கவும்.",
+  },
   skillMatched: "பொருந்தியது",
   skillCheck: "இதைச் சரிபாருங்கள்",
   skillUnplaced: "உங்கள் வார்த்தைகளிலேயே வைக்கப்பட்டது",
@@ -933,6 +979,25 @@ const hi: Copy = {
   emptySeeNearby: "देखिए आपके पास क्या है",
   back: "वापस",
   apply: "मुझे यह चाहिए",
+  errorCodes: {
+    session_not_found: "आपने पहले जो बताया था, उसे खोला नहीं जा सका। कृपया फिर से शुरू से शुरू करें।",
+    session_retired: "VoicePath का डेटाबेस बंद रहने के दौरान आपने जो बताया, वह सहेजा नहीं गया। कृपया फिर से शुरू से शुरू करें।",
+    session_outdated: "आपके शुरू करने के बाद VoicePath में सुरक्षा अपडेट हुआ है, इसलिए कृपया फिर से शुरू से शुरू करें।",
+    scheme_not_found: "वह योजना नहीं मिली। हो सकता है उसे हटा दिया गया हो।",
+    not_matched: "यह योजना आपके मिलानों में नहीं थी।",
+    nothing_understood: "आपकी बात से अभी कुछ समझा नहीं गया है। पहले अपने काम के बारे में थोड़ा बोलिए या लिखिए।",
+    nothing_to_read: "पढ़ने के लिए कुछ नहीं था।",
+    no_question: "जवाब देने के लिए कोई सवाल नहीं था। अपना सवाल बोलिए या लिखिए।",
+    empty_transcript: "कुछ सुनाई नहीं दिया। माइक के पास आकर फिर कोशिश करें।",
+    nothing_typed: "कुछ लिखा नहीं गया।",
+    no_audio: "कोई रिकॉर्डिंग नहीं मिली। फिर कोशिश करें।",
+    recording_too_long: "वह रिकॉर्डिंग बहुत लंबी है। छोटी रिकॉर्डिंग आज़माएँ।",
+    not_audio: "यहाँ सिर्फ़ आवाज़ की रिकॉर्डिंग भेजी जा सकती है।",
+    too_many_requests: "अभी बहुत सारे अनुरोध आ रहे हैं। थोड़ी देर रुककर फिर कोशिश करें।",
+    too_large: "यह भेजने के लिए बहुत बड़ा है। कुछ छोटा आज़माएँ।",
+    unavailable: "यह अभी उपलब्ध नहीं है। थोड़ी देर बाद फिर कोशिश करें।",
+    invalid_input: "इसमें कुछ सही नहीं था। जाँचकर फिर कोशिश करें।",
+  },
   skillMatched: "मिल गया",
   skillCheck: "कृपया इसे जाँचें",
   skillUnplaced: "आपके शब्दों में रखा गया",

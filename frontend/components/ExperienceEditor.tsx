@@ -16,9 +16,10 @@
 
 import { useState } from "react";
 
-import { ApiError, api } from "@/lib/api";
+import { api } from "@/lib/api";
 import { copyFor } from "@/lib/i18n";
 import type { ExtractedProfile, Language } from "@/lib/types";
+import { fromError, problem, problemText, type Problem } from "@/lib/problems";
 
 export function ExperienceEditor({
   language,
@@ -37,7 +38,7 @@ export function ExperienceEditor({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Problem | null>(null);
 
   const open = () => {
     setDraft(years != null ? String(years) : "");
@@ -49,7 +50,7 @@ export function ExperienceEditor({
     const clean = draft.trim().replace(",", ".");
     const value = clean === "" ? null : Number(clean);
     if (value !== null && (!Number.isFinite(value) || value < 0 || value > 70)) {
-      setError(copy.experienceInvalid);
+      setError(problem("experienceInvalid"));
       return;
     }
     if (value === years) {
@@ -62,7 +63,7 @@ export function ExperienceEditor({
       onSaved(await api.correctExperience(sessionId, value));
       setEditing(false);
     } catch (cause) {
-      setError(cause instanceof ApiError ? cause.message : copy.somethingWentWrong);
+      setError(fromError(cause));
     } finally {
       setSaving(false);
     }
@@ -134,7 +135,7 @@ export function ExperienceEditor({
             role="status"
             lang={language}
           >
-            {error}
+            {problemText(error, language)}
           </p>
         )}
       </form>
