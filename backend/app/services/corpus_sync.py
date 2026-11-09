@@ -14,7 +14,11 @@ could not do at all:
 * **Documents with no URL**, when ``sources.json`` now records one. Filled in,
   never overwritten: a URL already there was put there on purpose.
 
-Run once at startup, in the background, so the API answers while it works.
+Run at startup, in the background, so the API answers while it works -- and
+again every half hour while anything is still missing (since 2026-11-09).
+Before that it ran once: on 2026-11-05 the embedder was out of credits at
+startup, and even after credits were added nothing loaded until someone
+restarted the API by hand.
 Idempotent: everything it does is "only what is missing", so a restart or a
 second worker repeats nothing. It never re-opens a document an admin
 rejected, and it does nothing at all when the embedding provider is offline,
@@ -29,6 +33,8 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from collections.abc import Awaitable, Callable
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -189,3 +195,71 @@ async def catch_up_safely() -> None:
         raise
     except Exception as exc:  # noqa: BLE001 - an enhancement, retried next start
         logger.warning("Corpus catch-up failed (%s); will retry on next start", exc)
+
+
+# ---------------------------------------------------------------------------
+# Trying again until nothing is missing
+# ---------------------------------------------------------------------------
+
+RETRY_SECONDS = 30 * 60
+
+# What the last check found still missing, and when the next try is -- for
+# /health, so whoever added the credits can see the backlog drain.
+_status: dict[str, object] = {}
+
+
+def status() -> dict[str, object]:
+    return dict(_status)
+
+
+async def missing(directory: Path = DOCS_DIR) -> dict[str, int]:
+    """What a catch-up would still do: skills with no vector, documents not in."""
+    if not db.is_available():
+        return {}
+    skills = await db.fetchval("select count(*) from skill_taxonomy where embedding is null")
+    known = {r["source"] for r in await db.fetch("select source from scheme_documents")}
+    documents = 0
+    if directory.is_dir():
+        for path in directory.iterdir():
+            if path.suffix.lower() not in TEXT_SUFFIXES or path.name in known:
+                continue
+            text = path.read_text(encoding="utf-8", errors="replace")
+            if len(text.strip()) >= MIN_DOCUMENT_CHARS:
+                documents += 1
+    return {"skills": int(skills or 0), "documents": documents}
+
+
+async def keep_catching_up(
+    *,
+    retry_seconds: float = RETRY_SECONDS,
+    sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+) -> None:
+    """Catch up now, and every ``retry_seconds`` while anything is missing.
+
+    Each try costs one request to a refusing embedder at most (catch_up stops
+    at the first refusal). Stops for good once nothing is missing, and does
+    nothing at all without a database or with the offline embedder, where no
+    amount of trying would help.
+    """
+    while True:
+        await catch_up_safely()
+        if not db.is_available() or get_settings().embedding_provider == "offline":
+            _status.clear()
+            return
+        try:
+            left = await missing()
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:  # noqa: BLE001 - unknown means "try again later"
+            logger.warning("Corpus catch-up: could not count what is missing (%s)", exc)
+            left = {"unknown": 1}
+        if not any(left.values()):
+            _status.clear()
+            _status["missing"] = {"skills": 0, "documents": 0}
+            return
+        next_try = datetime.now(timezone.utc) + timedelta(seconds=retry_seconds)
+        _status.update(missing=left, next_try=next_try.isoformat(timespec="seconds"))
+        logger.info(
+            "Corpus catch-up: still missing %s; trying again at %s", left, _status["next_try"]
+        )
+        await sleep(retry_seconds)

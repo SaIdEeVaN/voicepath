@@ -80,7 +80,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # Whatever this release ships that the database lacks: embeddings for new
     # skills, bundled documents not yet in the corpus, document URLs now on
     # record. Background, idempotent, and a no-op once caught up.
-    syncing = asyncio.create_task(corpus_sync.catch_up_safely())
+    # Retried every half hour while anything is still missing -- an embedder
+    # that was refusing at startup no longer needs a restart once it answers.
+    syncing = asyncio.create_task(corpus_sync.keep_catching_up())
 
     # A configured database that did not answer: keep trying, and switch over
     # once nobody is mid-flow on the in-memory store.
@@ -150,7 +152,7 @@ async def _after_reconnect() -> None:
     logger.warning(
         "Switched to the database; %d session(s) from the outage were not saved", retired
     )
-    await corpus_sync.catch_up_safely()
+    await corpus_sync.keep_catching_up()
 
 
 def _degraded(settings) -> list[str]:
@@ -275,6 +277,7 @@ async def health() -> schemas.HealthResponse:
         llm=llm.status(),
         embeddings=embeddings.status(),
         rate_limits=ratelimit.status_report(),
+        catch_up=corpus_sync.status(),
     )
 
 

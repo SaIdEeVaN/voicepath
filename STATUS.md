@@ -144,8 +144,9 @@ twice is harmless. There is no cost to doing this in the safe order.
       (24 + 3 from `db/011`) and 24 new official documents cannot be embedded.
       Engine Diagnostics' embedding was also cleared by `db/011`, because its
       aliases changed.
-      After adding credits, restart the API (Render: Manual Deploy → Restart);
-      its startup catch-up embeds and ingests everything missing. `/health` shows
+      After adding credits nothing else is needed: since 2026-11-09 the
+      catch-up retries every half hour while anything is missing, and
+      `/health` shows the backlog under `catch_up`. `/health` shows
       `"embeddings": {"status": "payment_required"}`. Options: buy HF
       pre-paid credits or PRO; or move to a provider that serves the same
       `multilingual-e5-base` model, so stored vectors stay valid. A different
@@ -258,9 +259,10 @@ twice is harmless. There is no cost to doing this in the safe order.
       `tests/test_assistant_routing.py` asserts the separation by reading
       `matching.py`'s source rather than its imports, which is weaker than it
       looks. Tighten the assertion.
-- [ ] **Rate limiting is per-process.** It multiplies behind multiple
-      instances; move the counter to Redis before scaling past one.
-- [ ] **Confirm `TAVILY_API_KEY` is set in the deployed environment.** Without
+- [x] **Rate limiting is per-process.** Fixed 2026-11-05: the counters live in
+      a shared Render Key Value store (see *Done on 2026-11-05*).
+- [x] **Confirm `TAVILY_API_KEY` is set in the deployed environment.** Confirmed
+      2026-11-09: production `/health` reports `"search": "tavily"`. Without
       it the web-search widening silently does not run and the corpus answers
       only what it holds — which is correct behaviour, but not the intended one.
 

@@ -375,6 +375,10 @@ class HealthResponse(Base):
     # against the same numbers) or "process", with the reason when a shared
     # store is configured but not answering.
     rate_limits: dict[str, str] = Field(default_factory=dict)
+    # What the background catch-up still has to load (skills with no vector,
+    # bundled documents not in the corpus) and when it next tries. Empty when
+    # it has nothing to do or cannot run.
+    catch_up: dict[str, object] = Field(default_factory=dict)
 
 
 # ---------------------------------------------------------------------------
