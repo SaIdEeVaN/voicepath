@@ -58,6 +58,68 @@ def is_configured() -> bool:
     return bool(get_settings().database_url)
 
 
+# ---------------------------------------------------------------------------
+# The schema the code needs
+# ---------------------------------------------------------------------------
+#
+# On 2026-09-12 code that wrote matches.explanation_language reached production
+# before db/007 added the column. Every route touching a match failed, and
+# /health stayed green: the database was connected, and connected was all it
+# checked. Now it also checks that every table and column a migration added is
+# there, and says which migration to apply. tests/test_schema_check.py reads
+# every file in db/ and fails if a migration adds one that is not listed here.
+
+REQUIRED_SCHEMA: tuple[tuple[str, str | None, str], ...] = (
+    # (table, column or None for the table itself, migration that adds it)
+    ("scheme_documents", None, "005_documents.sql"),
+    ("document_chunks", None, "005_documents.sql"),
+    ("schemes", "official_url", "006_schemes_rename.sql"),
+    ("matches", "scheme_id", "006_schemes_rename.sql"),
+    ("matches", "explanation_language", "007_match_language.sql"),
+    ("scheme_documents", "source_url", "009_document_source_url.sql"),
+    ("schemes", "skill_match", "010_national_schemes.sql"),
+    ("sessions", "key_hash", "013_session_keys.sql"),
+)
+# How long a schema check is trusted. /health is called often (the site asks
+# every minute while open); the schema changes only when someone migrates.
+SCHEMA_CHECK_SECONDS = 300.0
+
+_schema_gaps: list[str] = []
+_schema_checked_at = 0.0
+
+
+async def check_schema(*, force: bool = False) -> list[str]:
+    """Missing tables and columns, as "table.column (apply 0NN_file.sql)"."""
+    global _schema_gaps, _schema_checked_at
+    if _pool is None:
+        return []
+    now = asyncio.get_running_loop().time()
+    if not force and _schema_checked_at and now - _schema_checked_at < SCHEMA_CHECK_SECONDS:
+        return list(_schema_gaps)
+    rows = await fetch(
+        "select table_name, column_name from information_schema.columns "
+        "where table_schema = 'public'"
+    )
+    present = {(r["table_name"], r["column_name"]) for r in rows}
+    tables = {table for table, _ in present}
+    gaps = []
+    for table, column, migration in REQUIRED_SCHEMA:
+        found = table in tables if column is None else (table, column) in present
+        if not found:
+            name = table if column is None else f"{table}.{column}"
+            gaps.append(f"{name} (apply db/{migration})")
+    if gaps and gaps != _schema_gaps:
+        logger.error("The database is missing what the code needs: %s", "; ".join(gaps))
+    _schema_gaps = gaps
+    _schema_checked_at = now
+    return list(gaps)
+
+
+def schema_gaps() -> list[str]:
+    """What the last schema check found missing; [] when complete or unchecked."""
+    return list(_schema_gaps)
+
+
 def unreachable() -> str | None:
     """Why a configured database is not in use, or None if it is (or none is)."""
     return _unreachable
@@ -283,9 +345,13 @@ async def healthcheck() -> dict[str, Any]:
             schemes = await conn.fetchval(
                 "select count(*) from schemes where is_active"
             )
+        gaps = await check_schema()
         return {
             "connected": True,
             "configured": True,
+            # Connected is not the same as usable: a migration the code
+            # depends on may not have been applied.
+            "schema": {"ok": not gaps, "missing": gaps},
             "pgvector": bool(has_vector),
             "taxonomy_rows": taxonomy,
             "taxonomy_embedded": embedded,

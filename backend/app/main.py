@@ -42,6 +42,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     configure_logging()
     settings = get_settings()
     await db.init_pool()
+    # Said loudly at startup, not discovered three screens into a request.
+    if db.is_available():
+        try:
+            await db.check_schema(force=True)
+        except Exception as exc:  # noqa: BLE001 - a check, never a reason not to start
+            logger.warning("Schema check failed (%s)", exc)
 
     # A short bootstrap token can be guessed, lockout or not.
     if settings.admin_bootstrap_token and len(settings.admin_bootstrap_token) < 32:
@@ -165,6 +171,9 @@ def _degraded(settings) -> list[str]:
     """
     degraded = list(settings.degraded_providers)
     if db.unreachable() is not None and "database" not in degraded:
+        degraded.append("database")
+    # Connected but missing a table or column the code needs (db.check_schema).
+    if db.schema_gaps() and "database" not in degraded:
         degraded.append("database")
     # Configured but not answering: rate-limited, out of quota, or down.
     if llm.recent_failure() is not None and "llm" not in degraded:

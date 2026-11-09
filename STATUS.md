@@ -38,10 +38,11 @@ git push origin main                                     # then
 Every file in `db/` is idempotent, so applying early is free and applying
 twice is harmless. There is no cost to doing this in the safe order.
 
-- [ ] **`/health` does not notice a schema it cannot use.** It reports the
-      database as connected because it is; the column the code needs is a
-      different question. A cheap check — select the newest column the code
-      depends on — would have turned a silent outage into a red banner.
+- [x] **`/health` does not notice a schema it cannot use.** Fixed 2026-11-09:
+      it checks every table and column a migration added (`db.REQUIRED_SCHEMA`),
+      lists `database` as degraded and names the migration to apply under
+      `database.schema`; startup logs it. A test reads every file in `db/` and
+      fails if a migration adds something the list does not name.
 
 ### Now — correctness, and the largest spec gaps
 
