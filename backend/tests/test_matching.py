@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import pytest
 
-from app.config import get_settings
 from app.services import matching
 from app.services.matching import ProfileInput, rank, score_one, SKILL_UNKNOWN
 from app.services.normalization import NormalizedSkill
@@ -58,12 +57,11 @@ def make_profile(**overrides) -> ProfileInput:
 
 
 class TestWeights:
-    def test_weights_are_the_prd_weights(self):
-        settings = get_settings()
-        assert settings.weight_skill == 0.50
-        assert settings.weight_experience == 0.25
-        assert settings.weight_eligibility == 0.15
-        assert settings.weight_location == 0.10
+    def test_each_kind_has_the_weights_decided_on_2026_11_09(self):
+        from app.services.kinds import WEIGHTS
+        assert WEIGHTS["job"] == {"skill": 0.50, "experience": 0.30, "eligibility": 0.10, "location": 0.10}
+        assert WEIGHTS["training"] == {"skill": 0.40, "experience": 0.05, "eligibility": 0.20, "location": 0.35}
+        assert WEIGHTS["scheme"] == {"skill": 0.45, "experience": 0.15, "eligibility": 0.30, "location": 0.10}
 
     def test_perfect_profile_scores_one(self):
         result = score_one(make_profile(), make_scheme())
@@ -75,11 +73,13 @@ class TestWeights:
             make_profile(experience_years=1.0, location="Chennai", district="Chennai"),
             make_scheme(certifications_required=["Trade Certificate"]),
         )
+        w = result.weights  # this scheme's kind's (services/kinds.py)
+        assert abs(sum(w.values()) - 1.0) < 1e-9
         expected = (
-            result.skill_similarity_score * 0.50
-            + result.experience_score * 0.25
-            + result.eligibility_score * 0.15
-            + result.location_score * 0.10
+            result.skill_similarity_score * w["skill"]
+            + result.experience_score * w["experience"]
+            + result.eligibility_score * w["eligibility"]
+            + result.location_score * w["location"]
         )
         assert result.overall_score == pytest.approx(round(expected, 4), abs=1e-4)
 

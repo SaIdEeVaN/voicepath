@@ -23,6 +23,7 @@ import unicodedata
 from dataclasses import dataclass, field
 
 from app.config import get_settings
+from app.services import kinds
 from app.services.embeddings import cosine_similarity
 from app.services.normalization import NormalizedSkill
 from app.services.schemes import NATIONWIDE, Scheme
@@ -64,6 +65,8 @@ class ScoredMatch:
     skill_evidence: bool = False
     # Facts the explanation layer is permitted to draw on. Nothing else.
     grounding: dict[str, object] = field(default_factory=dict)
+    # The weights this score was made with -- its kind's (services/kinds.py).
+    weights: dict[str, float] = field(default_factory=dict)
 
 
 # Which district a town sits in. People say the name of their town -- "Attur",
@@ -507,7 +510,9 @@ def location_score(profile: ProfileInput, scheme: Scheme) -> float:
 
 
 def score_one(profile: ProfileInput, scheme: Scheme) -> ScoredMatch:
-    settings = get_settings()
+    # A job, a course and a scheme weigh the four terms differently
+    # (services/kinds.py, decided 2026-11-09).
+    weights = kinds.weights_for(scheme.kind)
 
     skill, matched = skill_similarity(profile, scheme)
     # Declared requirements, and enough earned against them to mean something.
@@ -519,10 +524,10 @@ def score_one(profile: ProfileInput, scheme: Scheme) -> ScoredMatch:
     location = location_score(profile, scheme)
 
     overall = (
-        skill * settings.weight_skill
-        + experience * settings.weight_experience
-        + eligibility * settings.weight_eligibility
-        + location * settings.weight_location
+        skill * weights["skill"]
+        + experience * weights["experience"]
+        + eligibility * weights["eligibility"]
+        + location * weights["location"]
     )
 
     return ScoredMatch(
@@ -535,6 +540,7 @@ def score_one(profile: ProfileInput, scheme: Scheme) -> ScoredMatch:
         matched_skill_codes=matched,
         skill_evidence=skill_evidence,
         grounding=_grounding(profile, scheme, matched),
+        weights=weights,
     )
 
 

@@ -118,6 +118,8 @@ def scheme_to_summary(scheme: Scheme) -> schemas.SchemeSummary:
         source_reference=scheme.source_reference,
         official_url=scheme.official_url,
         location_names=places.place_names(scheme.location),
+        kind=scheme.kind,
+        details=dict(scheme.details),
     )
 
 

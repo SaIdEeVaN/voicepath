@@ -22,7 +22,7 @@ from pydantic import BaseModel, Field
 
 from app.config import get_settings
 from app.models import schemas
-from app.services import db, pipeline, ratelimit, repository, schemes, taxonomy
+from app.services import db, kinds, pipeline, ratelimit, repository, schemes, taxonomy
 
 logger = logging.getLogger(__name__)
 
@@ -215,6 +215,9 @@ class SchemeWrite(BaseModel):
     description: str | None = Field(default=None, max_length=5000)
     is_active: bool = True
     skill_ids: list[int] = Field(default_factory=list, max_length=200)
+    # Facts of this listing's kind -- the kind follows from ``type``
+    # (services/kinds.py) -- checked by kinds.clean_details before saving.
+    details: dict[str, object] = Field(default_factory=dict, max_length=20)
 
 
 class TaxonomyWrite(BaseModel):
@@ -228,6 +231,15 @@ class TaxonomyWrite(BaseModel):
 # ---------------------------------------------------------------------------
 # Schemes
 # ---------------------------------------------------------------------------
+
+
+def _kind_and_details(payload: SchemeWrite) -> tuple[str, dict[str, object]]:
+    """The kind follows the type; the details must be that kind's, well formed."""
+    kind = kinds.kind_for_type(payload.type)
+    try:
+        return kind, kinds.clean_details(kind, payload.details)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.get("/schemes", response_model=list[schemas.SchemeDetail])
@@ -244,18 +256,19 @@ async def create_scheme(
     _: Annotated[AdminIdentity, Depends(require_role("editor"))],
 ) -> schemas.SchemeDetail:
     _require_database()
+    kind, details = _kind_and_details(payload)
     async with db.transaction() as conn:
         row = await conn.fetchrow(
             "insert into schemes "
             "(title, organization, location, district, type, minimum_experience, "
             " certifications_required, salary_min, salary_max, nsqf_level, "
-            " source_reference, official_url, description, is_active) "
-            "values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) returning id",
+            " source_reference, official_url, description, is_active, kind, details) "
+            "values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16) returning id",
             payload.title, payload.organization, payload.location, payload.district,
             payload.type, payload.minimum_experience, payload.certifications_required,
             payload.salary_min, payload.salary_max, payload.nsqf_level,
             payload.source_reference, payload.official_url, payload.description,
-            payload.is_active,
+            payload.is_active, kind, details,
         )
         for skill_id in payload.skill_ids:
             await conn.execute(
@@ -276,18 +289,19 @@ async def update_scheme(
     _: Annotated[AdminIdentity, Depends(require_role("editor"))],
 ) -> schemas.SchemeDetail:
     _require_database()
+    kind, details = _kind_and_details(payload)
     async with db.transaction() as conn:
         updated = await conn.fetchrow(
             "update schemes set title=$2, organization=$3, location=$4, "
             "district=$5, type=$6, minimum_experience=$7, certifications_required=$8, "
             "salary_min=$9, salary_max=$10, nsqf_level=$11, source_reference=$12, "
-            "official_url=$13, description=$14, is_active=$15 "
+            "official_url=$13, description=$14, is_active=$15, kind=$16, details=$17 "
             "where id=$1 returning id",
             scheme_id, payload.title, payload.organization, payload.location,
             payload.district, payload.type, payload.minimum_experience,
             payload.certifications_required, payload.salary_min, payload.salary_max,
             payload.nsqf_level, payload.source_reference, payload.official_url,
-            payload.description, payload.is_active,
+            payload.description, payload.is_active, kind, details,
         )
         if updated is None:
             raise HTTPException(status_code=404, detail="Not found.")

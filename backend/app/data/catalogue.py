@@ -44,6 +44,9 @@ class SchemeEntry(TypedDict):
     # welding job. "any": one listed trade is enough -- PM Vishwakarma covers
     # eighteen trades and a tailor fits it fully. See matching.skill_similarity.
     skill_match: NotRequired[str]
+    # Kind-specific facts the listing states (services/kinds.py). Filled from
+    # DETAILS below, keyed by source_reference.
+    details: NotRequired[dict[str, object]]
 
 
 TAXONOMY: list[TaxonomyEntry] = [
@@ -886,3 +889,46 @@ def embedding_text(entry: TaxonomyEntry) -> str:
     """
     parts: list[Any] = [entry["name"], entry["category"], *entry["aliases"]]
     return " | ".join(str(p) for p in parts if p)
+
+
+# ---------------------------------------------------------------------------
+# Details each listing states (2026-11-09)
+# ---------------------------------------------------------------------------
+#
+# Only what the listing's own text says, with the words beside each. Fields and
+# shapes are services/kinds.DETAIL_FIELDS; tests/test_kinds.py checks every
+# entry against them, and db/014 writes the same values.
+DETAILS: dict[str, dict[str, object]] = {
+    # "Six-day week."
+    "OGD/TN/SLM/AUTO/2024/0117": {"days_per_week": 6},
+    # "Four-month certificate course ... Monthly stipend of Rs 3,000."
+    "PMAJAY/SKILL/TN/SLM/ITI/2024/0042": {"duration_months": 4, "stipend_monthly": 3000},
+    # "Capital support of up to Rs 2,00,000 ... disbursed in two tranches"
+    "PMAJAY/LIV/TN/SLM/2024/0008": {"benefit_max": 200000, "installments": 2},
+    # "Three-month welding certificate course with a monthly stipend of Rs 2,500."
+    "PMAJAY/SKILL/TN/SLM/ITI/2024/0051": {"duration_months": 3, "stipend_monthly": 2500},
+    # "Operating and minding power looms on a shift basis."
+    "OGD/TN/ERD/TEX/2024/0402": {"shift_work": True},
+    # "Capital support of up to Rs 1,00,000 for setting up a tailoring unit"
+    "PMAJAY/LIV/TN/SLM/2024/0011": {"benefit_max": 100000},
+    # "Two-month course in mobile phone repair with a monthly stipend of Rs 2,000."
+    "PMAJAY/SKILL/TN/SLM/DSC/2024/0027": {"duration_months": 2, "stipend_monthly": 2000},
+    # "Capital support of up to Rs 1,50,000 towards cattle purchase"
+    "PMAJAY/LIV/TN/SLM/2024/0019": {"benefit_max": 150000},
+    # "Collateral free 'Enterprise Development Loans' of upto Rs. 3 lakh in two
+    # tranches" and the enrolment sentence, verbatim.
+    "GOI/PMVISHWAKARMA/2023-09-20": {
+        "benefit_max": 300000,
+        "installments": 2,
+        "how_to_apply": (
+            "Enrolment of beneficiaries shall be done through Common Service Centres "
+            "with Aadhaar-based biometric authentication on PM Vishwakarma portal."
+        ),
+    },
+    # "collateral-free working capital loans of ₹15,000, ₹25,000 and ₹50,000
+    # through progressive loan tranches"
+    "GOI/PMSVANIDHI/2026-05-30": {"benefit_max": 50000, "installments": 3},
+}
+
+for _entry in SCHEMES:
+    _entry.setdefault("details", dict(DETAILS.get(_entry["source_reference"], {})))

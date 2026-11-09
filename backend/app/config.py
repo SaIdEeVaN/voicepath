@@ -160,11 +160,10 @@ class Settings(BaseSettings):
     # Hugging Face token. Needed by embedding_provider=hf_api.
     hf_token: str | None = None
 
-    # -- Matching (PRD section 8; weights are tunable per section 4.4) -------
-    weight_skill: float = 0.50
-    weight_experience: float = 0.25
-    weight_eligibility: float = 0.15
-    weight_location: float = 0.10
+    # -- Matching (PRD section 8) ---------------------------------------------
+    # The weights are per kind since 2026-11-09 -- a job, a course and a scheme
+    # do not ask the same things -- and live in services/kinds.WEIGHTS, where
+    # tests/test_kinds.py checks each set sums to 1.
 
     # Below this cosine similarity a normalized skill is not accepted outright
     # and is surfaced to the user for disambiguation instead (PRD section 4.3).
@@ -234,17 +233,6 @@ class Settings(BaseSettings):
         if self.embedding_provider == "hf_api" and not self.hf_token:
             object.__setattr__(self, "embedding_provider", "offline")
 
-        total = (
-            self.weight_skill
-            + self.weight_experience
-            + self.weight_eligibility
-            + self.weight_location
-        )
-        if abs(total - 1.0) > 1e-6:
-            raise ValueError(
-                f"Matching weights must sum to 1.0, got {total:.4f}. "
-                "See PRD section 8."
-            )
         return self
 
     @property

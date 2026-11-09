@@ -181,6 +181,10 @@ class SchemeSummary(Base):
     # Tamil or Hindi row does not print it in English. Empty when the place is
     # not a town the gazetteer knows -- "All India" among them.
     location_names: dict[str, str] = Field(default_factory=dict)
+    # "job", "training" or "scheme" (services/kinds.py), and the facts of that
+    # kind the listing states: openings, stipend, duration, benefit...
+    kind: Literal["job", "training", "scheme"] = "scheme"
+    details: dict[str, object] = Field(default_factory=dict)
 
 
 class SchemeDetail(SchemeSummary):
@@ -196,6 +200,10 @@ class ScoreBreakdown(Base):
     experience_score: float
     eligibility_score: float
     location_score: float
+    # What each term counted for in this result: its kind's weights
+    # (services/kinds.py). Shown beside the scores so the arithmetic can be
+    # checked.
+    weights: dict[str, float] = Field(default_factory=dict)
 
 
 class MatchResult(Base):

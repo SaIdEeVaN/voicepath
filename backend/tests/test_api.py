@@ -184,8 +184,11 @@ class TestPipeline:
         breakdown = top["breakdown"]
         assert set(breakdown) == {
             "skill_similarity_score", "experience_score",
-            "eligibility_score", "location_score",
+            "eligibility_score", "location_score", "weights",
         }
+        # The weights the score was made with, its kind's (services/kinds.py).
+        assert set(breakdown["weights"]) == {"skill", "experience", "eligibility", "location"}
+        assert abs(sum(breakdown["weights"].values()) - 1.0) < 1e-9
 
     def test_match_without_skills_returns_empty_not_an_error(self, client):
         session_id = self._session(client)

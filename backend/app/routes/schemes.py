@@ -9,7 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.config import get_settings
 from app.models import schemas
-from app.services import explanation, matching, schemes, pipeline, repository
+from app.services import explanation, kinds, matching, schemes, pipeline, repository
 from app.services.ratelimit import default_limit
 
 logger = logging.getLogger(__name__)
@@ -103,6 +103,7 @@ async def match(payload: schemas.MatchRequest) -> schemas.MatchResponse:
                     experience_score=m.experience_score,
                     eligibility_score=m.eligibility_score,
                     location_score=m.location_score,
+                    weights=dict(m.weights),
                 ),
                 explanation_text=explanations[m.scheme.id].summary
                 if m.scheme.id in explanations else None,
@@ -198,6 +199,8 @@ async def get_stored_match(
             experience_score=stored.experience_score,
             eligibility_score=stored.eligibility_score,
             location_score=stored.location_score,
+            # Not stored: they follow from the kind, which is the scheme's.
+            weights=kinds.weights_for(found.kind),
         ),
         explanation_text=text,
         explanation_bullets=bullets,

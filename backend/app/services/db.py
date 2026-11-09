@@ -79,6 +79,8 @@ REQUIRED_SCHEMA: tuple[tuple[str, str | None, str], ...] = (
     ("scheme_documents", "source_url", "009_document_source_url.sql"),
     ("schemes", "skill_match", "010_national_schemes.sql"),
     ("sessions", "key_hash", "013_session_keys.sql"),
+    ("schemes", "kind", "014_scheme_kinds.sql"),
+    ("schemes", "details", "014_scheme_kinds.sql"),
 )
 # How long a schema check is trusted. /health is called often (the site asks
 # every minute while open); the schema changes only when someone migrates.

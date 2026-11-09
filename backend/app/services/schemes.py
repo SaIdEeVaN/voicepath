@@ -14,7 +14,7 @@ import logging
 from dataclasses import dataclass, field
 
 from app.data.catalogue import SCHEMES
-from app.services import db, taxonomy
+from app.services import db, kinds, taxonomy
 
 logger = logging.getLogger(__name__)
 
@@ -59,8 +59,18 @@ class Scheme:
     is_active: bool = True
     required_skills: list[RequiredSkill] = field(default_factory=list)
     # "all": the work needs every listed skill, weighted. "any": one listed
-    # trade is enough (PM Vishwakarma's eighteen). See matching.skill_similarity.
+    # trade is enough (PM Vishwakarma's eighteen). See matching.skill_match.
     skill_match: str = "all"
+    # "job", "training" or "scheme", following from ``type`` (services/kinds.py),
+    # and the details that kind has -- only those the listing states. Left
+    # empty, the kind is worked out from the type, so the two cannot disagree
+    # wherever a Scheme is built.
+    kind: str = ""
+    details: dict = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if not self.kind:
+            self.kind = kinds.kind_for_type(self.type)
 
 
 _memory_cache: list[Scheme] | None = None
@@ -120,6 +130,8 @@ async def _memory_schemes() -> list[Scheme]:
                     description=entry["description"],
                     required_skills=required,
                     skill_match=entry.get("skill_match", "all"),
+                    kind=kinds.kind_for_type(entry["type"]),
+                    details=dict(entry.get("details", {})),
                 )
             )
         _memory_cache = built
@@ -129,7 +141,8 @@ async def _memory_schemes() -> list[Scheme]:
 _SELECT = """
 select id, title, organization, location, district, type, minimum_experience,
        certifications_required, salary_min, salary_max, nsqf_level,
-       source_reference, official_url, description, is_active, skill_match
+       source_reference, official_url, description, is_active, skill_match,
+       kind, details
 from schemes
 """
 
@@ -152,6 +165,8 @@ def _row_to_scheme(row) -> Scheme:
         description=row["description"],
         is_active=row["is_active"],
         skill_match=row["skill_match"] or "all",
+        kind=row["kind"] or kinds.kind_for_type(row["type"]),
+        details=dict(row["details"] or {}),
     )
 
 
