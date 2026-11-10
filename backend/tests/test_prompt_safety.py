@@ -33,7 +33,6 @@ class TestFence:
         assert fenced.count(f"PERSON-{tag}>>>") == 1
 
     def test_invisible_and_direction_characters_are_removed(self):
-        assert promptsafe.clean("wel​ding ‮evil‬\x00 ok") == "welding evil  ok".replace("  ", " ") or True
         cleaned = promptsafe.clean("wel​ding‮\x07 ok")
         assert "​" not in cleaned and "‮" not in cleaned and "\x07" not in cleaned
         assert cleaned.startswith("welding")
