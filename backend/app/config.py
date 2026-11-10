@@ -94,6 +94,21 @@ class Settings(BaseSettings):
     # so it is 0 here: every token budgeted is a token the answer can use.
     # Raise it if you point LLM_MODEL at a reasoning model.
     llm_reasoning_headroom: int = 0
+    # A second Groq model on the same key, for when the first is not
+    # answering (2026-11-10, decided with the owner). Groq counts its
+    # allowance per model -- its own refusal reads "Rate limit reached for
+    # model `qwen/qwen3.8-27b` ... on tokens per day" -- so when the main
+    # model's day is spent this one still has its own. gpt-oss-120b is a
+    # production model on Groq (qwen3.8 is a preview, which Groq may withdraw
+    # at short notice; a 404 falls over too) with 1,000 requests and 200,000
+    # tokens a day of its own. Weaker than the main model at catching a skill
+    # described rather than named (measured, above), much better than the
+    # rule-based answers that are the alternative. It reasons before
+    # answering, so it is asked to keep that short and given room for it.
+    # Empty turns the fallback off. Groq only.
+    llm_fallback_model: str = "openai/gpt-oss-120b"
+    llm_fallback_reasoning_effort: str = "low"
+    llm_fallback_reasoning_headroom: int = 1000
 
     # -- Web search (PRD section 7) ------------------------------------------
     # Finds scheme pages the local corpus does not have. Offline without a key,

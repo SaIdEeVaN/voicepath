@@ -3,7 +3,7 @@
 > **This file is the live todo list.** It is updated every time a task is completed.
 > Start at **To-do** — that is the working checklist. **Next up** carries the
 > detail behind the top items; everything below it is the record of the build.
-> Last updated: 2026-11-05 (tests on every push; skills people described now reach the taxonomy)
+> Last updated: 2026-11-10 (embeddings on the server with e5-small; a second Groq model to fall over to)
 
 **Project root:** `C:\Users\Sai Dixit\voicepath`
 **Sources:** `PRD_File_For_Project.md` (spec) · `VoicePath Mockups.html` (design canvas, unpacked)
@@ -85,9 +85,25 @@ twice is harmless. There is no cost to doing this in the safe order.
       2026-11-04: it now reports the model as degraded, says why and until
       when, and the screens say so. See *Fixed on 2026-11-04 — /health said
       the model was fine while it refused every call*.
-- [ ] **The daily allowance itself is still the ceiling.** Being honest about
-      running out is not the same as not running out: a larger Groq tier, or a
-      second provider to fall over to, is the answer to that.
+- [x] **The daily allowance itself is still the ceiling.** Done 2026-11-10,
+      decided with the owner: a second Groq model on the same key. Groq counts
+      its allowance per model -- its refusal reads "Rate limit reached for
+      model `qwen/qwen3.8-27b` ... on tokens per day" -- so when the main
+      model's day is spent, `openai/gpt-oss-120b` (`LLM_FALLBACK_MODEL`) has
+      its own 1,000 requests and 200,000 tokens. It is also a *production*
+      model on Groq, where qwen3.8 is a preview Groq may withdraw at short
+      notice; a 404 falls over too, as do quota, rate-limit and server
+      errors. A rejected key or no connection does not (it would fail the
+      same way). A model known to be out is skipped until Groq said it would
+      be back, so a spent day costs one refused request, not one per
+      question. The fallback reasons before answering, so it is asked for
+      `reasoning_effort: low` and given 1,000 tokens of room for it.
+      `/health` stays `ok` while the fallback answers, and says so
+      (`llm.model`, `llm.main_model`, `llm.main_back`); it is degraded only
+      when both are out. Weaker than qwen at a skill described rather than
+      named (measured when qwen was chosen), much better than the rule-based
+      answers. If Groq itself is down, nothing on the same key helps -- a
+      second provider would. `tests/test_llm_fallback.py`.
 
 - [x] **Two live schemes had no required skills** — fixed 2026-09-12.
       `Pharma Business` now requires Retail Sales, `Plumbing Works` requires

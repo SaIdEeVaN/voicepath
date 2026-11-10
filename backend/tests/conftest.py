@@ -40,6 +40,9 @@ os.environ.update(
 # as unset.
 os.environ["DATABASE_URL"] = ""
 os.environ["LLM_API_KEY"] = ""
+# One model unless a test asks for the fallback (tests/test_llm_fallback.py):
+# the tests that script Groq's replies one by one count on one request each.
+os.environ["LLM_FALLBACK_MODEL"] = ""
 # Same reasoning, and the same trap: Settings reads `.env`, so without pinning
 # this the admin tests run against whatever bootstrap token the developer has
 # configured -- a real production credential on a machine that has one, and
