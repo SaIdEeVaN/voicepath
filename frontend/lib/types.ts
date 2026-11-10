@@ -102,6 +102,10 @@ export interface SchemeSummary {
   official_url: string | null;
   /** The town in each script the gazetteer holds. Absent for "All India". */
   location_names?: Record<string, string>;
+  /** Job, training or scheme (backend/app/services/kinds.py). */
+  kind?: "job" | "training" | "scheme";
+  /** Facts of that kind the listing states: stipend, duration, benefit... */
+  details?: Record<string, string | number | boolean>;
 }
 
 export interface SchemeDetail extends SchemeSummary {
@@ -116,6 +120,8 @@ export interface ScoreBreakdown {
   experience_score: number;
   eligibility_score: number;
   location_score: number;
+  /** What each term counted for in this result -- its kind's weights. */
+  weights?: { skill: number; experience: number; eligibility: number; location: number };
 }
 
 export interface MatchResult {

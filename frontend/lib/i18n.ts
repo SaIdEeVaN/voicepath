@@ -164,7 +164,15 @@ export interface Copy {
   skillScore: string;
   skillCode: string;
   skillHeardAs: string;
+  /** `{skill}` `{experience}` `{eligibility}` `{place}` are the percentages. */
   weightsLabel: string;
+  /** The kind of listing (2026-11-09). */
+  kindNames: Record<string, string>;
+  /** Details a listing states; `{n}` is replaced. */
+  detailLabels: Record<string, string>;
+  detailYes: string;
+  detailNo: string;
+  detailsTitle: string;
   schemeTypes: Record<string, string>;
   /** Taxonomy categories. A skill card shows one next to its code. */
   skillCategories: Record<string, string>;
@@ -447,7 +455,27 @@ const en: Copy = {
   skillScore: "Match score {score} — {threshold} needed to accept it on its own",
   skillCode: "Skill code",
   skillHeardAs: "Heard as",
-  weightsLabel: "Weights: skill 50% · experience 25% · eligibility 15% · place 10%",
+  weightsLabel: "Weights for this kind: skill {skill}% · experience {experience}% · eligibility {eligibility}% · place {place}%",
+  kindNames: { job: "Job", training: "Training", scheme: "Scheme" },
+  detailsTitle: "What it says",
+  detailYes: "Yes",
+  detailNo: "No",
+  detailLabels: {
+    openings: "Openings",
+    apply_by: "Apply by",
+    days_per_week: "Days a week",
+    shift_work: "Shift work",
+    duration_months: "Lasts (months)",
+    stipend_monthly: "Stipend a month (₹)",
+    course_fee: "Course fee (₹)",
+    next_batch: "Next batch",
+    mode: "Where",
+    in_person: "In person",
+    online: "Online",
+    benefit_max: "Up to (₹)",
+    installments: "Paid in parts",
+    how_to_apply: "How to apply",
+  },
   schemeTypes: {
     "Full-time": "Full-time",
     "Part-time": "Part-time",
@@ -727,7 +755,27 @@ const ta: Copy = {
   skillScore: "பொருத்த மதிப்பெண் {score} — தானாக ஏற்க {threshold} தேவை",
   skillCode: "திறன் குறியீடு",
   skillHeardAs: "கேட்டது",
-  weightsLabel: "எடை: திறமை 50% · அனுபவம் 25% · தகுதி 15% · இடம் 10%",
+  weightsLabel: "இந்த வகைக்கான எடை: திறமை {skill}% · அனுபவம் {experience}% · தகுதி {eligibility}% · இடம் {place}%",
+  kindNames: { job: "வேலை", training: "பயிற்சி", scheme: "திட்டம்" },
+  detailsTitle: "இதில் சொல்லப்பட்டவை",
+  detailYes: "ஆம்",
+  detailNo: "இல்லை",
+  detailLabels: {
+    openings: "காலியிடங்கள்",
+    apply_by: "விண்ணப்பிக்க கடைசி நாள்",
+    days_per_week: "வாரத்தில் நாட்கள்",
+    shift_work: "ஷிப்ட் வேலை",
+    duration_months: "எத்தனை மாதம்",
+    stipend_monthly: "மாத உதவித்தொகை (₹)",
+    course_fee: "படிப்புக் கட்டணம் (₹)",
+    next_batch: "அடுத்த வகுப்பு",
+    mode: "எங்கே",
+    in_person: "நேரில்",
+    online: "இணையத்தில்",
+    benefit_max: "அதிகபட்சம் (₹)",
+    installments: "எத்தனை தவணை",
+    how_to_apply: "எப்படி விண்ணப்பிப்பது",
+  },
   schemeTypes: {
     "Full-time": "முழு நேரம்",
     "Part-time": "பகுதி நேரம்",
@@ -1005,7 +1053,27 @@ const hi: Copy = {
   skillScore: "मिलान स्कोर {score} — अपने आप स्वीकार के लिए {threshold} चाहिए",
   skillCode: "कौशल कोड",
   skillHeardAs: "सुना गया",
-  weightsLabel: "भार: कौशल 50% · अनुभव 25% · पात्रता 15% · जगह 10%",
+  weightsLabel: "इस तरह के लिए भार: कौशल {skill}% · अनुभव {experience}% · पात्रता {eligibility}% · जगह {place}%",
+  kindNames: { job: "नौकरी", training: "प्रशिक्षण", scheme: "योजना" },
+  detailsTitle: "इसमें लिखा है",
+  detailYes: "हाँ",
+  detailNo: "नहीं",
+  detailLabels: {
+    openings: "पद",
+    apply_by: "आवेदन की आखिरी तारीख",
+    days_per_week: "हफ़्ते में दिन",
+    shift_work: "शिफ़्ट में काम",
+    duration_months: "कितने महीने",
+    stipend_monthly: "महीने का वजीफ़ा (₹)",
+    course_fee: "कोर्स की फ़ीस (₹)",
+    next_batch: "अगला बैच",
+    mode: "कहाँ",
+    in_person: "सामने बैठकर",
+    online: "ऑनलाइन",
+    benefit_max: "अधिकतम (₹)",
+    installments: "कितनी किस्तों में",
+    how_to_apply: "आवेदन कैसे करें",
+  },
   schemeTypes: {
     "Full-time": "पूरा समय",
     "Part-time": "आंशिक समय",
@@ -1223,4 +1291,39 @@ export function payLabel(
   if (high) return copy.payUpTo.replace("{amount}", high.toLocaleString("en-IN"));
   if (low) return copy.payFrom.replace("{amount}", low.toLocaleString("en-IN"));
   return "—";
+}
+
+/** A listing's stated details as label/value pairs, in the reader's language. */
+export function detailRows(
+  details: Record<string, string | number | boolean> | undefined,
+  language: Language,
+): { key: string; label: string; value: string }[] {
+  const copy = copyFor(language);
+  const order = Object.keys(copy.detailLabels);
+  return Object.entries(details ?? {})
+    .filter(([key]) => key in copy.detailLabels)
+    .sort(([a], [b]) => order.indexOf(a) - order.indexOf(b))
+    .map(([key, value]) => ({
+      key,
+      label: copy.detailLabels[key] ?? key,
+      value:
+        typeof value === "boolean"
+          ? value ? copy.detailYes : copy.detailNo
+          : typeof value === "number"
+            ? value.toLocaleString("en-IN")
+            : copy.detailLabels[String(value)] ?? String(value),
+    }));
+}
+
+/** The weights line with a result's own numbers in it. */
+export function weightsText(
+  weights: { skill: number; experience: number; eligibility: number; location: number },
+  language: Language,
+): string {
+  const pct = (n: number) => String(Math.round(n * 100));
+  return copyFor(language)
+    .weightsLabel.replace("{skill}", pct(weights.skill))
+    .replace("{experience}", pct(weights.experience))
+    .replace("{eligibility}", pct(weights.eligibility))
+    .replace("{place}", pct(weights.location));
 }

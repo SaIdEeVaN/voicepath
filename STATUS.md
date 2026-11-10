@@ -103,15 +103,20 @@ twice is harmless. There is no cost to doing this in the safe order.
       "வெள்ளி" (silver) is deliberately not mapped to welding: silver work is
       a real trade. Not yet measured on real Tamil audio; if welding still
       comes back as silver, try (1), IndicWav2Vec. `tests/test_tamil_speech.py`.
-- [ ] **Jobs and Training as their own entities.** `voice_condensed.md` §12–§13
-      describe three data models; everything is a `scheme` with a `type` column,
-      so the All/Jobs/Schemes/Training filter has nothing to filter on. Touches
-      `db/` (two tables + migration), `models/schemas.py`, `services/`,
-      `routes/`, the admin dashboard and `matching.py` — the per-type scoring
-      weights are the part to think about. Half a day or more.
-
-### Next — cheap wins that make the build look finished
-
+- [x] **Jobs and Training as their own entities.** Done 2026-11-09/10, decided
+      with the owner: one table, a `kind` that follows from the type, `details`
+      holding only what each listing states (training: duration, stipend, fee,
+      next batch; job: openings, apply-by, days, shifts; scheme: benefit,
+      parts, how to apply), and weights per kind (job: skill 50 / experience
+      30 / eligibility 10 / place 10; training: 40 / 5 / 20 / 35; scheme:
+      45 / 15 / 30 / 10) in `services/kinds.py`. `db/014` applied to
+      production (10 jobs, 9 training, 8 schemes; details on the 10 listings
+      that state them). Listings carry kind and details, each result the
+      weights it was scored with; the scheme page shows the details and its
+      own weights in three languages; the admin form takes the kind's fields
+      and rejects another kind's. `voice_condensed.md` is not in the repo, so
+      the fields follow what the listings say, not that spec. Ranking order
+      changed with the weights. `tests/test_kinds.py`.
 - [x] **Admin overview metrics** (§18) — done 2026-09-12. `GET
       /api/admin/overview` behind a stat row on `app/admin/page.tsx`.
 - [x] **Filters on the scheme list** (§17): kind, where and skill done 2026-11-05

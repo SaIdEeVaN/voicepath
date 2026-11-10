@@ -17,7 +17,7 @@ import { useRouter } from "next/navigation";
 import { AskVoicePath } from "@/components/AskVoicePath";
 import { DegradedNote, ErrorNote } from "@/components/Notices";
 import { ApiError, api } from "@/lib/api";
-import { copyFor, payLabel, placeLabel, typeLabel } from "@/lib/i18n";
+import { copyFor, detailRows, payLabel, placeLabel, typeLabel, weightsText } from "@/lib/i18n";
 import { useSession } from "@/lib/session";
 import type { MatchResult, SchemeDetail } from "@/lib/types";
 import { fromError, problemText, type Problem } from "@/lib/problems";
@@ -76,14 +76,22 @@ export function SchemeView({
     };
   }, [hydrated, sessionId, matches, matchesLanguage, scheme.id, language]);
 
+  // This result's own weights: a job, a course and a scheme weigh the four
+  // terms differently (backend/app/services/kinds.py). The fallback is the
+  // single set used before 2026-11-09, for a response without them.
+  const weights = match?.breakdown.weights ?? {
+    skill: 0.5, experience: 0.25, eligibility: 0.15, location: 0.1,
+  };
+  const pct = (n: number) => Math.round(n * 100);
+  const details = detailRows(scheme.details, language);
   const bars = match
     ? [
         // Weights mirror the server's WEIGHT_* settings. Shown so the total
         // is a sum a person can check, rather than a number to be trusted.
-        { label: copy.barSkills, value: match.breakdown.skill_similarity_score, weight: 50 },
-        { label: copy.barExperience, value: match.breakdown.experience_score, weight: 25 },
-        { label: copy.barRequirements, value: match.breakdown.eligibility_score, weight: 15 },
-        { label: copy.barDistance, value: match.breakdown.location_score, weight: 10 },
+        { label: copy.barSkills, value: match.breakdown.skill_similarity_score, weight: pct(weights.skill) },
+        { label: copy.barExperience, value: match.breakdown.experience_score, weight: pct(weights.experience) },
+        { label: copy.barRequirements, value: match.breakdown.eligibility_score, weight: pct(weights.eligibility) },
+        { label: copy.barDistance, value: match.breakdown.location_score, weight: pct(weights.location) },
       ]
     : [];
 
@@ -119,9 +127,30 @@ export function SchemeView({
             {[
               scheme.organization,
               placeLabel(scheme.location, language, scheme.location_names),
+              // The kind, only where it adds to the type ("Job" over "Full-time"):
+              // "Training · Training" says nothing twice.
+              scheme.kind && copy.kindNames[scheme.kind] !== typeLabel(scheme.type, language)
+                ? copy.kindNames[scheme.kind]
+                : null,
               typeLabel(scheme.type, language),
-            ].join(" · ")}
+            ].filter(Boolean).join(" · ")}
           </p>
+
+          {/* Only what the listing itself states -- nothing is filled in. */}
+          {details.length > 0 && (
+            <dl
+              className="mt-5 grid max-w-[34em] grid-cols-[auto_1fr] gap-x-5 gap-y-2 text-[14.5px]"
+              aria-label={copy.detailsTitle}
+              lang={language}
+            >
+              {details.map((row) => (
+                <div key={row.key} className="contents">
+                  <dt style={{ color: "var(--ink-55)" }}>{row.label}</dt>
+                  <dd className="min-w-0 break-words">{row.value}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
 
           <div
             className="mt-7 flex flex-col gap-5 rounded-[16px] p-7"
@@ -178,7 +207,7 @@ export function SchemeView({
                       <span
                         className="font-mono w-11 flex-none text-right text-[12px]"
                         style={{ color: "var(--ink-38)" }}
-                        title={copy.weightsLabel}
+                        title={weightsText(weights, language)}
                       >
                         ×{bar.weight}%
                       </span>
@@ -191,7 +220,7 @@ export function SchemeView({
                   style={{ color: "var(--ink-38)" }}
                   lang={language}
                 >
-                  {copy.weightsLabel}
+                  {weightsText(weights, language)}
                 </p>
 
                 <ul className="flex flex-col gap-2.5 pt-1">

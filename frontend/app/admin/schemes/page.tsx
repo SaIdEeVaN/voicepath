@@ -26,6 +26,39 @@ const TYPES = [
   "Self-employment support",
 ] as const;
 
+/**
+ * The facts a listing of each kind can state (backend/app/services/kinds.py).
+ * The kind follows from the type; only what the listing itself says should be
+ * filled in -- an empty field is left out, never guessed.
+ */
+type DetailShape = "int" | "number" | "date" | "bool" | "text" | "in_person|online";
+const DETAIL_FIELDS: Record<string, { name: string; label: string; shape: DetailShape }[]> = {
+  job: [
+    { name: "openings", label: "Openings", shape: "int" },
+    { name: "apply_by", label: "Apply by (YYYY-MM-DD)", shape: "date" },
+    { name: "days_per_week", label: "Days a week", shape: "int" },
+    { name: "shift_work", label: "Shift work", shape: "bool" },
+  ],
+  training: [
+    { name: "duration_months", label: "Lasts (months)", shape: "number" },
+    { name: "stipend_monthly", label: "Stipend a month (₹)", shape: "int" },
+    { name: "course_fee", label: "Course fee (₹, 0 = free)", shape: "int" },
+    { name: "next_batch", label: "Next batch (YYYY-MM-DD)", shape: "date" },
+    { name: "mode", label: "Where", shape: "in_person|online" },
+  ],
+  scheme: [
+    { name: "benefit_max", label: "Gives up to (₹)", shape: "int" },
+    { name: "installments", label: "Paid in this many parts", shape: "int" },
+    { name: "how_to_apply", label: "How to apply (quote the official source)", shape: "text" },
+  ],
+};
+
+function kindOfType(type: string): "job" | "training" | "scheme" {
+  if (type === "Full-time" || type === "Part-time") return "job";
+  if (type === "Training" || type === "Apprenticeship") return "training";
+  return "scheme";
+}
+
 interface FormState {
   title: string;
   organization: string;
@@ -40,6 +73,8 @@ interface FormState {
   official_url: string;
   description: string;
   is_active: boolean;
+  /** Details by name, as typed; converted by toPayload for the chosen kind. */
+  details: Record<string, string>;
   /**
    * The taxonomy skills this scheme needs, by id.
    *
@@ -66,6 +101,7 @@ const EMPTY: FormState = {
   official_url: "",
   description: "",
   is_active: true,
+  details: {},
   skill_ids: [],
 };
 
@@ -86,6 +122,9 @@ function toForm(scheme: SchemeDetail): FormState {
     // Carried through, not assumed: editing a deactivated scheme must not
     // quietly put it back in front of people.
     is_active: scheme.is_active ?? true,
+    details: Object.fromEntries(
+      Object.entries(scheme.details ?? {}).map(([k, v]) => [k, String(v)]),
+    ),
     // Likewise: editing a scheme's pay must not silently strip the skills it
     // is matched on. `required_skills` comes back on the detail record.
     skill_ids: (scheme.required_skills ?? []).map((s) => s.id),
@@ -112,8 +151,22 @@ function toPayload(form: FormState) {
     official_url: text(form.official_url),
     description: text(form.description),
     is_active: form.is_active,
+    details: detailsPayload(form),
     skill_ids: form.skill_ids,
   };
+}
+
+/** Only this kind's fields, typed as the API wants them; blanks left out. */
+function detailsPayload(form: FormState): Record<string, string | number | boolean> {
+  const out: Record<string, string | number | boolean> = {};
+  for (const field of DETAIL_FIELDS[kindOfType(form.type)] ?? []) {
+    const raw = (form.details[field.name] ?? "").trim();
+    if (raw === "") continue;
+    if (field.shape === "int" || field.shape === "number") out[field.name] = Number(raw);
+    else if (field.shape === "bool") out[field.name] = raw === "true";
+    else out[field.name] = raw;
+  }
+  return out;
 }
 
 export default function AdminSchemesPage() {
@@ -388,7 +441,7 @@ function SchemeForm({
   onCancel(): void;
   onSave(): void;
 }) {
-  const set = (key: keyof FormState, value: string | boolean | number[]) =>
+  const set = (key: keyof FormState, value: string | boolean | number[] | Record<string, string>) =>
     onChange({ ...form, [key]: value });
 
   // Mirrors the server's pattern check, so a typo is caught while the person
@@ -473,6 +526,51 @@ function SchemeForm({
           onChange={(v) => set("source_reference", v)}
         />
       </div>
+
+      <fieldset className="flex flex-col gap-3">
+        <legend className="text-[12px]" style={{ color: "var(--ink-55)" }}>
+          Details a {kindOfType(form.type)} states — leave blank what the listing does not say
+        </legend>
+        <div className="grid gap-4 sm:grid-cols-2">
+          {(DETAIL_FIELDS[kindOfType(form.type)] ?? []).map((field) =>
+            field.shape === "bool" || field.shape === "in_person|online" ? (
+              <label key={field.name} className="flex flex-col gap-1.5">
+                <span className="text-[12px]" style={{ color: "var(--ink-55)" }}>
+                  {field.label}
+                </span>
+                <select
+                  value={form.details[field.name] ?? ""}
+                  onChange={(event) =>
+                    set("details", { ...form.details, [field.name]: event.target.value })
+                  }
+                  className="rounded-lg px-3 py-2 text-sm"
+                  style={{ background: "var(--ink-04)", border: "1px solid var(--ink-09)" }}
+                >
+                  <option value="">Not stated</option>
+                  {field.shape === "bool" ? (
+                    <>
+                      <option value="true">Yes</option>
+                      <option value="false">No</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="in_person">In person</option>
+                      <option value="online">Online</option>
+                    </>
+                  )}
+                </select>
+              </label>
+            ) : (
+              <Field
+                key={field.name}
+                label={field.label}
+                value={form.details[field.name] ?? ""}
+                onChange={(v) => set("details", { ...form.details, [field.name]: v })}
+              />
+            ),
+          )}
+        </div>
+      </fieldset>
 
       <SkillPicker
         token={token}
