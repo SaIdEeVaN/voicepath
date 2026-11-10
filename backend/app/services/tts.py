@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import gc
 import io
 import logging
 import threading
@@ -89,15 +90,37 @@ def has_voice(language: str | None) -> bool:
     return voice_path(language).is_file()
 
 
-# Loading a voice reads a 63 MB ONNX graph, so each is loaded once and kept.
+# Loading a voice reads a 63 MB ONNX graph, so each is loaded once and kept --
+# up to tts_max_resident_voices of them (see config.py for why that exists).
+# Resident voices, least recently used first (the order of the dict).
 _voices: dict[str, object] = {}
 _voice_lock = threading.Lock()
+
+
+def _release_for(language: str) -> None:
+    """Make room for one more voice: drop the least recently used past the cap.
+
+    Called with the voice lock held. A voice another thread is speaking with
+    stays alive until that thread is done with it; only the cache lets go.
+    """
+    cap = get_settings().tts_max_resident_voices
+    if cap <= 0:
+        return
+    released = False
+    while len(_voices) >= cap:
+        oldest = next(iter(_voices))
+        del _voices[oldest]
+        released = True
+        logger.info("Released the %s voice to stay inside memory", oldest)
+    if released:
+        gc.collect()
 
 
 def _load_voice(language: str):
     with _voice_lock:
         cached = _voices.get(language)
         if cached is not None:
+            _voices[language] = _voices.pop(language)  # now the most recent
             return cached
         try:
             from piper import PiperVoice
@@ -111,6 +134,7 @@ def _load_voice(language: str):
         if not path.is_file():
             raise TTSUnavailable(f"No Piper voice for '{language}' at {path}")
 
+        _release_for(language)
         logger.info("Loading Piper voice %s", path.name)
         voice = PiperVoice.load(str(path))
         _voices[language] = voice

@@ -13,13 +13,15 @@
 #               itself, through the onnxruntime Piper already needs. Until
 #               2026-11-04 this was e5-base through the Hugging Face Inference
 #               API, which then ran out of credits.
-#   Memory      A voice is ~105 MB of heap and e5-small ~180 MB, and together
-#               they killed a 512 MB container (2026-11-10: oomKilled, three
-#               times in three minutes). The build now moves every model's
+#   Memory      A voice is ~105 MB resident once it has spoken, e5-small ~250
+#               MB, and the 512 MB container holds the embedder plus ONE
+#               voice (~430 MB). Render killed it (oomKilled) at 11:50-11:52
+#               and again at 12:33 on 2026-11-10. The build moves each model's
 #               weights into a file the server maps (scripts/map_weights.py,
-#               which is what `onnx` below is for): heap with all three voices
-#               and the embedder drops from 647 MB to 324 MB, and the rest is
-#               file pages the kernel can take back.
+#               which is what `onnx` below is for) -- that avoids holding
+#               every weight twice while loading, and it halves the heap, but
+#               Render counts mapped pages once they are touched, so it is not
+#               what makes it fit. What does: TTS_MAX_RESIDENT_VOICES=1.
 #   Speech      STT_PROVIDER=groq. Already the default; the local Whisper path
 #               was 32.5s on a 5.8s clip on a CPU and unusable anyway.
 #

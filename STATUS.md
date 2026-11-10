@@ -206,8 +206,32 @@ twice is harmless. There is no cost to doing this in the safe order.
            reporting `out_of_memory` and carrying on without embeddings,
            rather than crash-looping the whole API again. Unreadable cgroup
            (a laptop, CI) means "load as before".
-        The three voices are still cached once loaded and never released; the
-        mapped weights make that cheap, which is the point.
+        **That was not enough, and the claim above was wrong.** With both in
+        place I turned the embedder back on (12:18) and it refilled with no
+        trouble, then loaded all three voices as a worst-case test (12:32).
+        Render's memory graph climbed 489 → 507 → 529 MB and the server was
+        killed again at 12:33:35 (`oomKilled`), restarted in 25 seconds, and
+        finished the refill. So Render counts a mapped file's pages once the
+        model has touched them (a model touches all its weights): the heap
+        halved (324 MB) but the resident total barely moved (631 MB against
+        692 MB on the replica), and 631 is over 512. I had read "reclaimable"
+        as "not counted"; it is not counted by the kernel's reclaim, but it is
+        counted by Render. Measured on the replica and matching Render's
+        graph: base ~70 MB + embedder ~250 MB + one voice ~100 MB = ~430 MB.
+        Each further voice is ~105 MB. **A 512 MB container holds the embedder
+        and one voice, not three.**
+        3. `tts_max_resident_voices` (set to 1 on Render): the least recently
+           used voice is released when another is needed. Language switches
+           then cost a reload of the voice (1.5 s on the replica; expect
+           several seconds on 0.15 of a CPU: the first Tamil load took 18 s).
+           Cycled through the languages on the replica, resident memory held
+           at ~425 MB against 631 MB uncapped. `/health` now reports
+           `memory` (limit, heap, working set) so this can be watched.
+        Options to give the voices back their room, for the owner to choose:
+        trim the embedder's 250,000-word vocabulary to the scripts this
+        product serves (~-80 MB, two voices then fit; vectors for covered text
+        unchanged), move embeddings to a hosted API (no memory, needs a key),
+        or a larger Render plan.
       * **One text per pass.** The int8 model scales its activations per call,
         so a text batched with others came out up to 0.0075 cosine away from
         the same text alone; alone it is identical every time, and faster

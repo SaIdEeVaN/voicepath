@@ -76,6 +76,15 @@ class Settings(BaseSettings):
     # most of this product's users speak. Warming all three would hold ~190 MB
     # on a 512 MB container.
     tts_warm_languages: str = "ta"
+    # How many voices may stay loaded at once; the least recently used is
+    # released when another is needed. 0 is no limit. Each voice is ~105 MB of
+    # resident memory once it has spoken, and with the embedding model also
+    # resident (~250 MB) a 512 MB container holds ONE: Render killed the
+    # server (oomKilled) on 2026-11-10 at 12:33, 40 seconds after Tamil, Hindi
+    # and English had all been spoken. Set to 1 on a 512 MB tier that runs the
+    # embedder; switching language then costs a reload of the voice. Without
+    # the embedder three fit and 0 is right.
+    tts_max_resident_voices: int = 0
 
     # -- LLM ----------------------------------------------------------------
     # Groq hosting open-weight models. The weights are open source; the hosting

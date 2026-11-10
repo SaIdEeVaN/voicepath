@@ -376,6 +376,8 @@ class HealthResponse(Base):
     # "llm" is in `degraded` both when it is offline by configuration and
     # while it is not answering; this says which, and until when.
     llm: dict[str, str] = Field(default_factory=dict)
+    # Container memory in MB, from its cgroup; values are None where unreadable.
+    memory: dict[str, float | None] = Field(default_factory=dict)
     # The same for the embedder: "ok", "offline", or why it is not answering
     # ("payment_required" when the hosted API's credits are spent).
     embeddings: dict[str, str] = Field(default_factory=dict)

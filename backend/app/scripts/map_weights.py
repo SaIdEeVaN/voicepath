@@ -11,9 +11,15 @@ memory is short, where heap memory is not.
 
 Why (2026-11-10): the container has 512 MB, and the models together did not
 fit as heap -- each Piper voice holds ~105 MB resident and the embedding model
-~180 MB, so Tamil + Hindi + English voices and the embedder came to 690 MB and
-Render killed the process (``oomKilled``), over and over, at startup. Mapped,
-the unreclaimable part is a fraction of that (see STATUS.md for the figures).
+~180 MB. Mapped, the heap is about half (647 MB -> 324 MB with all three voices
+and the embedder), and no weight is held twice while a model loads.
+
+What it does NOT do, found the hard way: Render's memory limit counts a mapped
+file's pages once the model has touched them, and a model touches all its
+weights, so the resident total barely moves (631 MB against 692 MB). The server
+was killed at 12:33 UTC with everything mapped. What keeps it inside 512 MB is
+holding one voice at a time (tts_max_resident_voices); this script is part of
+that, not a substitute for it.
 
 Nothing about the model changes: the same bytes, the same arithmetic. The
 build checks it -- ``tests/test_map_weights.py`` compares the outputs before
