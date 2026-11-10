@@ -102,10 +102,21 @@ def main() -> int:
     logger.info("Voices are in %s", dest.resolve())
 
     # The deploy's build command runs this script and nothing else, so the
-    # embedding model (2026-11-10) is fetched from here too.
-    from app.scripts import fetch_embedding_model
+    # embedding model (2026-11-10) is fetched from here too, and then every
+    # model's weights are moved to a file the server maps instead of loading:
+    # a voice is ~105 MB of heap and the embedder ~180, and together they did
+    # not fit in 512 MB (see scripts/map_weights.py).
+    from pathlib import Path as _Path
 
-    return fetch_embedding_model.main()
+    from app.scripts import fetch_embedding_model, map_weights
+
+    code = fetch_embedding_model.main()
+    if code:
+        return code
+    models = sorted(dest.glob("*.onnx")) + [
+        _Path(get_settings().embedding_model_dir) / fetch_embedding_model.FILES[0][1]
+    ]
+    return map_weights.main([str(m) for m in models])
 
 
 if __name__ == "__main__":

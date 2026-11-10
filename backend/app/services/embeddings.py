@@ -108,6 +108,12 @@ def _load_local_model() -> Any:
 ONNX_FILE = "model_quantized.onnx"
 SENTENCEPIECE_FILE = "sentencepiece.bpe.model"
 
+# Heap the model needs on top of what is in use: its tokenizer (~55 MB), the
+# layers' weights and activations (~90 MB, with the embedding table mapped),
+# and room to work. Measured 2026-11-10; see services/memory.py for why the
+# check exists.
+ONNX_NEEDS_MB = 200
+
 # XLM-RoBERTa's special ids. sentencepiece numbers its pieces from <unk>=0,
 # <s>=1, </s>=2; the model was trained with fairseq's numbering, which puts
 # <s>=0, <pad>=1, </s>=2, <unk>=3 first and shifts every other piece up by
@@ -133,6 +139,17 @@ def _load_onnx() -> tuple[Any, Any, frozenset[str]]:
     with _model_lock:
         if _onnx is not None:
             return _onnx
+        from app.services import memory
+
+        left = memory.headroom_mb()
+        if left is not None and left < ONNX_NEEDS_MB:
+            # Loading it anyway is how the server was OOM-killed on 2026-11-10.
+            _note_failure("out_of_memory")
+            raise EmbeddingUnavailable(
+                f"Not enough memory for the embedding model: {left:.0f} MB left, "
+                f"it needs about {ONNX_NEEDS_MB} MB"
+            )
+
         import onnxruntime
         import sentencepiece
 

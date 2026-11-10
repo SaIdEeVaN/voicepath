@@ -5,15 +5,21 @@
 #   torch + transformers      642MB    dropped
 #   ctranslate2 + whisper      64MB    dropped (STT_PROVIDER=groq)
 #   piper + onnxruntime + voices  273MB  kept
-#   sentencepiece + e5-small  ~130MB  added 2026-11-10
+#   sentencepiece + e5-small  ~130MB  added 2026-11-10 (weights mapped, below)
 #
 # What that costs, and how it is paid:
 #
 #   Embeddings  EMBEDDING_PROVIDER=onnx runs multilingual-e5-small in the API
-#               itself, through the onnxruntime Piper already needs. Measured
-#               ~205MB resident once loaded. Until 2026-11-04 this was e5-base
-#               through the Hugging Face Inference API, which then ran out of
-#               credits; e5-base itself would not fit (~390MB).
+#               itself, through the onnxruntime Piper already needs. Until
+#               2026-11-04 this was e5-base through the Hugging Face Inference
+#               API, which then ran out of credits.
+#   Memory      A voice is ~105 MB of heap and e5-small ~180 MB, and together
+#               they killed a 512 MB container (2026-11-10: oomKilled, three
+#               times in three minutes). The build now moves every model's
+#               weights into a file the server maps (scripts/map_weights.py,
+#               which is what `onnx` below is for): heap with all three voices
+#               and the embedder drops from 647 MB to 324 MB, and the rest is
+#               file pages the kernel can take back.
 #   Speech      STT_PROVIDER=groq. Already the default; the local Whisper path
 #               was 32.5s on a 5.8s clip on a CPU and unusable anyway.
 #
@@ -33,3 +39,7 @@ piper-tts==1.8.0
 # asks for), tokenised by sentencepiece. Apache-2.0 and MIT.
 onnxruntime>=1,<2
 sentencepiece==0.2.2
+
+# Build time only: scripts/map_weights.py moves each model's weights to a file
+# the server maps instead of loading. The running API never imports it.
+onnx==1.23.2

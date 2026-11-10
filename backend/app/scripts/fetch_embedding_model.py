@@ -11,7 +11,8 @@ Each file is pinned twice over: to one commit of its repository, and to the
 SHA-256 Hugging Face publishes for it. A file that does not match is deleted
 and the build fails -- the running version stays live -- rather than serving
 vectors from a model nobody chose. Already-present files that match are left
-alone, so this is safe to re-run.
+alone, so this is safe to re-run. The build then maps the weights
+(scripts/map_weights), which changes the model file's hash after the check.
 
 Licences: multilingual-e5-small is MIT (intfloat). The ONNX export is
 Xenova's conversion of it; the tokenizer file is intfloat's own.
@@ -26,6 +27,7 @@ import time
 from pathlib import Path
 
 from app.config import get_settings
+from app.scripts import map_weights
 from app.scripts.fetch_voices import ATTEMPTS, _download
 
 logger = logging.getLogger("fetch_embedding_model")
@@ -62,6 +64,11 @@ def main() -> int:
         target = dest / name
         if target.is_file() and _sha256(target) == expected:
             logger.info("%s already present", name)
+            continue
+        if map_weights.looks_mapped(target):
+            # Verified when it was fetched, then converted (scripts/map_weights):
+            # its hash is no longer the pinned one, by design.
+            logger.info("%s already present (weights mapped)", name)
             continue
         for attempt in range(1, ATTEMPTS + 1):
             try:

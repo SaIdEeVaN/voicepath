@@ -174,18 +174,40 @@ twice is harmless. There is no cost to doing this in the safe order.
 ### Embeddings — on the server, no credits needed
 
 - [~] **The Hugging Face Inference API is out of credits** (402 Payment
-      Required since 2026-11-04). Replaced 2026-11-10, decided with the
-      owner: the API runs `multilingual-e5-small` itself -- int8 ONNX on the
+      Required since 2026-11-04). Being replaced 2026-11-10 (live once the
+      memory fix below is deployed and `EMBEDDING_PROVIDER` is back to `onnx`;
+      it is `offline` in production meanwhile), decided with the owner: the API runs `multilingual-e5-small` itself -- int8 ONNX on the
       onnxruntime Piper already brings, tokenised by sentencepiece, no key,
       nothing to run out of. Done; needs `db/015_small_embeddings.sql`
       applied in production, after which the API refills every vector itself.
-      * **Memory.** Measured ~205 MB once loaded (model 123 MB of files).
-        Production used 186 MB of 512 before. e5-base would have added ~390
-        MB and did not fit. Hugging Face's `tokenizers` package took 282 MB
-        on its own for this 250,000-word vocabulary; sentencepiece takes ~55
-        MB and gives the same ids (4,677 of 4,682 project texts identical
-        once whitespace is collapsed; the other five were box-drawing art and
-        one tie in how a long run of repeated characters splits).
+      * **Memory -- and what went wrong.** I measured the model alone
+        (~205 MB) and told the owner it would fit; it did not, because the
+        server also holds the speech voices. Each Piper voice is ~105 MB of
+        heap, the embedder ~180 MB; Tamil + Hindi + English and the embedder
+        measured 647 MB against a 512 MB limit. On 2026-11-10 at 11:50 UTC,
+        a minute after the vectors began refilling, Render killed the server
+        for memory (`oomKilled`) at 11:50:28, 11:51:36 and 11:52:46 -- it
+        restarted each time, loaded the model again and was killed again, so
+        the site was down intermittently for about four minutes. Rolled back
+        by setting `EMBEDDING_PROVIDER=offline` (11:52, healthy again at
+        11:53:51). The fix is in two parts:
+        1. `scripts/map_weights.py`, run by the build, moves each model's
+           large weights out of its `.onnx` into a sidecar `.onnx.data` that
+           onnxruntime *maps* instead of loading: the pages are file-backed,
+           and the kernel takes them back under pressure where it cannot take
+           back heap. Measured on a replica of the server (Piper voices, the
+           embedder, the real app, a local Postgres): heap after all three
+           voices have spoken **647 MB → 324 MB**; the same model, bit for bit
+           (the embedder's vectors identical; each voice's raw output
+           identical with its noise switched off -- Piper's audio is random
+           from one run to the next, so identical bytes were never possible).
+        2. `services/memory.py`: before loading the model the server reads
+           its cgroup and refuses if less than 200 MB of heap is left,
+           reporting `out_of_memory` and carrying on without embeddings,
+           rather than crash-looping the whole API again. Unreadable cgroup
+           (a laptop, CI) means "load as before".
+        The three voices are still cached once loaded and never released; the
+        mapped weights make that cheap, which is the point.
       * **One text per pass.** The int8 model scales its activations per call,
         so a text batched with others came out up to 0.0075 cosine away from
         the same text alone; alone it is identical every time, and faster

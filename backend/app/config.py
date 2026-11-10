@@ -167,8 +167,10 @@ class Settings(BaseSettings):
     # "onnx" (2026-11-10, the default) runs multilingual-e5-small inside the
     # API: an int8 ONNX export read by onnxruntime -- which Piper already
     # brings -- and tokenised by sentencepiece. No key, no credits to run out
-    # of, about 200 MB of memory. Fetched at build time into
-    # embedding_model_dir by scripts/fetch_embedding_model.py.
+    # of. Fetched at build time into embedding_model_dir by
+    # scripts/fetch_embedding_model.py, with every model's weights then moved
+    # to mapped files (scripts/map_weights.py) -- without which it does not fit
+    # in 512 MB next to the speech voices (services/memory.py).
     #
     # "local" runs the model through sentence-transformers (torch; for
     # development). "hf_api" ran e5-base through the Hugging Face Inference
