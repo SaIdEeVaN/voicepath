@@ -47,17 +47,20 @@ twice is harmless. There is no cost to doing this in the safe order.
 ### Now — correctness, and the largest spec gaps
 
 - [ ] **Most of the original twenty PDFs still have no URL.** Checked
-      2026-11-04; only a link whose file is byte-identical to ours was
-      recorded, and the API fills it in on its next start:
-      `NULM-SUH-Guidelines.pdf` → nulm.gov.in. Three more are very likely
-      right but their sites refused this environment, so confirm them by
-      opening each and comparing before pasting into `sources.json`:
-      `NLMGuidelinesJan2025.pdf` → dahd.gov.in/sites/default/files/2026-04/NLMGuidelinesJan2025.pdf
-      (same file name); `PM_SETU_ITI_Upgradation_Guidelines.pdf` →
-      dgt.gov.in/sites/default/files/2025-10/PM-SETU-Guidelines-Component-I-Upgradation-of-ITIs.pdf
-      (same title, 2.64 MB); `PMGSY_RCPLWE_Road_Connectivity_Guidelines_2017.pdf`
-      → pmgsy.nic.in/sites/default/files/RCPLWEA22feb17.pdf. PM-AJAY's
-      `Guidelines.pdf` (May 2023) is listed on socialjustice.gov.in/schemes/104.
+      2026-11-04 and 2026-11-10; only a link whose file is byte-identical to
+      ours is recorded, and the API fills it in on its next start:
+      `NULM-SUH-Guidelines.pdf` → nulm.gov.in, and (2026-11-10, same SHA-256)
+      `PM_SETU_ITI_Upgradation_Guidelines.pdf` →
+      dgt.gov.in/sites/default/files/2025-10/PM-SETU-Guidelines-Component-I-Upgradation-of-ITIs.pdf.
+      Still unconfirmed: `NLMGuidelinesJan2025.pdf` →
+      dahd.gov.in/sites/default/files/2026-04/NLMGuidelinesJan2025.pdf now
+      answers 404 (the site seems to have moved to a new system; search
+      engines still list the address), and the Tamil Nadu copy on
+      tnlda.tn.gov.in, `PMGSY_RCPLWE_Road_Connectivity_Guidelines_2017.pdf` →
+      pmgsy.nic.in/sites/default/files/RCPLWEA22feb17.pdf, and PM-AJAY's
+      `Guidelines.pdf` (May 2023, socialjustice.gov.in/schemes/104) all reset
+      or refuse connections from outside India. Confirm each from an Indian
+      connection: download, compare (`sha256sum`), paste only an exact match.
 - [x] **Nine of the twenty PDFs were not government documents** — replaced
       2026-11-04. Each `*_Detailed_Scheme_Information.pdf` /
       `*_Information_Summary.pdf` was generated with ReportLab (several said
@@ -89,10 +92,15 @@ twice is harmless. There is no cost to doing this in the safe order.
 - [x] **Two live schemes had no required skills** — fixed 2026-09-12.
       `Pharma Business` now requires Retail Sales, `Plumbing Works` requires
       Plumbing. Every active scheme declares at least one skill.
-- [ ] **The spec disagrees with itself about the weights.** §14 lists Skill 40
-      / Education 20 / Experience 15 / Location 15 / Other 10; §4.4 and §8 give
-      the 50 / 25 / 15 / 10 the code implements, and there is no education
-      term anywhere. Worth settling before a jury asks which is authoritative.
+- [x] **The spec disagrees with itself about the weights.** Settled
+      2026-11-10 by the owner: the per-kind weights in `services/kinds.py`
+      (job 50 / 30 / 10 / 10, training 40 / 5 / 20 / 35, scheme
+      45 / 15 / 30 / 10 for skill / experience / eligibility / place) are
+      authoritative. §14's Skill 40 / Education 20 / Experience 15 /
+      Location 15 / Other 10 is superseded, as is the single 50 / 25 / 15 /
+      10 of §4.4 and §8; there is no education term. Each result shows the
+      weights its kind used, so the answer to "which is authoritative" is on
+      screen.
 
 - [~] **Tamil speech recognition.** Approaches (2) and (3) done 2026-11-09:
       Whisper is primed with the skill list's loanwords in Tamil or Hindi
@@ -270,10 +278,13 @@ twice is harmless. There is no cost to doing this in the safe order.
       "Plumbing Works", "Carpentry / BlockChain Innovation Club", with
       github.com, vercel.com and rajalakshmi.org as "official" links) —
       deactivated 2026-11-04, not deleted.
-- [ ] **Retrieval still cannot reach matching.**
-      `tests/test_assistant_routing.py` asserts the separation by reading
-      `matching.py`'s source rather than its imports, which is weaker than it
-      looks. Tighten the assertion.
+- [x] **Retrieval still cannot reach matching.** Tightened 2026-11-10:
+      `tests/test_assistant_routing.py` reads every import in `matching.py`
+      from its syntax tree (inside functions too) instead of searching the
+      text, and ranks a catalogue of all three kinds with the model,
+      embeddings, document search, Q&A and web search each rigged to fail the
+      test if touched -- which also covers what the import check cannot see:
+      a module matching imports (normalization) that itself calls the model.
 - [x] **Rate limiting is per-process.** Fixed 2026-11-05: the counters live in
       a shared Render Key Value store (see *Done on 2026-11-05*).
 - [x] **Confirm `TAVILY_API_KEY` is set in the deployed environment.** Confirmed

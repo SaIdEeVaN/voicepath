@@ -91,19 +91,83 @@ class TestRouting:
 
 
 class TestRankingIsolation:
-    def test_matching_imports_neither_retrieval_nor_an_llm(self):
-        """The property that makes a ranking auditable, asserted structurally.
+    # What ranking must never reach: a model, the document corpus, the web.
+    FORBIDDEN = ("llm", "retrieval", "scheme_qa", "websearch", "explanation", "assistant")
 
-        Reading the module source rather than its imports: a lazy import inside
-        a function would pass an attribute check and still put a model in the
-        ranking path.
-        """
-        source = inspect.getsource(matching)
-        for forbidden in ("retrieval", "scheme_qa", "llm"):
-            assert forbidden not in source, (
-                f"matching.py references {forbidden!r}; ranking must stay "
-                "reproducible from stored numbers alone"
+    def test_matching_imports_neither_retrieval_nor_an_llm(self):
+        """Every import in matching.py, inside functions too, read from its syntax
+        tree -- not a substring search, which a comment could trip and a
+        renamed import could slip past. Tightened 2026-11-10."""
+        import ast
+
+        tree = ast.parse(inspect.getsource(matching))
+        imported: set[str] = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                imported |= {alias.name for alias in node.names}
+            elif isinstance(node, ast.ImportFrom):
+                module = node.module or ""
+                imported.add(module)
+                imported |= {f"{module}.{alias.name}" for alias in node.names}
+        for name in imported:
+            leaf = name.rsplit(".", 1)[-1]
+            assert leaf not in self.FORBIDDEN, (
+                f"matching.py imports {name}; ranking must stay reproducible "
+                "from stored numbers alone"
             )
+
+    def test_ranking_runs_with_every_model_and_search_rigged_to_fail(self, monkeypatch):
+        """The import check cannot see through a module matching does import --
+        normalization does call the model, for disambiguation. So rank for
+        real, with everything that could reach a model, the corpus or the web
+        replaced by something that fails the test if it is touched."""
+        from app.services import embeddings, llm, retrieval, scheme_qa, websearch
+        from app.services.matching import ProfileInput, rank
+        from app.services.normalization import NormalizedSkill
+        from app.services.schemes import RequiredSkill, Scheme
+
+        def touched(*_args, **_kwargs):
+            raise AssertionError("ranking reached a model, the corpus or the web")
+
+        async def touched_async(*_args, **_kwargs):
+            touched()
+
+        for module, names in (
+            (llm, ("complete_json",)),
+            (embeddings, ("embed_queries", "embed_query", "embed_documents")),
+            (scheme_qa, ("ask",)),
+        ):
+            for name in names:
+                if hasattr(module, name):
+                    original = getattr(module, name)
+                    fake = touched_async if inspect.iscoroutinefunction(original) else touched
+                    monkeypatch.setattr(module, name, fake)
+        for module in (retrieval, websearch):
+            for name, value in list(vars(module).items()):
+                if inspect.iscoroutinefunction(value) and not name.startswith("_"):
+                    monkeypatch.setattr(module, name, touched_async)
+
+        catalogue = [
+            Scheme(id=i, title=f"s{i}", organization="o", location=place, district=place,
+                   type=kind, minimum_experience=1, certifications_required=[],
+                   salary_min=None, salary_max=None, nsqf_level=None,
+                   source_reference=None, description=None,
+                   required_skills=[RequiredSkill(1, "SK022", "Welding", 1.0, True,
+                                                  embedding=[1.0, 0.0])])
+            for i, (place, kind) in enumerate(
+                [("Salem", "Full-time"), ("Erode", "Training"), ("All India", "Self-employment support")],
+                start=1,
+            )
+        ]
+        person = ProfileInput(
+            experience_years=3, location="Salem", district="Salem", certifications=[],
+            skills=[NormalizedSkill(raw_name="welding", evidence_phrase="I weld",
+                                    skill_id=1, code="SK022", name="Welding",
+                                    embedding=[1.0, 0.0])],
+        )
+        first = rank(person, catalogue)
+        again = rank(person, catalogue)
+        assert first and [m.overall_score for m in first] == [m.overall_score for m in again]
 
     def test_an_answer_carries_no_route_back_to_a_score(self):
         """Citations travel outward only.
