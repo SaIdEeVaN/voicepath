@@ -27,7 +27,7 @@ from typing import Any
 
 from app.data.catalogue import TAXONOMY
 from app.prompts import EXTRACTION_SYSTEM, EXTRACTION_USER_TEMPLATE
-from app.services import llm
+from app.services import llm, promptsafe
 
 logger = logging.getLogger(__name__)
 
@@ -123,11 +123,13 @@ async def extract(transcript: str, *, language: str = "auto") -> ExtractionResul
 
     prompt = EXTRACTION_USER_TEMPLATE.format(
         language=LANGUAGE_NAMES.get(language, LANGUAGE_NAMES["auto"]),
-        transcript=transcript,
+        transcript=promptsafe.fence(transcript),
     )
 
     try:
-        payload = await llm.complete_json(EXTRACTION_SYSTEM, prompt, temperature=0.1)
+        payload = await llm.complete_json(
+            EXTRACTION_SYSTEM + promptsafe.UNTRUSTED_RULE, prompt, temperature=0.1
+        )
     except (llm.LLMUnavailable, llm.LLMResponseError) as exc:
         logger.warning("LLM extraction failed (%s); falling back to lexical pass", exc)
         result = extract_offline(transcript, language=language)

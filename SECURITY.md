@@ -84,6 +84,20 @@ resolves to must be public -- checked again at every redirect, which is
 followed by hand. Bodies are read up to 2 MB. Fetched pages wait for an admin's
 review before the assistant may cite them.
 
+**What reaches the model** (`services/promptsafe.py`,
+`tests/test_prompt_safety.py`). Everything a person says reaches a language
+model, so none of it is trusted to stay inside the quotation marks it was put in.
+Their words are cleaned of invisible and direction-changing characters and
+wrapped between boundary lines carrying a number made fresh for each request --
+nobody can write the closing line in advance -- and the system prompts say what
+is inside is data, never instructions. What the model sends back as free text
+(the assistant's answers, a listing's explanation) is screened before anyone
+sees it: no web address or phone number it was not given, no echo of its own
+instructions, a length limit; a refusal falls back to the rule-based answer,
+exactly as when the model is down. Extraction (every skill must quote the
+transcript) and scheme answers (every answer must cite a retrieved passage)
+keep their stronger checks.
+
 **Speech and the model.** Recordings are never kept: speech is transcribed in
 memory and the bytes discarded (`routes/speech.py`). There is no switch to keep
 them -- the passport's old "keep my voice clips" toggle saved nothing and was

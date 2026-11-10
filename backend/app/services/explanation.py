@@ -18,7 +18,7 @@ import logging
 from dataclasses import dataclass
 
 from app.prompts import EXPLANATION_SYSTEM, EXPLANATION_USER_TEMPLATE
-from app.services import llm
+from app.services import llm, promptsafe
 from app.services.places import localized_place
 from app.services.matching import ScoredMatch
 
@@ -214,6 +214,14 @@ async def _explain_with_llm(match: ScoredMatch, *, language: str) -> Explanation
     if not bullets:
         # A model that returned nothing usable must not leave the card blank.
         return explain_offline(match, language=language)
+
+    # The listing's own text and the facts it was given are all it may repeat.
+    given = [prompt, scheme.description or "", scheme.title]
+    for text in [*bullets, summary]:
+        if text and promptsafe.screen_answer(text, context=given):
+            logger.warning("Explanation refused (%s); using the template", 
+                           promptsafe.screen_answer(text, context=given))
+            return explain_offline(match, language=language)
 
     return Explanation(
         bullets=bullets,

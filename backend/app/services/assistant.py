@@ -18,7 +18,7 @@ import re
 from dataclasses import dataclass, field
 
 from app.prompts import ASSISTANT_SYSTEM, ASSISTANT_USER_TEMPLATE
-from app.services import llm, retrieval, safety, scheme_qa
+from app.services import llm, promptsafe, retrieval, safety, scheme_qa
 from app.services.schemes import Scheme
 
 logger = logging.getLogger(__name__)
@@ -280,15 +280,18 @@ def _in_view(scheme: Scheme | None) -> str | None:
 async def _answer_with_llm(
     question: str, context: QueryContext, *, language: str
 ) -> Answer:
+    scheme_text = _describe_scheme(context.scheme)
+    profile_text = _describe_profile(context)
     prompt = ASSISTANT_USER_TEMPLATE.format(
-        question=question.strip(),
-        scheme=_describe_scheme(context.scheme),
-        profile=_describe_profile(context),
+        question=promptsafe.fence(question, 2000),
+        scheme=scheme_text,
+        # Their own words (a place, a certificate): fenced like the question.
+        profile=promptsafe.fence(profile_text, 2000),
         match=_describe_match(context),
     )
     system = ASSISTANT_SYSTEM.format(
         language_name=LANGUAGE_NAMES.get(language, "English")
-    )
+    ) + promptsafe.UNTRUSTED_RULE
     payload = await llm.complete_json(system, prompt, temperature=0.2, max_tokens=400)
 
     if not isinstance(payload, dict):
@@ -309,6 +312,13 @@ async def _answer_with_llm(
     text = payload.get("answer")
     if not isinstance(text, str) or not text.strip():
         raise llm.LLMResponseError("Assistant returned no answer text")
+    # Nothing it says may carry a web address or number it was not given, or
+    # echo its instructions -- then the rule-based answer stands in.
+    refused = promptsafe.screen_answer(
+        text, context=[scheme_text, profile_text, question]
+    )
+    if refused:
+        raise llm.LLMResponseError(f"Assistant answer refused: {refused}")
 
     note = payload.get("source_note")
     return Answer(

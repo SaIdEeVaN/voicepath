@@ -878,6 +878,19 @@ its exact name or alias landed nowhere.
     with a lighter accent so text on it stays readable.
   Checked in Chromium, light and dark, phone and desktop; no page scrolls
   sideways.
+- **The model is fenced in, and its free text screened** (2026-11-10;
+  `services/promptsafe.py`). The transcript, the intent sentence, the question
+  and the disambiguation phrases used to sit in plain quotation marks in the
+  prompts, so text could step outside them and read as instructions. Now each is
+  cleaned (invisible and direction-changing characters out) and wrapped between
+  per-request random boundaries, and the system prompts say it is data. The
+  assistant's answers and listing explanations -- the two paths with no
+  grounding check of their own -- are screened for web addresses and phone
+  numbers not in what the model was given, echoes of its instructions, and
+  length; a refusal falls back to the rule-based text. Not measurable without a
+  live model: whether the fencing stops a given injection depends on the model;
+  the screening does not, and is what is tested. `tests/test_prompt_safety.py`
+  (27).
 - **Tests on every push** (`.github/workflows/tests.yml`): pytest, the
   frontend type-check and a production build, on every push to `main` and
   every pull request. Until now nothing checked a push before it deployed.

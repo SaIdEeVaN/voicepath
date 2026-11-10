@@ -26,7 +26,7 @@ import re
 from dataclasses import dataclass
 
 from app.prompts import INTENT_SYSTEM, INTENT_USER_TEMPLATE
-from app.services import llm
+from app.services import llm, promptsafe
 
 logger = logging.getLogger(__name__)
 
@@ -149,8 +149,8 @@ async def classify(text: str) -> QueryIntent:
 
     try:
         payload = await llm.complete_json(
-            INTENT_SYSTEM,
-            INTENT_USER_TEMPLATE.format(text=clean),
+            INTENT_SYSTEM + promptsafe.UNTRUSTED_RULE,
+            INTENT_USER_TEMPLATE.format(text=promptsafe.fence(clean)),
             temperature=0.0,
             max_tokens=200,
         )

@@ -31,7 +31,7 @@ from dataclasses import dataclass, field
 
 from app.config import get_settings
 from app.prompts import DISAMBIGUATION_SYSTEM, DISAMBIGUATION_USER_TEMPLATE
-from app.services import embeddings, llm, taxonomy
+from app.services import embeddings, llm, promptsafe, taxonomy
 from app.services.taxonomy import ScoredSkill
 
 logger = logging.getLogger(__name__)
@@ -171,13 +171,14 @@ async def _llm_assist(entries: list[NormalizedSkill]) -> None:
             for c in entry.candidates
         )
         prompt = DISAMBIGUATION_USER_TEMPLATE.format(
-            raw_name=entry.raw_name,
-            evidence_phrase=entry.evidence_phrase,
+            raw_name=promptsafe.fence(entry.raw_name, 300),
+            evidence_phrase=promptsafe.fence(entry.evidence_phrase, 1000),
             candidates=rendered,
         )
         try:
             payload = await llm.complete_json(
-                DISAMBIGUATION_SYSTEM, prompt, temperature=0.0, max_tokens=300
+                DISAMBIGUATION_SYSTEM + promptsafe.UNTRUSTED_RULE, prompt,
+                temperature=0.0, max_tokens=300
             )
         except (llm.LLMUnavailable, llm.LLMResponseError) as exc:
             logger.warning("Disambiguation assist unavailable: %s", exc)
