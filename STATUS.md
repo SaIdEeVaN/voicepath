@@ -173,10 +173,9 @@ twice is harmless. There is no cost to doing this in the safe order.
 
 ### Embeddings — on the server, no credits needed
 
-- [~] **The Hugging Face Inference API is out of credits** (402 Payment
-      Required since 2026-11-04). Being replaced 2026-11-10 (live once the
-      memory fix below is deployed and `EMBEDDING_PROVIDER` is back to `onnx`;
-      it is `offline` in production meanwhile), decided with the owner: the API runs `multilingual-e5-small` itself -- int8 ONNX on the
+- [x] **The Hugging Face Inference API is out of credits** (402 Payment
+      Required since 2026-11-04). Replaced 2026-11-10 and live in production
+      (after two memory incidents, below), decided with the owner: the API runs `multilingual-e5-small` itself -- int8 ONNX on the
       onnxruntime Piper already brings, tokenised by sentencepiece, no key,
       nothing to run out of. Done; needs `db/015_small_embeddings.sql`
       applied in production, after which the API refills every vector itself.
@@ -227,6 +226,24 @@ twice is harmless. There is no cost to doing this in the safe order.
            Cycled through the languages on the replica, resident memory held
            at ~425 MB against 631 MB uncapped. `/health` now reports
            `memory` (limit, heap, working set) so this can be watched.
+        **Verified in production, 2026-11-10 12:55-13:00 UTC,** after the cap
+        deployed: embedder loaded by a real extraction, then Tamil, Hindi,
+        English, Tamil, Hindi spoken in turn -- working set 202 → 229 → 219
+        MB, Render's graph 218 MB, `/health` ok throughout, no `server_failed`
+        event. "I repair motorbikes and scooters" matched Two-Wheeler Repair
+        at 0.867 and 0.856 (accept threshold 0.84). The NAPS stipend question
+        was answered from `PIB_National_Apprenticeship_Schemes_NAPS` with its
+        citation, a PMMSY question from its release, and "who won the cricket
+        world cup" refused. The vectors are all in: 71 of 71 skills, every
+        passage of every source not rejected. Test session deleted.
+        **The cost, said plainly:** with one voice resident, every language
+        switch reloads the voice, and on 0.15 of a CPU that took **12-26
+        seconds** before the audio came (the text is not delayed; the audio
+        follows on its own request). Someone who stays in one language pays it
+        once. A demo that flips Tamil/Hindi/English pays it each time.
+        A build that downloads the models can be slow: one took ~7 minutes
+        (Hugging Face throttling, then uploading ~300 MB of models); the
+        running version stays up meanwhile.
         Options to give the voices back their room, for the owner to choose:
         trim the embedder's 250,000-word vocabulary to the scripts this
         product serves (~-80 MB, two voices then fit; vectors for covered text
