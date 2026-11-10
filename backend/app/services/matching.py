@@ -157,19 +157,25 @@ SKILL_UNKNOWN = 0.5
 # Below this cosine, two different taxonomy skills are not related -- they are
 # merely both embedded by the same model.
 #
-# Measured, not guessed. With multilingual-e5-base over this taxonomy, cosine
-# from Carpentry to all twenty-two required skills in the catalogue runs 0.853
-# (Engine Diagnostics) to 0.921 (Welding), with Retail Sales at 0.918 -- a
-# spread of 0.068 containing no usable signal. A genuine relationship separates
-# cleanly above it: Two-Wheeler Repair scores 1.000 against itself and 0.947
-# against Four-Wheeler Repair.
+# Measured, not guessed, and re-measured whenever the model changes
+# (app/scripts/measure_embeddings.py). The rule: the floor sits at the top of
+# the band an unrelated trade reaches. Carpentry is the reference row.
 #
-# The old floor was 0.55, which admitted the entire noise band and paid it
+# 2026-11-10, multilingual-e5-small over the 71-skill taxonomy: Carpentry
+# reaches 0.848 to 0.9335 against the other seventy, its highest being
+# Embroidery, Plumbing (0.9334), Masonry and Baking (0.9315) -- all noise.
+# Above it are the genuine neighbours: Welding to Gas Welding 0.969, Light to
+# Heavy Vehicle Driving 0.959, Mobile Phone to Computer Hardware Repair 0.959,
+# Dairy to Poultry 0.951. The cost, said plainly: Two-Wheeler to Four-Wheeler
+# Repair is 0.931 under this model, inside the noise band, and no longer earns
+# partial credit. Carrying the old floor across by the share of pairs above it
+# would have given 0.931 and admitted Carpentry to Embroidery.
+#
+# Before: 0.92 with multilingual-e5-base (Carpentry 0.853 to 0.921 on the
+# 44-skill taxonomy of 2026-09; Two-Wheeler to Four-Wheeler 0.947). Before
+# that, 0.55, which admitted the entire noise band and paid it
 # `weight * similarity`, so an unrelated trade collected 85-92% of the weight.
-#
-# Re-measure this if the taxonomy or the embedding model changes; it describes
-# the model's behaviour over this vocabulary, not a universal constant.
-SKILL_SIMILARITY_FLOOR = 0.92
+SKILL_SIMILARITY_FLOOR = 0.935
 
 # How close a requirement must be, after rescaling, before an explanation may
 # name it as a skill the person has. Partial credit still counts toward the
@@ -180,10 +186,10 @@ SKILL_MATCHED_AT = 0.5
 # fitting the work someone described, rather than merely not excluding them.
 #
 # Not simply "more than zero". The floor above is a measurement, and a value a
-# hair over it is slop rather than overlap: the closest unrelated pair measured
-# (Carpentry to Welding, 0.9207) sits 0.0007 above the 0.92 floor and rescales
-# to 0.009. This clears that comfortably while admitting a genuine neighbour --
-# Two-Wheeler to Four-Wheeler Repair rescales to 0.34.
+# hair over it is slop rather than overlap. Under e5-small the pairs just over
+# 0.935 are mixed -- Farming to Poultry 0.938 (rescales to 0.04), Baking to
+# Housekeeping 0.939 (0.06) -- while a genuine neighbour such as Welding to
+# Gas Welding 0.969 rescales to 0.53. This keeps the thinnest slivers out.
 SKILL_EVIDENCE_AT = 0.05
 
 # How many "open to any trade" schemes a result list may hold. See rank().

@@ -69,7 +69,7 @@ async def test_health_can_show_what_is_left(hosted, monkeypatch):
     waiting = rec.status_while_waiting[0]
     assert waiting["missing"] == {"skills": 28, "documents": 24}
     assert "next_try" in waiting
-    assert corpus_sync.status() == {"missing": {"skills": 0, "documents": 0}}
+    assert corpus_sync.status() == {"missing": {"skills": 0, "documents": 0, "chunks": 0}}
 
 
 async def test_a_failed_count_means_try_again_later(hosted, monkeypatch):
@@ -102,7 +102,7 @@ async def test_with_the_offline_embedder_it_does_not_loop(monkeypatch):
     assert rec.tries == 1 and rec.waits == []
 
 
-async def test_missing_counts_skills_and_unloaded_documents(hosted, monkeypatch, tmp_path):
+async def test_missing_counts_skills_unloaded_documents_and_passages(hosted, monkeypatch, tmp_path):
     (tmp_path / "LOADED.md").write_text("x" * 300, encoding="utf-8")
     (tmp_path / "NEW.md").write_text("y" * 300, encoding="utf-8")
     (tmp_path / "STUB.md").write_text("too short", encoding="utf-8")
@@ -110,6 +110,10 @@ async def test_missing_counts_skills_and_unloaded_documents(hosted, monkeypatch,
 
     async def fetchval(query, *args):
         assert "embedding is null" in query
+        if "document_chunks" in query:
+            # Only passages of sources still searched; a rejected one's are not.
+            assert "status <> 'rejected'" in query
+            return 1150
         return 28
 
     async def fetch(query, *args):
@@ -117,7 +121,7 @@ async def test_missing_counts_skills_and_unloaded_documents(hosted, monkeypatch,
 
     monkeypatch.setattr(corpus_sync.db, "fetchval", fetchval)
     monkeypatch.setattr(corpus_sync.db, "fetch", fetch)
-    assert await corpus_sync.missing(tmp_path) == {"skills": 28, "documents": 1}
+    assert await corpus_sync.missing(tmp_path) == {"skills": 28, "documents": 1, "chunks": 1150}
 
 
 def test_health_reports_the_backlog(hosted):

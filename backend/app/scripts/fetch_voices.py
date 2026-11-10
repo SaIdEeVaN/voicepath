@@ -100,7 +100,12 @@ def main() -> int:
             )
 
     logger.info("Voices are in %s", dest.resolve())
-    return 0
+
+    # The deploy's build command runs this script and nothing else, so the
+    # embedding model (2026-11-10) is fetched from here too.
+    from app.scripts import fetch_embedding_model
+
+    return fetch_embedding_model.main()
 
 
 if __name__ == "__main__":

@@ -133,30 +133,35 @@ class TestTheNoiseBandPaysNothing:
         assert score == 1.0
         assert "SK001" in matched
 
+    # Angles whose cosine is a similarity measured with multilingual-e5-small
+    # on 2026-11-10 (app/scripts/measure_embeddings.py; see matching.py).
+    NOISE_TOP = 21.013       # 0.9335, Carpentry to Embroidery: the noise band's top
+    TWO_TO_FOUR = 21.424     # 0.9309, Two-Wheeler to Four-Wheeler Repair
+    GAS_WELDING = 14.211     # 0.9694, Welding to Gas Welding
+
     def test_an_unrelated_trade_earns_nothing(self):
-        """Carpentry against Welding measured 0.9207 -- inside the noise band,
-        and indistinguishable from Retail Sales at 0.9183."""
-        # ~0.92 cosine: the measured distance between two unrelated trades.
+        """Carpentry's closest unrelated trade, Embroidery, measured 0.9335 --
+        the top of the noise band, and where the floor was set."""
         owned = _owned(42, "SK042", _unit(0))
         unrelated = _scheme(
-            [RequiredSkill(skill_id=22, code="SK022", name="Welding",
+            [RequiredSkill(skill_id=52, code="SK052", name="Embroidery",
                            weight=1.0, is_essential=True,
-                           embedding=_unit(23.07))]
+                           embedding=_unit(self.NOISE_TOP))]
         )
 
         score, matched = skill_similarity(_profile([owned]), unrelated)
 
-        assert score < 0.15, f"unrelated trade still collected {score}"
+        assert score == 0.0, f"unrelated trade still collected {score}"
         assert matched == [], "noise must not be reported as a matched skill"
 
     def test_a_genuinely_related_skill_still_earns_something(self):
-        """Two-Wheeler to Four-Wheeler Repair measured 0.947, which is real
-        transferable skill and must survive the rescaling."""
-        owned = _owned(1, "SK001", _unit(0))
+        """Welding to Gas Welding measured 0.969, which is real transferable
+        skill and must survive the rescaling."""
+        owned = _owned(22, "SK022", _unit(0))
         related = _scheme(
-            [RequiredSkill(skill_id=2, code="SK002", name="Four-Wheeler Repair",
+            [RequiredSkill(skill_id=24, code="SK024", name="Gas Welding",
                            weight=1.0, is_essential=True,
-                           embedding=_unit(18.66))]
+                           embedding=_unit(self.GAS_WELDING))]
         )
 
         score, _ = skill_similarity(_profile([owned]), related)
@@ -164,21 +169,36 @@ class TestTheNoiseBandPaysNothing:
         assert score > 0.0, "a real neighbouring trade should not be zeroed"
         assert score < 1.0, "nor should it read as the same trade"
 
+    def test_the_known_cost_two_wheeler_to_four_wheeler_earns_nothing(self):
+        """Said in matching.py and held here so it is not forgotten: e5-small
+        puts these two inside the noise band (0.931), where e5-base had them
+        at 0.947. A mechanic of one is not credited for the other's listing."""
+        owned = _owned(1, "SK001", _unit(0))
+        four_wheeler = _scheme(
+            [RequiredSkill(skill_id=2, code="SK002", name="Four-Wheeler Repair",
+                           weight=1.0, is_essential=True,
+                           embedding=_unit(self.TWO_TO_FOUR))]
+        )
+
+        score, _ = skill_similarity(_profile([owned]), four_wheeler)
+
+        assert score == 0.0
+
     def test_related_beats_unrelated(self):
         """The property the whole rescaling exists for: the order is right."""
         owned = _owned(1, "SK001", _unit(0))
 
         related, _ = skill_similarity(
             _profile([owned]),
-            _scheme([RequiredSkill(skill_id=2, code="SK002", name="Four-Wheeler",
+            _scheme([RequiredSkill(skill_id=2, code="SK002", name="Neighbour",
                                    weight=1.0, is_essential=True,
-                                   embedding=_unit(18.66))]),
+                                   embedding=_unit(self.GAS_WELDING))]),
         )
         unrelated, _ = skill_similarity(
             _profile([owned]),
             _scheme([RequiredSkill(skill_id=9, code="SK009", name="Retail",
                                    weight=1.0, is_essential=True,
-                                   embedding=_unit(23.07))]),
+                                   embedding=_unit(self.NOISE_TOP))]),
         )
 
         assert related > unrelated
@@ -251,12 +271,13 @@ class TestWhetherAResultIsWorthShowing:
 
     def test_partial_credit_counts_as_evidence(self):
         """A neighbouring trade is a real reason to show someone a listing,
-        even though it is not close enough to name in an explanation."""
-        owned = _owned(1, "SK001", _unit(0))
+        even though it is not close enough to name in an explanation. Dairy
+        to Poultry measured 0.9505 under e5-small (2026-11-10)."""
+        owned = _owned(72, "SK072", _unit(0))
         related = _scheme(
-            [RequiredSkill(skill_id=2, code="SK002", name="Four-Wheeler Repair",
+            [RequiredSkill(skill_id=73, code="SK073", name="Poultry Farming",
                            weight=1.0, is_essential=True,
-                           embedding=_unit(18.66))]
+                           embedding=_unit(18.11))]
         )
 
         result = score_one(_profile([owned]), related)

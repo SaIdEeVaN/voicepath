@@ -5,20 +5,31 @@
 #   torch + transformers      642MB    dropped
 #   ctranslate2 + whisper      64MB    dropped (STT_PROVIDER=groq)
 #   piper + onnxruntime + voices  273MB  kept
+#   sentencepiece + e5-small  ~130MB  added 2026-11-10
 #
-# ~1.16GB down to ~300MB. What that costs, and how it is paid:
+# What that costs, and how it is paid:
 #
-#   Embeddings  EMBEDDING_PROVIDER=hf_api runs the SAME multilingual-e5-base
-#               through the Hugging Face Inference API, so the 44 taxonomy
-#               vectors already in Postgres stay valid. Needs HF_TOKEN.
+#   Embeddings  EMBEDDING_PROVIDER=onnx runs multilingual-e5-small in the API
+#               itself, through the onnxruntime Piper already needs. Measured
+#               ~205MB resident once loaded. Until 2026-11-04 this was e5-base
+#               through the Hugging Face Inference API, which then ran out of
+#               credits; e5-base itself would not fit (~390MB).
 #   Speech      STT_PROVIDER=groq. Already the default; the local Whisper path
 #               was 32.5s on a 5.8s clip on a CPU and unusable anyway.
 #
 # Text-to-speech stays local: Piper is ONNX, not torch, and voices load lazily
 # per language. If the container still runs out of memory, TTS_PROVIDER=offline
 # hands synthesis to the browser and frees the last ~270MB.
+#
+# The model files are not packages: scripts/fetch_embedding_model.py fetches
+# them at build time (via fetch_voices, which the build command runs).
 
 -r requirements.txt
 
 # Text to speech -- Piper, MIT. Bundles espeak-ng data, so no system package.
 piper-tts==1.8.0
+
+# Embeddings -- multilingual-e5-small on onnxruntime (the same range Piper
+# asks for), tokenised by sentencepiece. Apache-2.0 and MIT.
+onnxruntime>=1,<2
+sentencepiece==0.2.2

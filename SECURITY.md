@@ -119,6 +119,13 @@ gain.
 environment settings. GitHub Actions are pinned to commit SHAs; the audit job
 is read-only and the offices job may only push its own data file.
 
+**Model files.** The embedding model the API runs (since 2026-11-10) is
+downloaded at build time, each file pinned to one commit of its Hugging Face
+repository and to its SHA-256 (`scripts/fetch_embedding_model.py`); a file
+that does not match is deleted and the build fails, so the running version
+stays live. Embeddings no longer need a key, so there is one fewer secret
+(`HF_TOKEN` can be removed from Render).
+
 ## Known limits
 
 - The address used for limits comes from `X-Forwarded-For` as Render passes

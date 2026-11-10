@@ -12,6 +12,7 @@ from __future__ import annotations
 import importlib.util
 import os
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import Field, model_validator
@@ -19,7 +20,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 LLMProvider = Literal["groq", "gemini", "offline"]
 SpeechProvider = Literal["local", "groq", "offline"]
-EmbeddingProvider = Literal["local", "hf_api", "offline"]
+EmbeddingProvider = Literal["onnx", "local", "hf_api", "offline"]
 SearchProvider = Literal["tavily", "offline"]
 PlacesProvider = Literal["overpass", "offline"]
 
@@ -148,13 +149,21 @@ class Settings(BaseSettings):
     places_cache_hours: int = 24
 
     # -- Embeddings ---------------------------------------------------------
-    # "hf_api" runs the same model as "local" through the Hugging Face
-    # Inference API, so vectors already in Postgres stay valid. It exists so a
-    # deployment can drop torch (~530MB), which is what puts the container
-    # inside a free tier's memory limit.
-    embedding_provider: EmbeddingProvider = "local"
-    embedding_model: str = "intfloat/multilingual-e5-base"
-    embedding_dimension: int = 768
+    # "onnx" (2026-11-10, the default) runs multilingual-e5-small inside the
+    # API: an int8 ONNX export read by onnxruntime -- which Piper already
+    # brings -- and tokenised by sentencepiece. No key, no credits to run out
+    # of, about 200 MB of memory. Fetched at build time into
+    # embedding_model_dir by scripts/fetch_embedding_model.py.
+    #
+    # "local" runs the model through sentence-transformers (torch; for
+    # development). "hf_api" ran e5-base through the Hugging Face Inference
+    # API until its credits ran out on 2026-11-04 and every call came back
+    # 402. A different model writes different vectors: switching between them
+    # means changing the pgvector columns and re-embedding (db/015).
+    embedding_provider: EmbeddingProvider = "onnx"
+    embedding_model: str = "intfloat/multilingual-e5-small"
+    embedding_dimension: int = 384
+    embedding_model_dir: str = "models/e5-small"
     embedding_api_timeout: float = 60.0
 
     # Hugging Face token. Needed by embedding_provider=hf_api.
@@ -167,7 +176,15 @@ class Settings(BaseSettings):
 
     # Below this cosine similarity a normalized skill is not accepted outright
     # and is surfaced to the user for disambiguation instead (PRD section 4.3).
-    normalization_accept_threshold: float = 0.82
+    #
+    # Model-specific; re-measured 2026-11-10 for e5-small with
+    # app/scripts/measure_embeddings.py over 50 described trades and 12
+    # unrelated sentences. 0.84 accepts 28 of the 50 outright, 27 rightly --
+    # the share e5-base accepted at 0.82, with one error fewer -- and none of
+    # the unrelated sentences (the highest reached 0.809). The candidate
+    # threshold filters nothing under either model (no sentence scored below
+    # 0.78); the model's disambiguation and the person's own choice do that.
+    normalization_accept_threshold: float = 0.84
     normalization_candidate_threshold: float = 0.60
     normalization_candidate_count: int = 3
 
@@ -217,6 +234,18 @@ class Settings(BaseSettings):
 
         if self.llm_provider != "offline" and not self.llm_api_key:
             object.__setattr__(self, "llm_provider", "offline")
+
+        # The on-server model needs its two packages and its two files. Without
+        # them it is offline, said at startup, not a 500 on the first request.
+        if self.embedding_provider == "onnx":
+            folder = Path(self.embedding_model_dir)
+            if (
+                importlib.util.find_spec("onnxruntime") is None
+                or importlib.util.find_spec("sentencepiece") is None
+                or not (folder / "model_quantized.onnx").is_file()
+                or not (folder / "sentencepiece.bpe.model").is_file()
+            ):
+                object.__setattr__(self, "embedding_provider", "offline")
 
         # find_spec rather than import: this runs at startup, and importing
         # sentence-transformers pulls in torch, which is seconds and gigabytes.

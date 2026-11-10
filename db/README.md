@@ -42,9 +42,14 @@ in `backend/data/scheme_docs` and filling document URLs newly recorded in
 
 ## Notes
 
-**Embedding dimension is 768** (`multilingual-e5-base`). If you set `EMBEDDING_MODEL`
-to a model with a different output size, change `vector(768)` in `001_schema.sql` and
-in both functions in `002_functions.sql`, then re-run `embed_taxonomy`.
+**Embedding dimension is 384** (`multilingual-e5-small`, since
+`015_small_embeddings.sql`; it was 768 for `multilingual-e5-base`). The size lives
+in the two `embedding` columns only -- the vector functions take any size since
+015. To change models, write a migration like 015 that resizes and clears both
+columns, set `EMBEDDING_MODEL` and `EMBEDDING_DIMENSION`, and re-measure the
+thresholds with `python -m app.scripts.measure_embeddings`. The API refuses to
+embed while the columns and `EMBEDDING_DIMENSION` differ, and refills cleared
+vectors by itself once they agree.
 
 **The browser never connects to Postgres.** The FastAPI backend holds `DATABASE_URL`
 and is the only database client. RLS is a containment measure for leaked anon keys,

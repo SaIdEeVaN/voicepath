@@ -107,6 +107,53 @@ async def embed_missing_skills() -> int:
     return written
 
 
+# Passages re-embedded per round, and the pause between rounds. After a model
+# change every stored passage needs a new vector -- 1,150 of them on
+# 2026-11-10, a few minutes of CPU each hundred on a container with 0.15 of
+# one. The pause hands the CPU back to people's requests between rounds.
+CHUNK_ROUND = 16
+CHUNK_PAUSE_SECONDS = 2.0
+
+# Passages of a rejected source are never searched, so are not worth the CPU.
+_CHUNKS_WITHOUT_VECTORS = """
+    from document_chunks c join scheme_documents d on d.id = c.document_id
+    where c.embedding is null and d.status <> 'rejected'
+"""
+
+
+async def embed_missing_chunks(
+    *,
+    pause: float = CHUNK_PAUSE_SECONDS,
+    sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+) -> int:
+    """Give every searchable passage without a vector one, a round at a time."""
+    dimension = get_settings().embedding_dimension
+    written = 0
+    while True:
+        rows = await db.fetch(
+            "select c.id, d.title, c.heading, c.content "
+            + _CHUNKS_WITHOUT_VECTORS
+            + "order by c.id limit $1",
+            CHUNK_ROUND,
+        )
+        if not rows:
+            return written
+        texts = [retrieval.passage_text(r["title"], r["heading"], r["content"]) for r in rows]
+        vectors = await asyncio.to_thread(embeddings.embed_documents, texts)
+        if any(len(v) != dimension for v in vectors):
+            logger.error("Passages embedded to the wrong size; stopping (%s)", dimension)
+            return written
+        async with db.transaction() as conn:
+            for row, vector in zip(rows, vectors):
+                await conn.execute(
+                    "update document_chunks set embedding = $2::vector "
+                    "where id = $1 and embedding is null",
+                    row["id"], db.vector_literal(vector),
+                )
+        written += len(rows)
+        await sleep(pause)
+
+
 async def ingest_missing_documents(directory: Path = DOCS_DIR) -> int:
     if not directory.is_dir():
         return 0
@@ -162,6 +209,9 @@ async def catch_up() -> dict[str, int]:
             "must never be written into the corpus"
         )
         return {}
+    # A fresh look at the vector columns: a block from a size mismatch lifts
+    # here once db/015 is applied, rather than at the next /health.
+    await db.check_schema(force=True)
     # Each step on its own: one failing must not stop the others. URLs first,
     # because they need no embedder -- on 2026-11-04 the embedder was out of
     # credits, and a catch-up that stopped at the first error filled nothing.
@@ -170,9 +220,13 @@ async def catch_up() -> dict[str, int]:
         ("urls_filled", fill_missing_urls),
         ("skills_embedded", embed_missing_skills),
         ("documents_ingested", ingest_missing_documents),
+        ("chunks_embedded", embed_missing_chunks),
     ):
-        if name != "urls_filled" and embeddings.recent_failure() is not None:
-            # The embedder just refused; every remaining step would too.
+        if name != "urls_filled" and (
+            embeddings.recent_failure() is not None or embeddings.blocked()
+        ):
+            # The embedder just refused, or the database cannot hold what it
+            # makes; every remaining step would fail the same way.
             done[name] = 0
             continue
         try:
@@ -202,6 +256,7 @@ async def catch_up_safely() -> None:
 # ---------------------------------------------------------------------------
 
 RETRY_SECONDS = 30 * 60
+BLOCKED_RETRY_SECONDS = 60
 
 # What the last check found still missing, and when the next try is -- for
 # /health, so whoever added the credits can see the backlog drain.
@@ -217,6 +272,7 @@ async def missing(directory: Path = DOCS_DIR) -> dict[str, int]:
     if not db.is_available():
         return {}
     skills = await db.fetchval("select count(*) from skill_taxonomy where embedding is null")
+    chunks = await db.fetchval("select count(*) " + _CHUNKS_WITHOUT_VECTORS)
     known = {r["source"] for r in await db.fetch("select source from scheme_documents")}
     documents = 0
     if directory.is_dir():
@@ -226,7 +282,7 @@ async def missing(directory: Path = DOCS_DIR) -> dict[str, int]:
             text = path.read_text(encoding="utf-8", errors="replace")
             if len(text.strip()) >= MIN_DOCUMENT_CHARS:
                 documents += 1
-    return {"skills": int(skills or 0), "documents": documents}
+    return {"skills": int(skills or 0), "documents": documents, "chunks": int(chunks or 0)}
 
 
 async def keep_catching_up(
@@ -255,11 +311,15 @@ async def keep_catching_up(
             left = {"unknown": 1}
         if not any(left.values()):
             _status.clear()
-            _status["missing"] = {"skills": 0, "documents": 0}
+            _status["missing"] = {"skills": 0, "documents": 0, "chunks": 0}
             return
-        next_try = datetime.now(timezone.utc) + timedelta(seconds=retry_seconds)
+        # Waiting on db/015 is waiting on a person, who may apply it any
+        # minute; one cheap schema query a minute notices. Waiting on credits
+        # or an outage keeps the long interval.
+        wait = BLOCKED_RETRY_SECONDS if embeddings.blocked() else retry_seconds
+        next_try = datetime.now(timezone.utc) + timedelta(seconds=wait)
         _status.update(missing=left, next_try=next_try.isoformat(timespec="seconds"))
         logger.info(
             "Corpus catch-up: still missing %s; trying again at %s", left, _status["next_try"]
         )
-        await sleep(retry_seconds)
+        await sleep(wait)

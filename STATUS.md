@@ -155,25 +155,55 @@ twice is harmless. There is no cost to doing this in the safe order.
       animation runs at all -- the mic's listening rings and breathing ring
       included. Nothing needed changing.
 
-### Embeddings — credits being added
+### Embeddings — on the server, no credits needed
 
-- [ ] **The Hugging Face Inference API is out of credits** (402 Payment
-      Required since at least 2026-11-04 15:39 UTC). Decided 2026-11-04: the
-      owner adds HF credits. Until then a skill is accepted only when said by
-      name or alias -- one described in other words is shortlisted by its
-      words for the model or the person to confirm (2026-11-05) -- the
-      assistant searches documents by keyword only, and the 27 new skills
-      (24 + 3 from `db/011`) and 24 new official documents cannot be embedded.
-      Engine Diagnostics' embedding was also cleared by `db/011`, because its
-      aliases changed.
-      After adding credits nothing else is needed: since 2026-11-09 the
-      catch-up retries every half hour while anything is missing, and
-      `/health` shows the backlog under `catch_up`. `/health` shows
-      `"embeddings": {"status": "payment_required"}`. Options: buy HF
-      pre-paid credits or PRO; or move to a provider that serves the same
-      `multilingual-e5-base` model, so stored vectors stay valid. A different
-      model means re-embedding the taxonomy and re-ingesting every document.
-      The startup catch-up finishes the embedding on its own once it answers.
+- [~] **The Hugging Face Inference API is out of credits** (402 Payment
+      Required since 2026-11-04). Replaced 2026-11-10, decided with the
+      owner: the API runs `multilingual-e5-small` itself -- int8 ONNX on the
+      onnxruntime Piper already brings, tokenised by sentencepiece, no key,
+      nothing to run out of. Done; needs `db/015_small_embeddings.sql`
+      applied in production, after which the API refills every vector itself.
+      * **Memory.** Measured ~205 MB once loaded (model 123 MB of files).
+        Production used 186 MB of 512 before. e5-base would have added ~390
+        MB and did not fit. Hugging Face's `tokenizers` package took 282 MB
+        on its own for this 250,000-word vocabulary; sentencepiece takes ~55
+        MB and gives the same ids (4,677 of 4,682 project texts identical
+        once whitespace is collapsed; the other five were box-drawing art and
+        one tie in how a long run of repeated characters splits).
+      * **One text per pass.** The int8 model scales its activations per call,
+        so a text batched with others came out up to 0.0075 cosine away from
+        the same text alone; alone it is identical every time, and faster
+        (108 ms against 427 ms per passage here: batches pad to their longest).
+      * **Vectors are 384 numbers, not 768**, and mean nothing next to the old
+        ones. `db/015` resizes both columns and clears them; the three vector
+        functions no longer fix a size. Tested on Postgres 16 + pgvector:
+        types, index, grants kept, searches work, a 768 vector is refused,
+        re-running is harmless.
+      * **Either order is safe.** Until 015 is applied the API sees 768
+        columns, blocks all embedding (`embeddings.block`) rather than fail,
+        lists embeddings and the database as degraded, and `/health` names
+        015. It checks once a minute; once the columns fit, the catch-up
+        embeds the 71 skills, the 24 documents not yet in, and every passage
+        of every source not rejected (1,033 today), sixteen at a time with a
+        pause between. About 15-30 minutes on the free container (118 passages
+        in 13 s here; Render gives 0.15 of a CPU). Meanwhile skills are
+        recognised by name and alias and documents searched by keyword.
+        Tested end to end against a local Postgres with the real model.
+      * **The four thresholds that describe the model were re-measured**
+        (`app/scripts/measure_embeddings.py`, e5-base and e5-small over the
+        same data): skill floor 0.92 → **0.935** (top of Carpentry's noise
+        band, Embroidery at 0.9335); accept outright 0.82 → **0.84** (28 of 50
+        trades accepted, 27 rightly; e5-base: 28, 26); offer as a choice 0.60
+        unchanged (filters nothing under either model); usable passage 0.74 →
+        **0.77** (same margin below the weakest answerable question). The
+        known cost: Two-Wheeler to Four-Wheeler Repair is 0.931 under e5-small,
+        inside the noise band, and no longer earns partial credit
+        (`tests/test_matching_relevance.py` holds that, so it is not
+        forgotten). Top-1 accuracy over the 50 trades: 42 against e5-base's 41.
+      * **Build.** `fetch_voices` (the build command) ends by fetching the two
+        files, each pinned to a commit and a SHA-256; a mismatch fails the
+        build and the running version stays live.
+      * `tests/test_small_embeddings.py`. `HF_TOKEN` is no longer needed.
 
 ### Safety
 

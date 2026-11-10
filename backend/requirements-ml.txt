@@ -7,7 +7,8 @@
 #
 # Model downloads on first use, cached under ~/.cache:
 #   faster-whisper medium (int8)   ~800MB   speech to text
-#   multilingual-e5-base            ~1.1GB  taxonomy embeddings
+#   multilingual-e5-small           ~470MB  taxonomy embeddings (the deploy
+#                                           runs it as int8 ONNX instead)
 # Piper voices are fetched by scripts/fetch_voices.py into models/piper (~190MB).
 
 -r requirements.txt

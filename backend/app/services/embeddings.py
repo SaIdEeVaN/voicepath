@@ -1,12 +1,23 @@
 """Multilingual embeddings for skill normalization (PRD section 4.3).
 
-Two providers:
+Providers:
+
+``onnx`` (the default since 2026-11-10)
+    ``multilingual-e5-small`` running inside the API: an int8 ONNX export
+    read by onnxruntime, tokenised by sentencepiece. No key and nothing to run
+    out of. Hugging Face's own ``tokenizers`` package would have been the
+    obvious tokenizer, but loading this model's 250,000-word vocabulary
+    through it took 282 MB on its own -- more than the model. sentencepiece
+    reads the same vocabulary in about 55 MB and yields the same ids
+    (checked on 4,682 texts from this project; see ``_token_ids``).
 
 ``local``
-    ``sentence-transformers`` running ``EMBEDDING_MODEL`` (default
-    ``intfloat/multilingual-e5-base``). This is the real one. The model is
-    loaded lazily on first use -- importing this module must stay cheap,
-    because the FastAPI app imports it at startup.
+    ``sentence-transformers`` running ``EMBEDDING_MODEL``. For development;
+    torch does not fit the deployed container.
+
+``hf_api``
+    The Hugging Face Inference API. What production used until 2026-11-04,
+    when the account's credits ran out and every call came back 402.
 
 ``offline``
     A deterministic character-n-gram hashing embedding. It has no semantic
@@ -14,11 +25,13 @@ Two providers:
     "பைக் ரிப்பேர்" against the Tamil alias, because those strings are in the
     taxonomy's alias list, but it will not connect "I fix two-wheelers" to
     "Two-Wheeler Repair" the way a real model does. It exists so the pipeline
-    runs and is testable without a 1GB model download, and every response it
+    runs and is testable without a model download, and every response it
     influences is labelled ``provider: "offline"``.
 
-Both produce L2-normalized vectors of ``EMBEDDING_DIMENSION`` floats, so a dot
-product is a cosine similarity and the pgvector column dimension holds either way.
+All produce L2-normalized vectors of ``EMBEDDING_DIMENSION`` floats, so a dot
+product is a cosine similarity. The pgvector columns must have that many
+dimensions; ``db.check_schema`` compares, and ``block`` stops every embedding
+while they differ (see *Vectors the database cannot hold*).
 """
 
 from __future__ import annotations
@@ -30,6 +43,7 @@ import re
 import threading
 import time
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any, Sequence
 
 from app.config import get_settings
@@ -85,6 +99,107 @@ def _load_local_model() -> Any:
                 "taxonomy."
             )
         return _model
+
+
+# ---------------------------------------------------------------------------
+# On-server provider: multilingual-e5-small as int8 ONNX (2026-11-10)
+# ---------------------------------------------------------------------------
+
+ONNX_FILE = "model_quantized.onnx"
+SENTENCEPIECE_FILE = "sentencepiece.bpe.model"
+
+# XLM-RoBERTa's special ids. sentencepiece numbers its pieces from <unk>=0,
+# <s>=1, </s>=2; the model was trained with fairseq's numbering, which puts
+# <s>=0, <pad>=1, </s>=2, <unk>=3 first and shifts every other piece up by
+# one. transformers' XLMRobertaTokenizer does exactly this mapping.
+_BOS, _EOS, _UNK = 0, 2, 3
+MAX_TOKENS = 512
+
+# One text per forward pass, never a batch. The int8 model quantizes its
+# activations with one scale per call, computed over everything in it, so a
+# text batched with others came out up to 0.0075 cosine away from the same
+# text alone (measured 2026-11-10) -- a skill's similarity would have depended
+# on what else the person said. Alone, a text always gets the same vector. It
+# is also faster here: a batch pads every text to its longest (108 ms per
+# passage alone against 427 ms in batches of eight), and it keeps memory flat.
+
+_onnx: tuple[Any, Any, frozenset[str]] | None = None
+
+
+def _load_onnx() -> tuple[Any, Any, frozenset[str]]:
+    global _onnx
+    if _onnx is not None:
+        return _onnx
+    with _model_lock:
+        if _onnx is not None:
+            return _onnx
+        import onnxruntime
+        import sentencepiece
+
+        settings = get_settings()
+        folder = Path(settings.embedding_model_dir)
+        options = onnxruntime.SessionOptions()
+        # One thread: the container has a fraction of one CPU, and more
+        # threads only contend for it with the requests being served.
+        options.intra_op_num_threads = 1
+        options.inter_op_num_threads = 1
+        # The arena keeps the largest batch's buffers forever; without it the
+        # memory goes back after each call.
+        options.enable_cpu_mem_arena = False
+        logger.info("Loading embedding model from %s", folder)
+        session = onnxruntime.InferenceSession(
+            str(folder / ONNX_FILE), options, providers=["CPUExecutionProvider"]
+        )
+        pieces = sentencepiece.SentencePieceProcessor(
+            model_file=str(folder / SENTENCEPIECE_FILE)
+        )
+        names = frozenset(i.name for i in session.get_inputs())
+        loaded = (session, pieces, names)
+        dim = len(_run_onnx(loaded, ["passage: x"])[0])
+        if dim != settings.embedding_dimension:
+            raise RuntimeError(
+                f"{folder / ONNX_FILE} produces {dim}-dim vectors but "
+                f"EMBEDDING_DIMENSION is {settings.embedding_dimension}. The "
+                "pgvector columns must match -- see db/015."
+            )
+        _onnx = loaded
+        return _onnx
+
+
+def _token_ids(pieces: Any, text: str) -> list[int]:
+    """XLM-RoBERTa ids for ``text``, as transformers would make them.
+
+    Whitespace is collapsed first. Hugging Face's tokenizer turns a trailing
+    space or newline into a token of its own and sentencepiece drops it; with
+    whitespace collapsed the two agreed on 4,677 of 4,682 texts from this
+    project's taxonomy, catalogue, documents and questions -- the five others
+    were box-drawing art and one tie in how a long run of repeated characters
+    is split.
+    """
+    ids = [piece + 1 if piece else _UNK for piece in pieces.encode(" ".join(text.split()))]
+    return [_BOS, *ids[: MAX_TOKENS - 2], _EOS]
+
+
+def _run_onnx(loaded: tuple[Any, Any, frozenset[str]], prepared: list[str]) -> list[list[float]]:
+    """Mean-pooled, L2-normalized vectors -- what sentence-transformers does for e5."""
+    import numpy as np
+
+    session, pieces, names = loaded
+    out: list[list[float]] = []
+    for text in prepared:
+        ids = np.array([_token_ids(pieces, text)], dtype=np.int64)
+        feed = {"input_ids": ids, "attention_mask": np.ones_like(ids)}
+        if "token_type_ids" in names:
+            feed["token_type_ids"] = np.zeros_like(ids)
+        hidden = session.run(None, feed)[0][0]
+        pooled = hidden.mean(axis=0)
+        norm = float(np.linalg.norm(pooled))
+        out.append([float(x) / norm for x in pooled] if norm else [0.0] * len(pooled))
+    return out
+
+
+def _embed_onnx(prepared: list[str]) -> list[list[float]]:
+    return _run_onnx(_load_onnx(), prepared)
 
 
 # ---------------------------------------------------------------------------
@@ -187,8 +302,44 @@ def recent_failure() -> dict[str, str] | None:
     return {"reason": reason, "since": _iso(since), "until": _iso(until)}
 
 
+# ---------------------------------------------------------------------------
+# Vectors the database cannot hold
+# ---------------------------------------------------------------------------
+#
+# Switching from e5-base to e5-small changed every vector from 768 numbers to
+# 384. Postgres refuses to compare or store vectors of different sizes, so
+# code that ran before db/015 widened -- narrowed -- the columns would fail
+# every search and every write with a database error. db.check_schema compares
+# the columns with EMBEDDING_DIMENSION and blocks embedding until they agree;
+# the callers' existing fallbacks (names and aliases, keyword search) carry the
+# service meanwhile, /health names the migration, and the block lifts by
+# itself at the next check after the migration is applied.
+
+_blocked: str | None = None
+
+
+def block(reason: str) -> None:
+    global _blocked
+    if _blocked != reason:
+        logger.error("Embeddings blocked: %s", reason)
+    _blocked = reason
+
+
+def unblock() -> None:
+    global _blocked
+    if _blocked is not None:
+        logger.info("Embeddings unblocked: the database's vectors fit again")
+    _blocked = None
+
+
+def blocked() -> str | None:
+    return _blocked
+
+
 def status() -> dict[str, str]:
     """What /health reports about embeddings: configured, and answering?"""
+    if _blocked is not None:
+        return {"status": "dimension_mismatch", "detail": _blocked}
     if get_settings().embedding_provider == "offline":
         return {"status": "offline"}
     failure = recent_failure()
@@ -307,6 +458,10 @@ def _embed(texts: list[str], *, is_query: bool) -> list[list[float]]:
     settings = get_settings()
     if not texts:
         return []
+    if _blocked is not None:
+        # Callers already fall back on this: normalization to names and
+        # aliases, retrieval to keyword search, the catch-up to waiting.
+        raise EmbeddingUnavailable(_blocked)
 
     if settings.embedding_provider == "offline":
         return [_hash_embed(t, settings.embedding_dimension) for t in texts]
@@ -316,6 +471,8 @@ def _embed(texts: list[str], *, is_query: bool) -> list[list[float]]:
         prefix = _E5_QUERY_PREFIX if is_query else _E5_PASSAGE_PREFIX
         prepared = [prefix + t for t in texts]
 
+    if settings.embedding_provider == "onnx":
+        return _embed_onnx(prepared)
     if settings.embedding_provider == "hf_api":
         return _embed_hf_api(prepared)
 

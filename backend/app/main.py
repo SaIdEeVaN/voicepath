@@ -184,6 +184,9 @@ def _degraded(settings) -> list[str]:
         degraded.append("llm")
     if embeddings.recent_failure() is not None and "embeddings" not in degraded:
         degraded.append("embeddings")
+    # Stopped on purpose: the database's vectors are another model's size.
+    if embeddings.blocked() is not None and "embeddings" not in degraded:
+        degraded.append("embeddings")
     return degraded
 
 

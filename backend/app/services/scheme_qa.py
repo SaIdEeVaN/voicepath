@@ -32,7 +32,15 @@ logger = logging.getLogger(__name__)
 # narrow high band, so a genuinely unrelated passage still scores around 0.7 --
 # which is exactly the case where a model, handed it anyway, will write a
 # confident answer from a paragraph that does not support it.
-MIN_USABLE_SIMILARITY = 0.74
+#
+# Model-specific. Re-measured 2026-11-10 for e5-small
+# (app/scripts/measure_embeddings.py, 21 questions the documents answer and 8
+# they do not): the weakest answerable question scores 0.837, so 0.77 keeps
+# the margin e5-base had at 0.74 below its weakest (0.816), and sharing out
+# the same proportion of questions gives 0.767. Off-topic questions reach
+# 0.82 ("recipe for sambar") under either model; the passage filter is one
+# guard of several, not the one that stops those.
+MIN_USABLE_SIMILARITY = 0.77
 
 # Enough passages to cover a question asked across two sections, few enough that
 # the relevant one is not buried among near-misses.

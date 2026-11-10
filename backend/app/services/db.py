@@ -21,6 +21,7 @@ from typing import Any, AsyncIterator, Sequence
 import asyncpg
 
 from app.config import get_settings
+from app.services import embeddings
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +83,17 @@ REQUIRED_SCHEMA: tuple[tuple[str, str | None, str], ...] = (
     ("schemes", "kind", "014_scheme_kinds.sql"),
     ("schemes", "details", "014_scheme_kinds.sql"),
 )
+# The pgvector columns, which must hold as many numbers as the embedder makes.
+# Not a missing column but a wrong-sized one: e5-base made 768, e5-small 384
+# (2026-11-10). Postgres refuses to store or compare vectors of another size,
+# so while they differ, embeddings.block stops all embedding -- the callers
+# fall back to names, aliases and keyword search -- and the gap names db/015.
+VECTOR_COLUMNS: tuple[tuple[str, str], ...] = (
+    ("skill_taxonomy", "embedding"),
+    ("document_chunks", "embedding"),
+)
+VECTOR_MIGRATION = "015_small_embeddings.sql"
+
 # How long a schema check is trusted. /health is called often (the site asks
 # every minute while open); the schema changes only when someone migrates.
 SCHEMA_CHECK_SECONDS = 300.0
@@ -98,9 +110,15 @@ async def check_schema(*, force: bool = False) -> list[str]:
     now = asyncio.get_running_loop().time()
     if not force and _schema_checked_at and now - _schema_checked_at < SCHEMA_CHECK_SECONDS:
         return list(_schema_gaps)
+    # pg_attribute rather than information_schema: it also gives a vector
+    # column's size, which information_schema does not.
     rows = await fetch(
-        "select table_name, column_name from information_schema.columns "
-        "where table_schema = 'public'"
+        "select c.relname as table_name, a.attname as column_name, "
+        "format_type(a.atttypid, a.atttypmod) as type "
+        "from pg_attribute a join pg_class c on c.oid = a.attrelid "
+        "join pg_namespace n on n.oid = c.relnamespace "
+        "where n.nspname = 'public' and c.relkind in ('r', 'p') "
+        "and a.attnum > 0 and not a.attisdropped"
     )
     present = {(r["table_name"], r["column_name"]) for r in rows}
     tables = {table for table, _ in present}
@@ -110,11 +128,29 @@ async def check_schema(*, force: bool = False) -> list[str]:
         if not found:
             name = table if column is None else f"{table}.{column}"
             gaps.append(f"{name} (apply db/{migration})")
+    gaps += _vector_gaps(rows)
     if gaps and gaps != _schema_gaps:
         logger.error("The database is missing what the code needs: %s", "; ".join(gaps))
     _schema_gaps = gaps
     _schema_checked_at = now
     return list(gaps)
+
+
+def _vector_gaps(rows: Sequence[Any]) -> list[str]:
+    """Vector columns whose size is not the embedder's; blocks embedding if any."""
+    want = f"vector({get_settings().embedding_dimension})"
+    types = {(r["table_name"], r["column_name"]): r.get("type") for r in rows}
+    gaps = [
+        f"{table}.{column} holds {types[(table, column)]}, the embedder makes "
+        f"{want} (apply db/{VECTOR_MIGRATION})"
+        for table, column in VECTOR_COLUMNS
+        if types.get((table, column)) not in (None, want)
+    ]
+    if gaps:
+        embeddings.block("; ".join(gaps))
+    else:
+        embeddings.unblock()
+    return gaps
 
 
 def schema_gaps() -> list[str]:

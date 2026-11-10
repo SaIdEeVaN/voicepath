@@ -59,10 +59,12 @@ def _clean_state():
     ratelimit.reset()
     llm.reset_status()
     embeddings.reset_status()
+    embeddings.unblock()
     yield
     repository.reset_memory()
     llm.reset_status()
     embeddings.reset_status()
+    embeddings.unblock()
 
 
 @pytest.fixture(scope="session", autouse=True)

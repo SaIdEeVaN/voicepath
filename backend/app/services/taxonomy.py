@@ -62,7 +62,26 @@ async def _memory_taxonomy() -> list[TaxonomySkill]:
         logger.info("Embedding %d taxonomy entries in memory", len(TAXONOMY))
         texts = [embedding_text(e) for e in TAXONOMY]
         # Blocking model work; keep the event loop free.
-        vectors = await asyncio.to_thread(embeddings.embed_documents, texts)
+        try:
+            vectors: list[list[float] | None] = list(
+                await asyncio.to_thread(embeddings.embed_documents, texts)
+            )
+        except embeddings.EmbeddingUnavailable as exc:
+            # Names and aliases need no vector, so the skill list still
+            # answers; it is not cached, and the next request tries again.
+            logger.warning("Taxonomy not embedded (%s); names and aliases only", exc)
+            return [
+                TaxonomySkill(
+                    id=index + 1,
+                    code=entry["code"],
+                    name=entry["name"],
+                    category=entry["category"],
+                    hint=entry["hint"],
+                    embedding=None,
+                    display_names=display_names_for(entry["code"], entry["name"]),
+                )
+                for index, entry in enumerate(TAXONOMY)
+            ]
         _memory_cache = [
             TaxonomySkill(
                 id=index + 1,

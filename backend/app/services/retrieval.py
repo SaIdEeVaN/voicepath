@@ -253,6 +253,16 @@ def _split_long(block: str) -> list[str]:
     return [piece for piece in out if piece.strip()]
 
 
+def passage_text(title: str | None, heading: str | None, content: str) -> str:
+    """What is embedded for a passage: its document's title, heading and text.
+
+    Shared with corpus_sync.embed_missing_chunks, which re-embeds stored
+    passages after a model change; a vector made from different text would
+    not be comparable with the rest.
+    """
+    return " | ".join(part for part in (title, heading, content) if part)
+
+
 async def ingest(
     *,
     title: str,
@@ -286,10 +296,7 @@ async def ingest(
     # than in every paragraph. Embedded bare it is unreachable by its own name.
     vectors = await asyncio.to_thread(
         embeddings.embed_documents,
-        [
-            " | ".join(part for part in (title, chunk.heading, chunk.content) if part)
-            for chunk in chunks
-        ],
+        [passage_text(title, chunk.heading, chunk.content) for chunk in chunks],
     )
 
     settings = get_settings()
